@@ -1,0 +1,1664 @@
+# EASY — direct concept questions (curated from v1 + current-era additions). One correct answer.
+level: easy
+questions:
+- id: e-001
+  category: AWS
+  type: mcq
+  question: Which AWS service allows you to run code without provisioning servers?
+  options:
+  - AWS Lambda
+  - EC2
+  - Elastic Beanstalk
+  - Lightsail
+  answer: 0
+  explanation: Lambda runs your code on demand and bills per request and duration — no servers to patch or scale.
+- id: e-002
+  category: Docker
+  type: mcq
+  question: Which Docker command builds an image from a Dockerfile?
+  options:
+  - docker run
+  - docker build
+  - docker pull
+  - docker exec
+  answer: 1
+  explanation: '`docker build -t name:tag .` reads the Dockerfile in the build context and produces an image (BuildKit is the default builder today).'
+- id: e-003
+  category: Kubernetes
+  type: mcq
+  question: Which Kubernetes object manages stateless application replicas?
+  options:
+  - StatefulSet
+  - DaemonSet
+  - Deployment
+  - Job
+  answer: 2
+  explanation: Deployments manage ReplicaSets for stateless apps and give you rolling updates and `kubectl rollout undo`.
+- id: e-004
+  category: Linux
+  type: mcq
+  question: Which command shows used/free space per mounted filesystem in human-readable units?
+  options:
+  - du -sh
+  - mount
+  - lsblk
+  - df -h
+  answer: 3
+  explanation: '`df -h` reports per-filesystem usage. `du -sh` measures a directory''s size, which is a different question.'
+- id: e-005
+  category: CI/CD
+  type: mcq
+  question: What is the main goal of Continuous Integration?
+  options:
+  - Deploy code to production
+  - Merge code frequently
+  - Provision infrastructure
+  - Monitor applications
+  answer: 1
+  explanation: CI means merging small changes to the main branch often, with an automated build and tests on every merge.
+- id: e-006
+  category: AWS
+  type: mcq
+  question: Which AWS service provides managed Kubernetes?
+  options:
+  - ECS
+  - EKS
+  - Fargate
+  - EC2
+  answer: 1
+  explanation: Amazon EKS is managed Kubernetes. ECS is AWS's own orchestrator, and Fargate is a serverless compute engine used by both.
+- id: e-007
+  category: Docker
+  type: mcq
+  question: What is the purpose of a Docker volume?
+  options:
+  - Improve container startup time
+  - Persist container data
+  - Increase image size
+  - Expose container ports
+  answer: 1
+  explanation: Volumes keep data outside the container's writable layer, so it survives when the container is removed or recreated.
+- id: e-008
+  category: Kubernetes
+  type: mcq
+  question: Which component stores Kubernetes cluster state?
+  options:
+  - kubelet
+  - kube-proxy
+  - etcd
+  - controller-manager
+  answer: 2
+  explanation: etcd is the consistent key-value store holding all cluster state. Back it up, or rely on the managed control plane to do it.
+- id: e-009
+  category: Linux
+  type: mcq
+  question: Which file stores user account information?
+  options:
+  - /etc/group
+  - /etc/shadow
+  - /etc/passwd
+  - /etc/profile
+  answer: 2
+  explanation: '`/etc/passwd` lists accounts (user, UID, GID, home, shell). Password hashes live in `/etc/shadow`.'
+- id: e-010
+  category: Terraform
+  type: mcq
+  question: What does `terraform plan` do?
+  options:
+  - Applies infrastructure changes
+  - Initializes providers
+  - Shows execution plan
+  - Destroys resources
+  answer: 2
+  explanation: '`terraform plan` compares config, state and real infrastructure and shows what would change. Save it with `-out` and apply exactly that plan.'
+- id: e-011
+  category: AWS
+  type: mcq
+  question: Which AWS service stores application logs in log groups and log streams?
+  options:
+  - CloudTrail
+  - CloudWatch Logs
+  - X-Ray
+  - AWS Config
+  answer: 1
+  explanation: CloudWatch Logs stores logs. CloudTrail records API calls, X-Ray does tracing and AWS Config tracks resource configuration.
+- id: e-012
+  category: Docker
+  type: mcq
+  question: Which Dockerfile instruction specifies the base image?
+  options:
+  - RUN
+  - FROM
+  - CMD
+  - ENTRYPOINT
+  answer: 1
+  explanation: '`FROM` sets the base image and starts a build stage. Multi-stage builds use several FROM lines.'
+- id: e-013
+  category: Kubernetes
+  type: mcq
+  question: Which object exposes services externally via HTTP?
+  options:
+  - Service
+  - Ingress
+  - Pod
+  - ConfigMap
+  answer: 1
+  explanation: Ingress routes HTTP(S) by host and path to Services. The newer Gateway API (HTTPRoute) is its role-oriented successor.
+- id: e-014
+  category: Linux
+  type: mcq
+  question: Which command changes file ownership?
+  options:
+  - chmod
+  - usermod
+  - chown
+  - passwd
+  answer: 2
+  explanation: '`chown user:group file` changes ownership. `chmod` changes permission bits.'
+- id: e-015
+  category: CI/CD
+  type: mcq
+  question: Which of these is a CI/CD pipeline tool?
+  options:
+  - Terraform
+  - Ansible
+  - GitHub Actions
+  - Prometheus
+  answer: 2
+  explanation: GitHub Actions runs CI/CD workflows. Terraform and Ansible handle provisioning and configuration, and Prometheus handles monitoring.
+- id: e-016
+  category: AWS
+  type: mcq
+  question: Which AWS service protects against DDoS attacks?
+  options:
+  - WAF
+  - Shield
+  - GuardDuty
+  - Inspector
+  answer: 1
+  explanation: AWS Shield (Standard is free; Advanced is paid) protects against DDoS. WAF filters layer-7 requests.
+- id: e-017
+  category: Networking
+  type: mcq
+  question: Which protocol secures HTTP traffic?
+  options:
+  - FTP
+  - SMTP
+  - TLS
+  - SNMP
+  answer: 2
+  explanation: TLS encrypts HTTP and turns it into HTTPS. SSL is its deprecated predecessor.
+- id: e-018
+  category: Security
+  type: mcq
+  question: What principle grants only required permissions?
+  options:
+  - Zero Trust
+  - Least privilege
+  - Defense in depth
+  - RBAC
+  answer: 1
+  explanation: Least privilege means granting only the permissions a task needs, for only as long as it needs them.
+- id: e-019
+  category: Observability
+  type: mcq
+  question: Which tool is commonly used with Prometheus for visualization?
+  options:
+  - Kibana
+  - Grafana
+  - Datadog
+  - Nagios
+  answer: 1
+  explanation: Grafana visualises Prometheus (and Loki, Tempo, etc.) data in dashboards.
+- id: e-020
+  category: Git
+  type: mcq
+  question: Which command creates a new Git branch?
+  options:
+  - git pull
+  - git branch
+  - git merge
+  - git rebase
+  answer: 1
+  explanation: '`git branch name` creates a branch. `git switch -c name` creates it and switches to it in one step.'
+- id: e-021
+  category: AWS
+  type: mcq
+  question: Which AWS service provides object storage?
+  options:
+  - EBS
+  - S3
+  - EFS
+  - FSx
+  answer: 1
+  explanation: S3 is object storage. EBS is block storage for one instance, and EFS is a shared NFS file system.
+- id: e-022
+  category: Docker
+  type: mcq
+  question: Which Docker command lists running containers?
+  options:
+  - docker ps
+  - docker images
+  - docker run
+  - docker inspect
+  answer: 0
+  explanation: '`docker ps` lists running containers. Add `-a` to include stopped ones.'
+- id: e-023
+  category: Kubernetes
+  type: mcq
+  question: Which Kubernetes object runs a Pod on every node?
+  options:
+  - Deployment
+  - StatefulSet
+  - DaemonSet
+  - ReplicaSet
+  answer: 2
+  explanation: A DaemonSet runs one Pod per (matching) node, e.g. log shippers, CNI agents and node exporters.
+- id: e-024
+  category: Linux
+  type: mcq
+  question: Which command shows running processes?
+  options:
+  - ps
+  - df
+  - uptime
+  - free
+  answer: 0
+  explanation: '`ps aux` / `ps -ef` take a snapshot of processes. `top`/`htop` give a live view.'
+- id: e-025
+  category: CI/CD
+  type: mcq
+  question: Which stage typically runs unit tests?
+  options:
+  - Build
+  - Test
+  - Deploy
+  - Release
+  answer: 1
+  explanation: Unit tests run in the test stage, early and fast, so failures surface before anything is deployed.
+- id: e-026
+  category: Terraform
+  type: mcq
+  question: Which file stores Terraform state by default?
+  options:
+  - terraform.tfvars
+  - backend.tf
+  - terraform.state
+  - terraform.tfstate
+  answer: 3
+  explanation: By default state lives in a local `terraform.tfstate`. In teams, use a remote backend with locking.
+- id: e-027
+  category: AWS
+  type: mcq
+  question: Which AWS service stores secrets with built-in automatic rotation (e.g. RDS credentials)?
+  options:
+  - SSM Parameter Store
+  - Secrets Manager
+  - KMS
+  - IAM
+  answer: 1
+  explanation: Secrets Manager has native rotation using Lambda rotators. Parameter Store SecureString is cheaper but has no built-in rotation.
+- id: e-028
+  category: Docker
+  type: mcq
+  question: Which network driver allows containers to communicate on the same host?
+  options:
+  - overlay
+  - bridge
+  - macvlan
+  - none
+  answer: 1
+  explanation: The default `bridge` network connects containers on one host. `overlay` spans hosts in Swarm.
+- id: e-029
+  category: Kubernetes
+  type: mcq
+  question: Which kubectl command shows Pod logs?
+  options:
+  - kubectl get logs
+  - kubectl describe pod
+  - kubectl logs
+  - kubectl exec
+  answer: 2
+  explanation: '`kubectl logs pod [-c container]`. Add `-p/--previous` to see the logs of a crashed container instance.'
+- id: e-030
+  category: Linux
+  type: mcq
+  question: Which command displays memory usage?
+  options:
+  - top
+  - df
+  - free
+  - lsblk
+  answer: 2
+  explanation: '`free -h` shows RAM and swap. Read the `available` column, not `free`.'
+- id: e-031
+  category: AWS
+  type: mcq
+  question: Which AWS service enables infrastructure as code?
+  options:
+  - CloudFormation
+  - CodeDeploy
+  - Elastic Beanstalk
+  - OpsWorks
+  answer: 0
+  explanation: CloudFormation is AWS-native IaC. CDK synthesises to CloudFormation too.
+- id: e-032
+  category: Git
+  type: mcq
+  question: Which command stages files for commit?
+  options:
+  - git add
+  - git commit
+  - git push
+  - git merge
+  answer: 0
+  explanation: '`git add` stages changes into the index for the next commit.'
+- id: e-033
+  category: Security
+  type: mcq
+  question: Which AWS service detects malicious activity?
+  options:
+  - Inspector
+  - GuardDuty
+  - Shield
+  - WAF
+  answer: 1
+  explanation: GuardDuty analyses CloudTrail, VPC Flow Logs, DNS logs and EKS audit logs for threats.
+- id: e-034
+  category: Observability
+  type: mcq
+  question: Which Prometheus component triggers alerts?
+  options:
+  - Exporter
+  - Alertmanager
+  - Grafana
+  - Node exporter
+  answer: 1
+  explanation: Prometheus evaluates alert rules, and Alertmanager deduplicates, groups, silences and routes the alerts.
+- id: e-035
+  category: Networking
+  type: mcq
+  question: Which subnet mask corresponds to a /24 CIDR prefix?
+  options:
+  - 255.255.255.0
+  - 255.255.0.0
+  - 255.0.0.0
+  - 255.255.255.255
+  answer: 0
+  explanation: /24 means 24 network bits, i.e. mask 255.255.255.0 with 256 addresses (AWS reserves 5 per subnet).
+- id: e-036
+  category: Docker
+  type: mcq
+  question: Which instruction defines default container command?
+  options:
+  - CMD
+  - RUN
+  - FROM
+  - ENV
+  answer: 0
+  explanation: '`CMD` gives the default command or arguments. `ENTRYPOINT` sets the executable, and CMD supplies its default args.'
+- id: e-037
+  category: Kubernetes
+  type: mcq
+  question: Which object stores non-sensitive configuration?
+  options:
+  - Secret
+  - ConfigMap
+  - Volume
+  - Namespace
+  answer: 1
+  explanation: ConfigMaps hold non-secret config. Secrets are only base64-encoded by default, so enable encryption at rest.
+- id: e-038
+  category: Linux
+  type: mcq
+  question: Which command changes file permissions?
+  options:
+  - chown
+  - chmod
+  - usermod
+  - passwd
+  answer: 1
+  explanation: '`chmod 640 file` / `chmod u+x` change permission bits.'
+- id: e-039
+  category: CI/CD
+  type: mcq
+  question: Which CI/CD principle reduces integration issues?
+  options:
+  - Long-lived branches
+  - Frequent commits
+  - Manual testing
+  - Delayed merges
+  answer: 1
+  explanation: Small, frequent commits to trunk keep merges small and conflicts rare.
+- id: e-040
+  category: Terraform
+  type: mcq
+  question: Which command initializes a Terraform project?
+  options:
+  - terraform plan
+  - terraform apply
+  - terraform init
+  - terraform validate
+  answer: 2
+  explanation: '`terraform init` downloads providers and modules and configures the backend.'
+- id: e-041
+  category: AWS
+  type: mcq
+  question: Which AWS service provides managed relational databases?
+  options:
+  - DynamoDB
+  - RDS
+  - Aurora Serverless
+  - S3
+  answer: 1
+  explanation: RDS runs managed relational engines (PostgreSQL, MySQL, etc.). DynamoDB is NoSQL.
+- id: e-042
+  category: Docker
+  type: mcq
+  question: Which command removes stopped containers, unused networks, dangling images and build cache in one go?
+  options:
+  - docker rm -a
+  - docker system prune
+  - docker clean
+  - docker delete --all
+  answer: 1
+  explanation: '`docker system prune` cleans unused objects. Add `-a` to also remove unused (not just dangling) images, and `--volumes` for volumes.'
+- id: e-043
+  category: Kubernetes
+  type: mcq
+  question: Which component runs on every Kubernetes node?
+  options:
+  - kube-apiserver
+  - etcd
+  - kubelet
+  - controller-manager
+  answer: 2
+  explanation: The kubelet runs on every node and makes the containers match the PodSpecs it receives.
+- id: e-044
+  category: Linux
+  type: mcq
+  question: Which modern Linux command lists listening TCP/UDP sockets with their processes (the netstat replacement)?
+  options:
+  - ifconfig
+  - ss -tulpn
+  - ip route
+  - who
+  answer: 1
+  explanation: '`ss -tulpn` is from iproute2 and is the modern replacement for `netstat` (net-tools is deprecated on most distros).'
+- id: e-045
+  category: Git
+  type: mcq
+  question: Which command downloads changes without merging?
+  options:
+  - git fetch
+  - git pull
+  - git clone
+  - git push
+  answer: 0
+  explanation: '`git fetch` updates remote-tracking branches without touching your working branch. `pull` = fetch + merge/rebase.'
+- id: e-046
+  category: Observability
+  type: mcq
+  question: Which metric type only increases?
+  options:
+  - Gauge
+  - Histogram
+  - Counter
+  - Summary
+  answer: 2
+  explanation: Counters only go up, or reset on restart. Query them with `rate()` / `increase()`.
+- id: e-047
+  category: Networking
+  type: mcq
+  question: Which port is used by HTTPS?
+  options:
+  - '21'
+  - '22'
+  - '80'
+  - '443'
+  answer: 3
+  explanation: HTTPS uses TCP 443. HTTP/3 runs over QUIC on UDP 443.
+- id: e-048
+  category: AWS
+  type: mcq
+  question: Which AWS construct is a stateful firewall attached to ENIs/instances?
+  options:
+  - Security Group
+  - Network ACL
+  - Route Table
+  - Internet Gateway
+  answer: 0
+  explanation: Security Groups are stateful and attach to ENIs. NACLs are stateless and apply at the subnet level.
+- id: e-049
+  category: AWS
+  type: mcq
+  question: Which AWS service provides a managed NoSQL key-value database?
+  options:
+  - RDS
+  - Aurora
+  - DynamoDB
+  - Redshift
+  answer: 2
+  explanation: DynamoDB is a serverless key-value and document database with single-digit-millisecond latency.
+- id: e-050
+  category: Docker
+  type: mcq
+  question: Which Docker command runs a container in detached mode?
+  options:
+  - docker run -d
+  - docker start
+  - docker exec
+  - docker attach
+  answer: 0
+  explanation: '`-d` runs the container detached, in the background.'
+- id: e-051
+  category: Kubernetes
+  type: mcq
+  question: Which Kubernetes object is used for batch jobs?
+  options:
+  - Deployment
+  - Job
+  - DaemonSet
+  - StatefulSet
+  answer: 1
+  explanation: A Job runs Pods until they complete successfully. A CronJob creates Jobs on a schedule.
+- id: e-052
+  category: Linux
+  type: mcq
+  question: Which command shows the current working directory?
+  options:
+  - pwd
+  - whoami
+  - ls
+  - cd
+  answer: 0
+  explanation: '`pwd` prints the working directory.'
+- id: e-053
+  category: CI/CD
+  type: mcq
+  question: Which practice keeps every change releasable, with production deploys gated by a manual approval?
+  options:
+  - Continuous Delivery
+  - Continuous Integration
+  - Manual testing
+  - Feature branching
+  answer: 0
+  explanation: Continuous Delivery keeps every change releasable, with a manual gate to production. Continuous Deployment removes that gate.
+- id: e-054
+  category: Terraform
+  type: mcq
+  question: Which block defines a provider configuration in Terraform?
+  options:
+  - resource
+  - provider
+  - module
+  - backend
+  answer: 1
+  explanation: A `provider` block configures a plugin such as aws or kubernetes (region, auth, default tags).
+- id: e-055
+  category: AWS
+  type: mcq
+  question: Which AWS service automatically scales EC2 capacity?
+  options:
+  - ELB
+  - Auto Scaling
+  - CloudWatch
+  - Elastic Beanstalk
+  answer: 1
+  explanation: EC2 Auto Scaling groups add or remove instances based on policies or schedules.
+- id: e-056
+  category: Docker
+  type: mcq
+  question: Which file name does Docker Compose v2 look for first by default?
+  options:
+  - Dockerfile
+  - compose.yaml
+  - container.json
+  - stack.ini
+  answer: 1
+  explanation: Compose v2 prefers `compose.yaml`. It still reads `docker-compose.yml` for backwards compatibility.
+- id: e-057
+  category: Kubernetes
+  type: mcq
+  question: Which Kubernetes resource defines network access to Pods?
+  options:
+  - Service
+  - Ingress
+  - NetworkPolicy
+  - Endpoint
+  answer: 2
+  explanation: A NetworkPolicy restricts Pod ingress/egress, as long as your CNI enforces it.
+- id: e-058
+  category: Linux
+  type: mcq
+  question: Which command displays system uptime?
+  options:
+  - uptime
+  - top
+  - who
+  - time
+  answer: 0
+  explanation: '`uptime` shows time since boot and the 1/5/15-minute load averages.'
+- id: e-059
+  category: Git
+  type: mcq
+  question: Which command force-deletes a local branch even if it is not merged?
+  options:
+  - git branch -D
+  - git delete
+  - git reset --hard
+  - git clean -fd
+  answer: 0
+  explanation: '`-d` refuses to delete unmerged branches. `-D` forces the delete.'
+- id: e-060
+  category: Security
+  type: mcq
+  question: Which AWS service manages encryption keys?
+  options:
+  - IAM
+  - KMS
+  - Secrets Manager
+  - CloudHSM
+  answer: 1
+  explanation: KMS creates and controls encryption keys and integrates with almost every AWS service.
+- id: e-061
+  category: Observability
+  type: mcq
+  question: Which Prometheus exporter collects node-level metrics?
+  options:
+  - kube-state-metrics
+  - node-exporter
+  - alertmanager
+  - pushgateway
+  answer: 1
+  explanation: node-exporter exposes host metrics (CPU, memory, disk, network). kube-state-metrics exposes the state of Kubernetes objects.
+- id: e-062
+  category: Networking
+  type: mcq
+  question: Which protocol maps an IPv4 address to a MAC address on the local network?
+  options:
+  - HTTP
+  - ARP
+  - DNS
+  - ICMP
+  answer: 1
+  explanation: ARP resolves IPv4 addresses to MAC addresses on a LAN. DNS resolves names to IPs.
+- id: e-063
+  category: AWS
+  type: mcq
+  question: Which AWS service records API activity for auditing?
+  options:
+  - CloudWatch
+  - CloudTrail
+  - Config
+  - Inspector
+  answer: 1
+  explanation: CloudTrail records who called which AWS API, when, and from where.
+- id: e-064
+  category: Docker
+  type: mcq
+  question: Which instruction is used to expose ports in Dockerfile?
+  options:
+  - PORT
+  - PUBLISH
+  - EXPOSE
+  - LISTEN
+  answer: 2
+  explanation: '`EXPOSE` is documentation only. Ports are actually published with `-p` / Service definitions.'
+- id: e-065
+  category: Kubernetes
+  type: mcq
+  question: Which Kubernetes object stores sensitive information?
+  options:
+  - ConfigMap
+  - Secret
+  - Volume
+  - Namespace
+  answer: 1
+  explanation: Secrets store sensitive data. Prefer External Secrets / CSI drivers backed by a real secret manager.
+- id: e-066
+  category: Linux
+  type: mcq
+  question: Which command edits the current user's recurring scheduled jobs?
+  options:
+  - at
+  - cron
+  - crontab -e
+  - watch
+  answer: 2
+  explanation: '`crontab -e` edits your cron table, and the cron daemon runs the jobs.'
+- id: e-067
+  category: CI/CD
+  type: mcq
+  question: Which practice allows automated deployment to production?
+  options:
+  - Continuous Integration
+  - Continuous Testing
+  - Continuous Deployment
+  - Manual Approval
+  answer: 2
+  explanation: Continuous Deployment ships every change that passes the pipeline to production automatically.
+- id: e-068
+  category: Terraform
+  type: mcq
+  question: Which command formats Terraform configuration files?
+  options:
+  - terraform fmt
+  - terraform validate
+  - terraform init
+  - terraform plan
+  answer: 0
+  explanation: '`terraform fmt -recursive` rewrites files into canonical style. Use `-check` in CI.'
+- id: e-069
+  category: AWS
+  type: mcq
+  question: Which AWS service provides a content delivery network (CDN)?
+  options:
+  - Route53
+  - CloudFront
+  - API Gateway
+  - Global Accelerator
+  answer: 1
+  explanation: CloudFront is AWS's CDN, caching content at edge locations.
+- id: e-070
+  category: Docker
+  type: mcq
+  question: Which command shows Docker daemon information?
+  options:
+  - docker stats
+  - docker info
+  - docker system
+  - docker version
+  answer: 1
+  explanation: '`docker info` shows daemon-wide details: storage driver, cgroup version, number of containers and so on.'
+- id: e-071
+  category: Kubernetes
+  type: mcq
+  question: Which command displays cluster information?
+  options:
+  - kubectl describe cluster
+  - kubectl cluster-info
+  - kubectl get nodes
+  - kubectl info
+  answer: 1
+  explanation: '`kubectl cluster-info` prints the control-plane and core add-on endpoints.'
+- id: e-072
+  category: Git
+  type: mcq
+  question: Which command undoes the last commit but keeps changes staged?
+  options:
+  - git revert
+  - git reset --soft HEAD~1
+  - git reset --hard
+  - git checkout
+  answer: 1
+  explanation: '`--soft` moves HEAD back but keeps the changes staged. `--mixed` (the default) unstages them, and `--hard` discards them.'
+- id: e-073
+  category: Security
+  type: mcq
+  question: Which concept verifies identity before granting access?
+  options:
+  - Authorization
+  - Authentication
+  - Auditing
+  - Accounting
+  answer: 1
+  explanation: Authentication = who you are. Authorization = what you're allowed to do.
+- id: e-074
+  category: Observability
+  type: mcq
+  question: Which Grafana feature groups multiple panels?
+  options:
+  - Folder
+  - Row
+  - Dashboard
+  - Variable
+  answer: 1
+  explanation: Rows group panels and can be collapsed or repeated per variable value.
+- id: e-075
+  category: Networking
+  type: mcq
+  question: Which protocol is used for secure remote login?
+  options:
+  - Telnet
+  - RDP
+  - SSH
+  - FTP
+  answer: 2
+  explanation: SSH gives encrypted remote shells. Many teams now prefer SSM Session Manager or a PAM bastion over open port 22.
+- id: e-076
+  category: AWS
+  type: mcq
+  question: Which AWS service allows event-driven workflows?
+  options:
+  - Step Functions
+  - SNS
+  - SQS
+  - EventBridge
+  answer: 3
+  explanation: EventBridge routes events from AWS services, SaaS and your apps to targets using rules.
+- id: e-077
+  category: Terraform
+  type: mcq
+  question: Which Terraform feature enables reusable infrastructure?
+  options:
+  - Variables
+  - Providers
+  - Modules
+  - Backends
+  answer: 2
+  explanation: Modules package reusable infrastructure with inputs (variables) and outputs.
+- id: e-078
+  category: AWS
+  type: mcq
+  question: Which AWS service is used to decouple microservices?
+  options:
+  - SNS
+  - SQS
+  - EventBridge
+  - Step Functions
+  answer: 1
+  explanation: SQS queues decouple producers from consumers and absorb load spikes.
+- id: e-079
+  category: Docker
+  type: mcq
+  question: Which Docker command stops a running container?
+  options:
+  - docker kill
+  - docker stop
+  - docker pause
+  - docker rm
+  answer: 1
+  explanation: '`docker stop` sends SIGTERM, then SIGKILL after the grace period. `kill` sends SIGKILL immediately.'
+- id: e-080
+  category: Kubernetes
+  type: mcq
+  question: Which Kubernetes resource ensures Pod autoscaling?
+  options:
+  - Deployment
+  - HPA
+  - VPA
+  - ReplicaSet
+  answer: 1
+  explanation: The HorizontalPodAutoscaler changes replica count based on CPU, memory or custom metrics.
+- id: e-081
+  category: Linux
+  type: mcq
+  question: Which command shows CPU architecture details?
+  options:
+  - arch
+  - uname -m
+  - lscpu
+  - hostname
+  answer: 2
+  explanation: '`lscpu` shows architecture, cores, threads and caches. `uname -m` prints only the arch string.'
+- id: e-082
+  category: CI/CD
+  type: mcq
+  question: Which practice reduces deployment risk?
+  options:
+  - Blue-green deployment
+  - Big bang release
+  - Manual rollback
+  - Delayed testing
+  answer: 0
+  explanation: Blue-green runs two environments and switches traffic, so rollback is just switching back.
+- id: e-083
+  category: Terraform
+  type: mcq
+  question: Which Terraform command destroys infrastructure?
+  options:
+  - terraform delete
+  - terraform remove
+  - terraform destroy
+  - terraform clean
+  answer: 2
+  explanation: '`terraform destroy` removes everything in the state. It''s effectively `apply -destroy`.'
+- id: e-084
+  category: AWS
+  type: mcq
+  question: Which AWS service is used for API management?
+  options:
+  - ALB
+  - API Gateway
+  - CloudFront
+  - App Mesh
+  answer: 1
+  explanation: API Gateway manages REST, HTTP and WebSocket APIs with auth, throttling and stages.
+- id: e-085
+  category: Docker
+  type: mcq
+  question: Which Dockerfile instruction sets environment variables?
+  options:
+  - ENV
+  - ARG
+  - RUN
+  - LABEL
+  answer: 0
+  explanation: '`ENV` sets runtime environment variables. `ARG` exists only at build time.'
+- id: e-086
+  category: Kubernetes
+  type: mcq
+  question: Which component handles network rules in Kubernetes?
+  options:
+  - kubelet
+  - kube-proxy
+  - etcd
+  - scheduler
+  answer: 1
+  explanation: kube-proxy programs iptables/IPVS rules for Services. Some CNIs (e.g. Cilium) replace it with eBPF.
+- id: e-087
+  category: Linux
+  type: mcq
+  question: Which command displays kernel version?
+  options:
+  - uname -r
+  - kernel
+  - lsmod
+  - dmesg
+  answer: 0
+  explanation: '`uname -r` prints the running kernel release.'
+- id: e-088
+  category: Git
+  type: mcq
+  question: Which command shows commit history?
+  options:
+  - git status
+  - git log
+  - git diff
+  - git show
+  answer: 1
+  explanation: '`git log --oneline --graph` gives a compact history view.'
+- id: e-089
+  category: Security
+  type: mcq
+  question: Which AWS service scans EC2 for vulnerabilities?
+  options:
+  - GuardDuty
+  - Inspector
+  - Shield
+  - WAF
+  answer: 1
+  explanation: Amazon Inspector continuously scans EC2, ECR images and Lambda for CVEs.
+- id: e-090
+  category: Observability
+  type: mcq
+  question: Which Prometheus metric type represents instantaneous values?
+  options:
+  - Counter
+  - Gauge
+  - Histogram
+  - Summary
+  answer: 1
+  explanation: Gauges go up and down (memory in use, queue depth).
+- id: e-091
+  category: Networking
+  type: mcq
+  question: Which protocol tests network reachability?
+  options:
+  - ARP
+  - ICMP
+  - DNS
+  - SNMP
+  answer: 1
+  explanation: ICMP echo (ping) tests reachability. Many networks block it, so 'no ping' is not proof of 'down'.
+- id: e-092
+  category: AWS
+  type: mcq
+  question: Which AWS service is used for centralized configuration compliance?
+  options:
+  - CloudTrail
+  - Config
+  - Inspector
+  - Trusted Advisor
+  answer: 1
+  explanation: AWS Config records resource configuration history and evaluates compliance rules.
+- id: e-093
+  category: Docker
+  type: mcq
+  question: Which command shows container resource usage?
+  options:
+  - docker top
+  - docker stats
+  - docker ps
+  - docker inspect
+  answer: 1
+  explanation: '`docker stats` streams live CPU, memory, network and I/O per container.'
+- id: e-094
+  category: Kubernetes
+  type: mcq
+  question: Which resource defines persistent storage?
+  options:
+  - ConfigMap
+  - Secret
+  - PersistentVolume
+  - StatefulSet
+  answer: 2
+  explanation: A PersistentVolume is a piece of storage that Pods claim through a PersistentVolumeClaim. StorageClasses provision PVs dynamically.
+- id: e-095
+  category: Linux
+  type: mcq
+  question: Which command searches text in files?
+  options:
+  - find
+  - grep
+  - awk
+  - sed
+  answer: 1
+  explanation: '`grep -rn pattern dir` searches text recursively and shows line numbers.'
+- id: e-096
+  category: CI/CD
+  type: mcq
+  question: Which strategy deploys code to a subset of users?
+  options:
+  - Canary deployment
+  - Rolling update
+  - Blue-green
+  - Recreate
+  answer: 0
+  explanation: Canary sends a small share of traffic to the new version first, then ramps up.
+- id: e-097
+  category: Terraform
+  type: mcq
+  question: Which block defines input variables?
+  options:
+  - output
+  - provider
+  - variable
+  - resource
+  answer: 2
+  explanation: '`variable` blocks declare inputs. Set them with tfvars, `-var`, or `TF_VAR_*` env vars.'
+- id: e-098
+  category: AWS
+  type: mcq
+  question: Which AWS feature forwards DNS queries between a VPC and on-premises DNS servers?
+  options:
+  - Route 53 Resolver endpoints
+  - CloudFront
+  - Global Accelerator
+  - Elastic Load Balancing
+  answer: 0
+  explanation: Route 53 Resolver inbound/outbound endpoints plus forwarding rules give you hybrid DNS.
+- id: e-099
+  category: Docker
+  type: mcq
+  question: Which command removes a Docker image?
+  options:
+  - docker delete
+  - docker rm
+  - docker rmi
+  - docker purge
+  answer: 2
+  explanation: '`docker rmi` (or `docker image rm`) deletes images. `docker rm` deletes containers.'
+- id: e-100
+  category: Kubernetes
+  type: mcq
+  question: Which object manages Stateful applications?
+  options:
+  - Deployment
+  - ReplicaSet
+  - StatefulSet
+  - DaemonSet
+  answer: 2
+  explanation: StatefulSets give stable network IDs, ordered rollout and per-Pod PVCs.
+- id: e-101
+  category: Linux
+  type: mcq
+  question: Which command lists open files?
+  options:
+  - ls
+  - lsof
+  - fuser
+  - stat
+  answer: 1
+  explanation: '`lsof` lists open files, sockets included. Try `lsof -i :8080`.'
+- id: e-102
+  category: Git
+  type: mcq
+  question: Which command temporarily saves uncommitted changes?
+  options:
+  - git stash
+  - git reset
+  - git commit
+  - git revert
+  answer: 0
+  explanation: '`git stash` shelves uncommitted changes, and `git stash pop` brings them back.'
+- id: e-103
+  category: Security
+  type: mcq
+  question: Which model assumes no implicit trust?
+  options:
+  - Least privilege
+  - Zero Trust
+  - Defense in depth
+  - RBAC
+  answer: 1
+  explanation: 'Zero Trust: never trust the network location, and verify every request (identity, device, context).'
+- id: e-104
+  category: Observability
+  type: mcq
+  question: Which Grafana feature enables dynamic dashboards?
+  options:
+  - Panels
+  - Variables
+  - Alerts
+  - Annotations
+  answer: 1
+  explanation: Template variables turn one dashboard into many (per cluster, namespace, service).
+- id: e-105
+  category: Networking
+  type: mcq
+  question: Which protocol is used for time synchronization?
+  options:
+  - SNMP
+  - NTP
+  - SMTP
+  - FTP
+  answer: 1
+  explanation: NTP (or chrony) keeps clocks in sync. Skew breaks TLS, Kerberos, logs and distributed systems.
+- id: e-106
+  category: AWS
+  type: mcq
+  question: Which AWS service is used for workflow orchestration?
+  options:
+  - Step Functions
+  - SNS
+  - SQS
+  - Lambda
+  answer: 0
+  explanation: Step Functions orchestrates multi-step workflows with retries, branches and waits.
+- id: e-107
+  category: Terraform
+  type: mcq
+  question: Which backend stores Terraform state remotely?
+  options:
+  - local
+  - s3
+  - 'null'
+  - file
+  answer: 1
+  explanation: The `s3` backend stores state remotely. Terraform ≥1.10 can lock natively with `use_lockfile = true`, with no DynamoDB table needed.
+- id: e-108
+  category: AWS
+  type: mcq
+  question: Which AWS service provides managed message queues?
+  options:
+  - SNS
+  - SQS
+  - EventBridge
+  - MQ
+  answer: 1
+  explanation: SQS is fully managed queuing (standard or FIFO). Amazon MQ is managed ActiveMQ/RabbitMQ.
+- id: e-109
+  category: Docker
+  type: mcq
+  question: Which flag automatically removes a container after exit?
+  options:
+  - --rm
+  - -d
+  - -it
+  - --force
+  answer: 0
+  explanation: '`--rm` removes the container automatically when it exits, which is handy for one-off tasks.'
+- id: e-110
+  category: Kubernetes
+  type: mcq
+  question: Which object defines ingress traffic routing rules?
+  options:
+  - Service
+  - Ingress
+  - Endpoint
+  - Route
+  answer: 1
+  explanation: Ingress rules map hosts and paths to backend Services.
+- id: e-111
+  category: Linux
+  type: mcq
+  question: Which command shows disk I/O statistics?
+  options:
+  - iostat
+  - vmstat
+  - free
+  - uptime
+  answer: 0
+  explanation: '`iostat -x 1` (sysstat) shows per-device utilisation, await and queue size.'
+- id: e-112
+  category: CI/CD
+  type: mcq
+  question: Which concept enables faster feedback cycles?
+  options:
+  - Shift-left testing
+  - Manual approvals
+  - Delayed builds
+  - Monolithic pipelines
+  answer: 0
+  explanation: Shift-left means running tests and security checks earlier in the lifecycle, where they're cheaper to fix.
+- id: e-113
+  category: Security
+  type: mcq
+  question: Which AWS service provides web application firewall?
+  options:
+  - Shield
+  - Inspector
+  - WAF
+  - GuardDuty
+  answer: 2
+  explanation: AWS WAF filters layer-7 requests using managed and custom rules on CloudFront, ALB and API Gateway.
+- id: e-114
+  category: Observability
+  type: mcq
+  question: Which Prometheus component allows pushing metrics?
+  options:
+  - Exporter
+  - Pushgateway
+  - Alertmanager
+  - TSDB
+  answer: 1
+  explanation: Pushgateway is for short-lived batch jobs that can't be scraped. Don't use it for services.
+- id: e-115
+  category: Networking
+  type: mcq
+  question: Which OSI layer handles routing?
+  options:
+  - Layer 2
+  - Layer 3
+  - Layer 4
+  - Layer 7
+  answer: 1
+  explanation: Layer 3 (Network) handles IP routing.
+- id: e-116
+  category: Linux
+  type: mcq
+  question: Which command monitors real-time process activity?
+  options:
+  - top
+  - ps
+  - free
+  - watch
+  answer: 0
+  explanation: '`top` shows live process activity. `htop` and `btop` are friendlier alternatives.'
+- id: e-117
+  category: Kubernetes
+  question: Which Kubernetes API is the role-oriented successor to Ingress (Gateway, HTTPRoute, GRPCRoute)?
+  options:
+  - Gateway API
+  - Service Mesh Interface
+  - IngressClass v2
+  - EndpointSlice
+  answer: 0
+  explanation: 'Gateway API (GA since v1.0) splits responsibilities: infra teams own `Gateway`, app teams own `HTTPRoute`. Ingress is frozen — no new features.'
+  type: mcq
+- id: e-118
+  category: Kubernetes
+  question: Which probe failure removes a Pod from Service endpoints WITHOUT restarting the container?
+  options:
+  - livenessProbe
+  - readinessProbe
+  - startupProbe
+  - preStop hook
+  answer: 1
+  explanation: Readiness controls traffic. Liveness failures restart the container. Startup probes hold off the other two while a slow app boots.
+  type: mcq
+- id: e-119
+  category: Kubernetes
+  question: Which object limits how many Pods of an app can be voluntarily evicted at once (e.g. during node drains)?
+  options:
+  - ResourceQuota
+  - PodDisruptionBudget
+  - LimitRange
+  - PriorityClass
+  answer: 1
+  explanation: A PDB (`minAvailable` / `maxUnavailable`) is respected by `kubectl drain`, Karpenter consolidation and cluster upgrades.
+  type: mcq
+- id: e-120
+  category: Kubernetes
+  question: Which tool packages Kubernetes manifests as versioned, templated charts?
+  options:
+  - Kustomize
+  - Helm
+  - kubeadm
+  - Skaffold
+  answer: 1
+  explanation: Helm charts are templated and versioned (and can be stored as OCI artifacts). Kustomize patches plain YAML without templating.
+  type: mcq
+- id: e-121
+  category: AWS
+  question: What is the current AWS-recommended way to give EKS Pods IAM permissions without node-wide credentials?
+  options:
+  - Attach the policy to the node instance role
+  - EKS Pod Identity (or IRSA)
+  - Store access keys in a Secret
+  - Use the EC2 metadata endpoint from the Pod
+  answer: 1
+  explanation: EKS Pod Identity associates an IAM role with a ServiceAccount through the Pod Identity Agent. IRSA (OIDC) still works. Node-role sharing breaks least privilege.
+  type: mcq
+- id: e-122
+  category: AWS
+  question: What does IMDSv2 add over IMDSv1 on EC2?
+  options:
+  - Encryption of EBS volumes
+  - Session tokens obtained via a PUT request
+  - IPv6 metadata only
+  - A public metadata endpoint
+  answer: 1
+  explanation: IMDSv2 needs a session token (PUT /latest/api/token), which blocks most SSRF credential theft. Enforce it with `HttpTokens=required` and keep the hop limit at 1–2.
+  type: mcq
+- id: e-123
+  category: AWS
+  question: Which open-source node autoscaler provisions right-sized EC2 instances directly from pending Pod requirements?
+  options:
+  - Cluster Autoscaler
+  - Karpenter
+  - KEDA
+  - Vertical Pod Autoscaler
+  answer: 1
+  explanation: Karpenter watches unschedulable Pods, picks instance types via NodePools/EC2NodeClasses, and consolidates under-used nodes.
+  type: mcq
+- id: e-124
+  category: AWS
+  question: Which VPC feature lets private subnets reach S3 without a NAT Gateway (and without its data-processing charge)?
+  options:
+  - Gateway VPC endpoint
+  - Internet Gateway
+  - Transit Gateway
+  - Elastic IP
+  answer: 0
+  explanation: Gateway endpoints for S3 and DynamoDB are free route-table targets. Interface endpoints (PrivateLink) cover most other services, at an hourly cost.
+  type: mcq
+- id: e-125
+  category: AWS
+  question: Which EC2 processor family usually gives the best price-performance for Linux/ARM-compatible workloads?
+  options:
+  - Graviton
+  - Inferentia
+  - Xeon Phi
+  - Nitro Enclaves
+  answer: 0
+  explanation: Graviton (ARM64) instances are typically cheaper per unit of performance. Build multi-arch images (`docker buildx --platform linux/amd64,linux/arm64`) so you can use them.
+  type: mcq
+- id: e-126
+  category: CI/CD
+  question: How should GitHub Actions authenticate to AWS without long-lived access keys?
+  options:
+  - Store keys in repository secrets
+  - 'OIDC federation with an IAM role (id-token: write)'
+  - Use the root account
+  - Commit ~/.aws/credentials
+  answer: 1
+  explanation: GitHub's OIDC token is exchanged for short-lived STS credentials (`aws-actions/configure-aws-credentials` with `role-to-assume`). Scope the trust policy's `sub` to the repo and branch.
+  type: mcq
+- id: e-127
+  category: CI/CD
+  question: Why should third-party GitHub Actions be pinned to a full commit SHA?
+  options:
+  - It makes workflows faster
+  - Tags can be moved to malicious code; a SHA is immutable
+  - SHAs are required by YAML
+  - It enables caching
+  answer: 1
+  explanation: The 2025 tj-actions/changed-files compromise rewrote tags to exfiltrate secrets. A pinned SHA (plus Dependabot updates) prevents that.
+  type: mcq
+- id: e-128
+  category: GitOps
+  question: In GitOps (e.g. Argo CD, Flux), what is the source of truth for the desired cluster state?
+  options:
+  - The live cluster
+  - A Git repository
+  - The CI server
+  - The container registry
+  answer: 1
+  explanation: Controllers in the cluster pull from Git and reconcile continuously. Drift shows up as OutOfSync, and self-heal reverts manual changes.
+  type: mcq
+- id: e-129
+  category: GitOps
+  question: What does the Argo CD status 'OutOfSync' mean?
+  options:
+  - The app is crashing
+  - Live resources differ from the manifests in Git
+  - The repo is unreachable
+  - The sync is still running
+  answer: 1
+  explanation: Sync status compares Git with the live cluster. Health status (Healthy/Degraded/Progressing) is tracked separately.
+  type: mcq
+- id: e-130
+  category: Docker
+  question: What is the main benefit of a multi-stage Dockerfile?
+  options:
+  - Faster docker pull of the base image
+  - Build tools stay in the builder stage; the final image ships only runtime artifacts
+  - It enables Docker Swarm
+  - It encrypts layers
+  answer: 1
+  explanation: '`COPY --from=build` copies only the binary or bundle into a slim or distroless runtime stage, so the image is smaller and has fewer CVEs.'
+  type: mcq
+- id: e-131
+  category: Docker
+  question: What is a 'distroless' image?
+  options:
+  - An image with no layers
+  - A minimal runtime image without a shell or package manager
+  - A Windows container
+  - An image built without a Dockerfile
+  answer: 1
+  explanation: Distroless and Chainguard-style images contain just the runtime, which shrinks the attack surface. Debug them with `kubectl debug` ephemeral containers.
+  type: mcq
+- id: e-132
+  category: Docker
+  question: Which Dockerfile instruction makes the container run as a non-root user?
+  options:
+  - RUN chmod 777 /
+  - USER 10001
+  - EXPOSE 1000
+  - ENV ROOT=false
+  answer: 1
+  explanation: '`USER` with a non-zero UID, plus `runAsNonRoot: true` in the Pod securityContext, is a baseline hardening control.'
+  type: mcq
+- id: e-133
+  category: Security
+  question: What is an SBOM?
+  options:
+  - A list of all components and dependency versions in a software artifact
+  - A secret-scanning tool
+  - A kind of firewall rule
+  - An AWS billing report
+  answer: 0
+  explanation: A Software Bill of Materials (SPDX or CycloneDX, generated by Syft, Trivy, docker buildx) lets you answer 'are we affected by this CVE?' in minutes.
+  type: mcq
+- id: e-134
+  category: Security
+  question: Which tool from Sigstore is commonly used to sign and verify container images?
+  options:
+  - cosign
+  - trivy
+  - falco
+  - vault
+  answer: 0
+  explanation: '`cosign sign` (keyless via OIDC) and `cosign verify` combine with admission policies (Kyverno, Sigstore policy-controller) to enforce signed images.'
+  type: mcq
+- id: e-135
+  category: Security
+  question: Which tool scans container images, filesystems and IaC for vulnerabilities and misconfigurations?
+  options:
+  - Trivy
+  - Grafana
+  - Packer
+  - Consul
+  answer: 0
+  explanation: Trivy covers CVEs, misconfigurations (Terraform, K8s), secrets and SBOMs. Run it in CI with `--exit-code 1 --severity HIGH,CRITICAL`.
+  type: mcq
+- id: e-136
+  category: Security
+  question: Kyverno and OPA Gatekeeper are examples of what?
+  options:
+  - Service meshes
+  - Kubernetes policy engines (admission control)
+  - Log shippers
+  - Container runtimes
+  answer: 1
+  explanation: They validate, mutate or generate resources at admission time, e.g. blocking `:latest` tags or privileged Pods. Kubernetes also has a built-in ValidatingAdmissionPolicy (CEL).
+  type: mcq
+- id: e-137
+  category: Terraform
+  question: Since Terraform 1.5, how can you import existing resources declaratively in code?
+  options:
+  - terraform state push
+  - An import block
+  - A null_resource
+  - terraform taint
+  answer: 1
+  explanation: '`import { to = aws_s3_bucket.logs  id = "my-logs" }` then `terraform plan -generate-config-out=gen.tf` writes the config for you.'
+  type: mcq
+- id: e-138
+  category: Terraform
+  question: What does a `moved` block do?
+  options:
+  - Moves state to another backend
+  - Tells Terraform a resource was renamed/re-addressed so it isn't destroyed and recreated
+  - Moves resources between AWS regions
+  - Moves a module to the registry
+  answer: 1
+  explanation: '`moved { from = aws_instance.a  to = aws_instance.web }` refactors addresses safely, and it gets reviewed in a PR, unlike a manual `terraform state mv`.'
+  type: mcq
+- id: e-139
+  category: Terraform
+  question: What is OpenTofu?
+  options:
+  - A Terraform GUI
+  - An open-source (MPL) fork of Terraform under the Linux Foundation
+  - A Terraform provider for Tofu cloud
+  - A state locking service
+  answer: 1
+  explanation: OpenTofu forked from Terraform 1.5 after the BSL licence change. The CLI is `tofu`, and it adds features such as native state encryption.
+  type: mcq
+- id: e-140
+  category: Observability
+  question: What is OpenTelemetry?
+  options:
+  - A vendor-neutral standard and SDKs for traces, metrics and logs
+  - A Prometheus fork
+  - An AWS-only tracing service
+  - A Grafana plugin
+  answer: 0
+  explanation: OTel standardises instrumentation (SDKs, OTLP protocol). The Collector or Grafana Alloy receives the data and exports it to any backend.
+  type: mcq
+- id: e-141
+  category: Observability
+  question: An SLO of 99.9% monthly availability gives an error budget of roughly how much downtime per 30 days?
+  options:
+  - ~43 minutes
+  - ~7 hours
+  - ~4 minutes
+  - ~1 day
+  answer: 0
+  explanation: 0.1% of 43,200 minutes ≈ 43.2 minutes. Spend the budget on releases; when it's exhausted, freeze risky changes.
+  type: mcq
+- id: e-142
+  category: Observability
+  question: The RED method for services monitors which signals?
+  options:
+  - Rate, Errors, Duration
+  - RAM, Ethernet, Disk
+  - Requests, Events, Deploys
+  - Retries, Exceptions, Delays
+  answer: 0
+  explanation: RED fits request-driven services. USE (Utilisation, Saturation, Errors) fits resources such as CPU, disk and queues.
+  type: mcq
+- id: e-143
+  category: Linux
+  question: Which command shows logs for a systemd service since the last boot?
+  options:
+  - journalctl -u nginx -b
+  - cat /var/log/systemd
+  - systemctl logs nginx
+  - dmesg -u nginx
+  answer: 0
+  explanation: '`journalctl -u <unit> -b` filters by unit and current boot. Add `-f` to follow and `--since "10 min ago"` to narrow the window.'
+  type: mcq
+- id: e-144
+  category: Linux
+  question: Which kernel feature do containers use to limit CPU and memory per process group?
+  options:
+  - namespaces
+  - cgroups
+  - SELinux
+  - iptables
+  answer: 1
+  explanation: cgroups (v2 is the modern default) enforce resource limits. Namespaces provide isolation (PID, net, mount, …).
+  type: mcq
+- id: e-145
+  category: Git
+  question: Which command replays your branch's commits on top of the latest main for a linear history?
+  options:
+  - git merge main
+  - git rebase main
+  - git cherry main
+  - git revert main
+  answer: 1
+  explanation: Rebase rewrites your commits onto the new base. Never rebase shared/public branches without coordinating (`--force-with-lease`).
+  type: mcq
+- id: e-146
+  category: Git
+  question: Which command safely undoes a commit that's already pushed to a shared branch?
+  options:
+  - git reset --hard HEAD~1 && git push -f
+  - git revert <sha>
+  - git commit --amend
+  - git clean -fd
+  answer: 1
+  explanation: '`git revert` creates a new commit that inverts the old one, so shared history isn''t rewritten.'
+  type: mcq
+- id: e-147
+  category: Networking
+  question: Which DNS record type points one hostname at another hostname?
+  options:
+  - A
+  - AAAA
+  - CNAME
+  - MX
+  answer: 2
+  explanation: CNAME aliases a name to another name. It can't sit at the zone apex — use Route 53 ALIAS records there.
+  type: mcq
+- id: e-148
+  category: Networking
+  question: HTTP/3 runs on top of which transport?
+  options:
+  - TCP
+  - QUIC over UDP
+  - SCTP
+  - ICMP
+  answer: 1
+  explanation: HTTP/3 uses QUIC (UDP 443), which avoids TCP head-of-line blocking and has faster handshakes.
+  type: mcq
+- id: e-149
+  category: AI/MLOps
+  question: Which Kubernetes component exposes NVIDIA GPUs as a schedulable resource (`nvidia.com/gpu`)?
+  options:
+  - NVIDIA device plugin
+  - kube-proxy
+  - CoreDNS
+  - metrics-server
+  answer: 0
+  explanation: The device plugin (usually installed via the NVIDIA GPU Operator) advertises GPUs to the kubelet, and Pods request them in `resources.limits`.
+  type: mcq
+- id: e-150
+  category: AI/MLOps
+  question: What is the Model Context Protocol (MCP)?
+  options:
+  - An open protocol for connecting AI assistants to tools and data sources
+  - A GPU scheduling algorithm
+  - A model compression format
+  - An AWS SageMaker API
+  answer: 0
+  explanation: 'MCP servers expose tools and resources to AI clients. Treat them like any integration: least-privilege credentials, audited actions, and no blind trust in returned content.'
+  type: mcq
+- id: e-151
+  category: AI/MLOps
+  question: In an AI agent that reads GitHub issues and can run CI commands, what is 'prompt injection'?
+  options:
+  - Untrusted text containing instructions the model may follow
+  - A faster tokenizer
+  - A way to compress prompts
+  - A Kubernetes admission webhook
+  answer: 0
+  explanation: 'Any content the agent reads (issues, logs, web pages) can carry instructions. Mitigations: least-privilege tokens, human approval for writes, and separating data from instructions.'
+  type: mcq

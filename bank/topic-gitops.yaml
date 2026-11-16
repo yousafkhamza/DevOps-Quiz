@@ -1,0 +1,333 @@
+# GitOps — Argo CD, Flux, promotion and drift.
+level: easy
+questions:
+
+- id: go-e-001
+  category: GitOps
+  type: mcq
+  question: "In a pull-based GitOps model, who applies changes to the cluster?"
+  options: ["A controller running inside the cluster (Argo CD, Flux)", "The CI pipeline with cluster-admin credentials", "Developers with kubectl", "The container registry"]
+  answer: 0
+  explanation: "The cluster pulls from Git, so CI never needs cluster credentials — a big security win compared with push-based `kubectl apply` from CI."
+
+- id: go-e-002
+  category: GitOps
+  type: mcq
+  question: "What does Argo CD's self-heal do?"
+  options: ["Reverts manual changes in the cluster back to what Git says", "Restarts crashed pods", "Fixes YAML syntax errors", "Scales nodes"]
+  answer: 0
+  explanation: "With `automated.selfHeal: true`, drift is corrected automatically. Without it, the app just shows OutOfSync."
+
+- id: go-e-003
+  category: GitOps
+  type: mcq
+  question: "What does `prune: true` in an automated sync policy do?"
+  options: ["Deletes cluster resources that were removed from Git", "Deletes old Git branches", "Removes unused images", "Trims logs"]
+  answer: 0
+  explanation: "Without prune, deleting a manifest from Git leaves an orphan running. With prune, Argo deletes it — so be careful with resources that hold data."
+
+- id: go-e-004
+  category: GitOps
+  type: mcq
+  question: "Which Argo CD resource generates many Applications from one template (per cluster, per directory, per PR)?"
+  options: ["ApplicationSet", "AppProject", "Rollout", "Kustomization"]
+  answer: 0
+  explanation: "ApplicationSet generators (git directories, clusters, list, matrix, pull request) stamp out Applications, which is ideal for many tenants or environments."
+
+- id: go-e-005
+  category: GitOps
+  type: mcq
+  question: "Which Argo CD object restricts which repos, clusters and namespaces a team's apps may use?"
+  options: ["AppProject", "ApplicationSet", "ConfigMap argocd-cm only", "ClusterRole"]
+  answer: 0
+  explanation: "AppProjects are Argo's multi-tenancy boundary: source repos, destinations, and allowed or denied resource kinds (e.g. no ClusterRoleBindings)."
+
+- id: go-e-006
+  category: GitOps
+  type: mcq
+  question: "In Flux, which controller applies Kustomize overlays from a Git source?"
+  options: ["kustomize-controller (Kustomization CR)", "helm-controller only", "image-reflector-controller", "notification-controller"]
+  answer: 0
+  explanation: "`source-controller` fetches GitRepository/OCIRepository sources, `kustomize-controller` applies them, and `helm-controller` handles HelmReleases."
+
+- id: go-e-007
+  category: GitOps
+  type: mcq
+  question: "Why should plain Kubernetes Secrets not be committed to the GitOps repo?"
+  options: ["They're only base64-encoded — anyone with repo access can read them", "Git can't store YAML", "Argo CD rejects them", "They're too large"]
+  answer: 0
+  explanation: "Use Sealed Secrets, SOPS (with KMS/age), or — most commonly — External Secrets Operator referencing AWS Secrets Manager or Vault, so Git only holds references."
+
+- id: go-e-008
+  category: GitOps
+  type: mcq
+  question: "What does an Argo CD sync wave annotation (`argocd.argoproj.io/sync-wave: \"-1\"`) control?"
+  options: ["The order resources are applied in during a sync", "How often Argo polls Git", "Which cluster to deploy to", "Retry count"]
+  answer: 0
+  explanation: "Lower waves apply first — CRDs and namespaces before workloads, a DB migration Job (as a PreSync hook) before the app."
+
+- id: go-e-009
+  category: GitOps
+  type: mcq
+  question: "Which tool automatically bumps image tags or digests in the GitOps repo when CI pushes a new image?"
+  options: ["Argo CD Image Updater / Flux image automation / Renovate", "kubectl set image", "Helm rollback", "Kustomize edit only by hand"]
+  answer: 0
+  explanation: "Automation writes a commit to Git, which keeps Git as the source of truth, instead of mutating the cluster directly."
+
+- id: go-e-010
+  category: GitOps
+  type: mcq
+  question: "What does 'Health: Degraded' mean for an Argo CD app?"
+  options: ["Resources are applied but something isn't healthy, e.g. a Deployment not reaching available replicas", "Git is unreachable", "The app was deleted", "Sync is disabled"]
+  answer: 0
+  explanation: "Sync status (Synced/OutOfSync) and health status (Healthy/Progressing/Degraded) are independent. An app can be Synced and Degraded at the same time."
+
+- id: go-e-011
+  category: GitOps
+  type: mcq
+  question: "What's the common 'app of apps' pattern?"
+  options: ["One parent Argo Application whose manifests are other Application objects", "Running many Argo CD instances", "Nesting Helm charts 5 deep", "One app per Pod"]
+  answer: 0
+  explanation: "It bootstraps a whole cluster from one root Application. ApplicationSets are now often used for the same job with less YAML."
+
+- id: go-e-012
+  category: GitOps
+  type: mcq
+  question: "Repo layout: which is the most common way to promote dev → staging → prod in GitOps?"
+  options: ["Per-environment overlays/values (folders or files) updated by PR", "One branch per environment with cherry-picks forever", "Editing prod in the Argo UI", "Different container registries per env only"]
+  answer: 0
+  explanation: "Folder-per-environment overlays (Kustomize) or per-environment values files (Helm), with promotion as a reviewed PR. Long-lived environment branches tend to drift and conflict."
+
+- id: go-m-001
+  level: medium
+  category: GitOps
+  type: mcq
+  title: "OutOfSync forever"
+  context:
+    - kind: diff
+      title: argocd app diff
+      content: |
+        ===== apps/Deployment payments/api ======
+        -  replicas: 3
+        +  replicas: 7
+  question: "An HPA scales `api` between 3 and 12. Argo shows OutOfSync all day. Best fix?"
+  options:
+    - "Remove `spec.replicas` from the Git manifest (or add `ignoreDifferences` for `/spec/replicas`)"
+    - "Disable the HPA"
+    - "Set `replicas: 12` in Git"
+    - "Turn off auto-sync"
+  answer: 0
+  explanation: "Let the HPA own replicas. With selfHeal on, Argo and the HPA would fight, flapping between 3 and 7."
+
+- id: go-m-002
+  level: medium
+  category: GitOps
+  type: mcq
+  title: "The webhook is down"
+  scenario: "GitHub webhooks to Argo CD are blocked by a new firewall rule. Merges still deploy, but about 3 minutes late."
+  question: "Why do they still deploy at all?"
+  options:
+    - "Argo CD also polls repos periodically (default ~3 minutes); webhooks just make it immediate"
+    - "GitHub pushes manifests directly"
+    - "kubelet watches Git"
+    - "CI runs kubectl as a fallback"
+  answer: 0
+  explanation: "`timeout.reconciliation` (default 180s plus jitter) drives polling. Fix the webhook for fast feedback, but polling is a safety net."
+
+- id: go-m-003
+  level: medium
+  category: GitOps
+  type: mcq
+  title: "Prune deleted the database"
+  scenario: "A refactor moved a StatefulSet's manifest to another app's path. The old app had `prune: true` and deleted the StatefulSet before the new app re-created it. The data survived only because someone had set the PV reclaim policy by hand."
+  question: "Which guardrails prevent this class of accident?"
+  options:
+    - "`argocd.argoproj.io/sync-options: Prune=false` on stateful resources, PVC reclaimPolicy Retain, and reviewing diffs for deletions"
+    - "Disable Argo CD"
+    - "Turn on selfHeal"
+    - "Use `kubectl delete` manually"
+  answer: 0
+  explanation: "Per-resource `Prune=false` and `Delete=false` sync options protect critical objects. A StorageClass `reclaimPolicy: Retain` keeps volumes if PVCs are removed. Make 'resources will be deleted' a required review item."
+
+- id: go-m-004
+  level: medium
+  category: GitOps
+  type: multi
+  title: "Secure Argo CD"
+  question: "Which hardening steps are sensible for a production Argo CD? (select all)"
+  options:
+    - "SSO via OIDC with RBAC mapped to groups; disable the local admin user"
+    - "AppProjects that whitelist repos, destinations and resource kinds per team"
+    - "Expose the API server publicly without auth for convenience"
+    - "Deploy clusters via a dedicated management cluster and scoped cluster credentials"
+  answer: [0, 1, 3]
+  explanation: "Argo CD effectively has cluster-admin wherever it deploys, so treat it as a crown-jewel system: SSO, least-privilege projects, and a private API endpoint."
+
+- id: go-m-005
+  level: medium
+  category: GitOps
+  type: mcq
+  title: "Migration before the app"
+  scenario: "Release 3.2 needs a DB schema migration before the new Pods start."
+  question: "How do you express that in Argo CD?"
+  options:
+    - "A Job annotated `argocd.argoproj.io/hook: PreSync` (with `hook-delete-policy`)"
+    - "Ask someone to run it manually first"
+    - "Put the migration in the app's liveness probe"
+    - "Set `replicas: 0` then edit it"
+  answer: 0
+  explanation: "PreSync hooks run, and must succeed, before the main sync. Make migrations backward-compatible (expand, then contract) so a rollback doesn't need a reverse migration."
+
+- id: go-m-006
+  level: medium
+  category: GitOps
+  type: mcq
+  title: "Who changed prod?"
+  scenario: "An auditor asks who approved the config change that went to prod last Tuesday."
+  question: "In a GitOps setup, where's the answer?"
+  options:
+    - "Git history: the PR, its approvals and the merge commit (plus Argo CD's sync history linking to that commit)"
+    - "kubectl logs of the Deployment"
+    - "The container registry"
+    - "Nobody can know"
+  answer: 0
+  explanation: "This audit trail is a core GitOps benefit (and helps with PCI and SOC 2). Protect it with branch protection, required reviews and signed commits."
+
+- id: go-m-007
+  level: medium
+  category: GitOps
+  type: mcq
+  title: "Helm in GitOps"
+  scenario: "You deploy a vendor Helm chart with Argo CD and want per-environment values."
+  question: "What's a clean way?"
+  options:
+    - "An Argo Application (or ApplicationSet) referencing the chart with `valueFiles` per environment from your Git repo"
+    - "`helm install` from your laptop for each cluster"
+    - "Fork the chart and hard-code prod values"
+    - "Template it once and commit the output for all envs"
+  answer: 0
+  explanation: "Argo renders Helm itself (it's `helm template`, with no Tiller and no release secrets). Multiple sources let the chart come from its repo and the values from yours."
+
+- id: go-m-008
+  level: medium
+  category: GitOps
+  type: mcq
+  title: "Progressive delivery"
+  scenario: "You want new versions to receive 10% of traffic, check error rates in Prometheus, then promote automatically."
+  question: "Which tool adds this on top of GitOps?"
+  options: ["Argo Rollouts (or Flagger) with an AnalysisTemplate", "A Kubernetes Job", "Cluster Autoscaler", "kube-proxy"]
+  answer: 0
+  explanation: "The Rollout CRD replaces the Deployment. Canary steps with analysis query metrics and abort automatically if the error rate crosses a threshold."
+
+- id: go-m-009
+  level: medium
+  category: GitOps
+  type: mcq
+  title: "Drift you didn't expect"
+  context:
+    - kind: diff
+      title: argocd app diff
+      content: |
+        ===== admissionregistration.k8s.io/MutatingWebhookConfiguration istio-sidecar-injector ======
+        -  caBundle: ""
+        +  caBundle: LS0tLS1CRUdJTi...
+  question: "A controller injects `caBundle` at runtime, so the app is permanently OutOfSync. Fix?"
+  options:
+    - "Add an `ignoreDifferences` rule for that field (jsonPointers `/webhooks/0/clientConfig/caBundle`) or use server-side diff"
+    - "Commit the CA bundle to Git"
+    - "Delete the webhook"
+    - "Disable sync for the whole cluster"
+  answer: 0
+  explanation: "Fields owned by other controllers should be ignored. Server-side diff (`ServerSideDiff=true`) also understands field managers and reduces this kind of noise."
+
+- id: go-m-010
+  level: medium
+  category: GitOps
+  type: mcq
+  title: "Multi-cluster at scale"
+  scenario: "You run 25 EKS clusters across regions, all needing the same platform add-ons with a few per-cluster values."
+  question: "Which approach scales?"
+  options:
+    - "An ApplicationSet with a cluster generator selecting clusters by label, with values from cluster labels/annotations"
+    - "25 hand-written Applications"
+    - "One kubectl apply loop in Bash"
+    - "A different Git repo per cluster with copy-pasted YAML"
+  answer: 0
+  explanation: "Label the clusters (`env=prod`, `region=eu-central-1`) and let the generator template the Applications. Adding cluster 26 then means registering it with the right labels."
+
+- id: go-h-001
+  level: hard
+  category: GitOps
+  type: fill
+  title: "Argo CD Application with auto-sync"
+  lang: yaml
+  template: |
+    apiVersion: argoproj.io/v1alpha1
+    kind: {{kind}}
+    metadata:
+      name: payments
+      namespace: argocd
+    spec:
+      project: payments
+      source:
+        repoURL: https://github.com/acme/gitops.git
+        targetRevision: main
+        path: apps/payments/overlays/prod
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: payments
+      syncPolicy:
+        {{auto}}:
+          prune: true
+          {{heal}}: true
+  blanks:
+    kind: { accept: ["^Application$"], solution: Application, width: 12 }
+    auto: { accept: ["^automated$"], solution: automated, width: 10 }
+    heal: { accept: ["^selfHeal$"], solution: selfHeal, width: 9 }
+  explanation: "`syncPolicy.automated` turns on auto-sync, `prune` deletes removed resources, and `selfHeal` reverts drift. Add `syncOptions: [CreateNamespace=true]` if Argo should create the namespace."
+
+- id: go-h-002
+  level: hard
+  category: GitOps
+  type: order
+  title: "Promote a release through environments"
+  question: "Order a GitOps promotion of a new image from dev to prod."
+  items:
+    - "CI builds, scans and signs the image, then pushes it by digest"
+    - "An automated PR bumps the digest in the dev overlay; Argo syncs dev"
+    - "Smoke tests and SLO checks pass in dev/staging"
+    - "Open a PR promoting the same digest to the prod overlay; required approvals"
+    - "Merge; Argo syncs prod (canary via Argo Rollouts if configured)"
+  explanation: "The same immutable digest moves through environments, and only the overlay changes. Promotion is a reviewed commit, so rollback is `git revert`."
+
+- id: go-h-003
+  level: hard
+  category: GitOps
+  type: spot
+  title: "Why did this delete everything in the namespace?"
+  scenario: "After merging, Argo CD deleted every resource in `payments`. Which **two** lines together made that possible?"
+  lang: yaml
+  code: |
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: payments
+    spec:
+      source:
+        repoURL: https://github.com/acme/gitops.git
+        targetRevision: main
+        path: apps/payment/overlays/prod
+      destination:
+        namespace: payments
+      syncPolicy:
+        automated: { prune: true, allowEmpty: true }
+  answer: [9, 13]
+  explanation: "The typo `apps/payment/` points at an empty path, so Argo saw zero desired resources. Normally automated sync refuses to prune an app down to nothing, but `allowEmpty: true` removed that safety net. Keep `allowEmpty` off, and treat diffs that delete many resources as a required review item."
+
+- id: go-e-013
+  category: GitOps
+  type: mcq
+  question: "What's the main difference between Kustomize and Helm in GitOps repos?"
+  options: ["Kustomize patches plain YAML with overlays; Helm renders templates from values", "Helm can't be used with Argo CD", "Kustomize needs a server component", "They're the same tool"]
+  answer: 0
+  explanation: "Both are rendered by Argo CD and Flux natively. Many teams use Helm for third-party charts and Kustomize for their own apps — or Kustomize's `helmCharts` to patch vendor charts."

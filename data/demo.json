@@ -1,0 +1,136 @@
+[
+ {
+  "id": "demo-mcq",
+  "level": "easy",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "coach": "**Single answer.** Click an option or press `1`–`4`, then **Check**. In Exam mode you'd press Next instead; a wrong answer costs 25% of the question's points, and skipping costs nothing.",
+  "question": "Which object keeps a set number of identical, stateless Pods running?",
+  "options": [
+   "Deployment",
+   "DaemonSet",
+   "Job",
+   "ConfigMap"
+  ],
+  "answer": 0,
+  "explanation": "Deployments manage ReplicaSets and handle rolling updates and rollbacks."
+ },
+ {
+  "id": "demo-multi",
+  "level": "medium",
+  "category": "Docker",
+  "type": "multi",
+  "coach": "**Select all that apply.** Toggle as many options as you think are correct. Scoring is all-or-nothing, so one wrong pick means no points (and a penalty in Exam mode).",
+  "scenario": "You're shrinking a 1.2 GB Node.js image.",
+  "question": "Which changes reduce image size?",
+  "options": [
+   "Multi-stage build: build in one stage, copy only `dist/` and production deps into the final one",
+   "Use a slim/distroless base image",
+   "Add a `.dockerignore` excluding `node_modules`, `.git`, tests",
+   "Add `EXPOSE 3000`"
+  ],
+  "answer": [
+   0,
+   1,
+   2
+  ],
+  "explanation": "EXPOSE is metadata only. The other three remove bytes from the final image."
+ },
+ {
+  "id": "demo-terminal",
+  "level": "hard",
+  "category": "Kubernetes",
+  "type": "terminal",
+  "title": "Try the terminal",
+  "host": "you@demo",
+  "prompt": "you@demo:~$",
+  "coach": "**Live terminal.** Click into the terminal and type, e.g. `kubectl get pods`. Exploring is free: only commands that try to solve the *current task* use one of your 3 attempts. Type `hint` if you're stuck (the task is then worth 50%). Still stuck? `skip` gives up just that task: it scores 0 but is never negative. In practice mode `solution` shows the answer. `k` works as an alias for kubectl, and ↑/↓ recall history.",
+  "scenario": "Pod `web-7d9f` in the current namespace is crash-looping.",
+  "explore": [
+   {
+    "match": "^kubectl get (po|pod|pods)\\b",
+    "output": "NAME       READY   STATUS             RESTARTS   AGE\nweb-7d9f   0/1     CrashLoopBackOff   5          4m\n"
+   }
+  ],
+  "steps": [
+   {
+    "task": "Show the logs of the **previous** (crashed) container of `web-7d9f`.",
+    "accept": [
+     "^(?=.*?(?:^kubectl logs))(?=.*?(?:web-7d9f))(?=.*?(?:(\\s-p\\b|--previous)))"
+    ],
+    "solution": "kubectl logs web-7d9f --previous",
+    "hint": "Add `-p` (or `--previous`) to `kubectl logs`.",
+    "output": "Error: listen EADDRINUSE: address already in use :::3000\n",
+    "wrong": []
+   },
+   {
+    "task": "Describe the pod to look at its events.",
+    "accept": [
+     "^(?=.*?(?:^kubectl describe (po|pod|pods)[ /]web-7d9f))"
+    ],
+    "solution": "kubectl describe pod web-7d9f",
+    "output": "Events:\n  Warning  BackOff  10s (x22 over 4m)  kubelet  Back-off restarting failed container web\n",
+    "wrong": []
+   }
+  ],
+  "explanation": "That's the whole loop: investigate, run the fix, verify. Hard and Super Hard levels chain 3–6 tasks like these into real incidents."
+ },
+ {
+  "id": "demo-fill",
+  "level": "hard",
+  "category": "Kubernetes",
+  "type": "fill",
+  "title": "Finish the Service",
+  "coach": "**Fill the manifest.** Each dashed box is one value; they're case-sensitive and surrounding spaces are ignored. You get partial credit per correct blank.",
+  "scenario": "Complete this Service so it routes port 80 to the Pods' port 8080.",
+  "lang": "yaml",
+  "template": "apiVersion: v1\nkind: {{kind}}\nmetadata:\n  name: web\nspec:\n  selector:\n    app: web\n  ports:\n    - port: 80\n      {{field}}: 8080\n",
+  "blanks": {
+   "kind": {
+    "accept": [
+     "^Service$"
+    ],
+    "solution": "Service",
+    "width": 8
+   },
+   "field": {
+    "accept": [
+     "^targetPort$"
+    ],
+    "solution": "targetPort",
+    "width": 11
+   }
+  },
+  "explanation": "`port` is what clients call, and `targetPort` is the container port traffic is forwarded to."
+ },
+ {
+  "id": "demo-spot",
+  "level": "medium",
+  "category": "Docker",
+  "type": "spot",
+  "coach": "**Spot the bug.** Click a line number or the code itself to select it. If the question asks for two lines, select two.",
+  "scenario": "This image runs as root. Which line should change?",
+  "lang": "dockerfile",
+  "code": "FROM node:22-alpine\nWORKDIR /app\nCOPY --chown=node:node . .\nRUN npm ci --omit=dev\nUSER root\nCMD [\"node\", \"server.js\"]\n",
+  "answer": [
+   5
+  ],
+  "explanation": "The node images already ship a `node` user. Use `USER node`."
+ },
+ {
+  "id": "demo-order",
+  "level": "medium",
+  "category": "Git",
+  "type": "order",
+  "coach": "**Order the steps.** Use ↑ ↓ to move steps until the top one comes first. Only a fully correct order scores.",
+  "question": "Order a typical feature workflow.",
+  "items": [
+   "`git switch -c feat/login`",
+   "Commit your changes",
+   "`git push -u origin feat/login`",
+   "Open a pull request and get review",
+   "Squash-merge to main"
+  ],
+  "explanation": "Branch, commit, push, review, merge. Short-lived branches keep CI meaningful."
+ }
+]

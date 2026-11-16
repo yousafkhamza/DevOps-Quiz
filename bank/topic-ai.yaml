@@ -1,0 +1,291 @@
+# AI/MLOps — running models and AI agents on real platforms.
+level: easy
+questions:
+
+- id: ai-e-101
+  category: AI/MLOps
+  type: mcq
+  question: "Which open-source server is widely used for high-throughput LLM inference with PagedAttention and continuous batching?"
+  options: ["vLLM", "Jenkins", "MLflow", "Airflow"]
+  answer: 0
+  explanation: "vLLM (and alternatives such as TGI, SGLang and NVIDIA Triton with TensorRT-LLM) exposes an OpenAI-compatible API. Continuous batching keeps the GPU busy across many concurrent requests."
+
+- id: ai-e-102
+  category: AI/MLOps
+  type: mcq
+  question: "What does NVIDIA MIG (Multi-Instance GPU) allow?"
+  options: ["Partitioning one A100/H100 into isolated GPU slices with their own memory and compute", "Linking GPUs across regions", "Running CUDA on CPUs", "Overclocking"]
+  answer: 0
+  explanation: "MIG gives hardware isolation for small inference workloads. Time-slicing shares a GPU without isolation. Both are configured through the GPU Operator."
+
+- id: ai-e-103
+  category: AI/MLOps
+  type: mcq
+  question: "Which tool is commonly used to track ML experiments and register model versions?"
+  options: ["MLflow", "Prometheus", "Terraform", "Fluent Bit"]
+  answer: 0
+  explanation: "The MLflow tracking server logs parameters, metrics and artifacts, and its registry manages stages and aliases (staging, production). SageMaker and Vertex AI have managed equivalents."
+
+- id: ai-e-104
+  category: AI/MLOps
+  type: mcq
+  question: "What is model drift?"
+  options: ["Production data or relationships change, so a model's accuracy degrades over time", "The model file moving between buckets", "GPU temperature changes", "A Git merge conflict"]
+  answer: 0
+  explanation: "Monitor input distributions and outcome metrics. Retraining pipelines are triggered on schedule or on detected drift."
+
+- id: ai-e-105
+  category: AI/MLOps
+  type: mcq
+  question: "In RAG (retrieval-augmented generation), what does the vector database store?"
+  options: ["Embeddings of document chunks for similarity search", "Model weights", "User passwords", "Container images"]
+  answer: 0
+  explanation: "Queries are embedded and matched against stored chunks, and the results are added to the prompt. Examples are pgvector, OpenSearch, Qdrant and Pinecone. Re-embed everything if you change the embedding model."
+
+- id: ai-e-106
+  category: AI/MLOps
+  type: mcq
+  question: "What does quantisation (e.g. INT8/INT4, AWQ, GPTQ) do to an LLM?"
+  options: ["Stores weights in fewer bits — less GPU memory and often faster inference, with some accuracy trade-off", "Increases model size", "Encrypts the model", "Trains it faster from scratch"]
+  answer: 0
+  explanation: "A 7B model in FP16 needs about 14 GB just for weights, and 4-bit cuts that to around 4 GB. Always evaluate quality on your own tasks after quantising."
+
+- id: ai-e-107
+  category: AI/MLOps
+  type: mcq
+  question: "Which latency metric matters most for a chat UI's perceived responsiveness?"
+  options: ["Time to first token (TTFT)", "Total GPU hours", "Model file size", "Disk IOPS"]
+  answer: 0
+  explanation: "Users see streaming start at TTFT. Also track inter-token latency, tokens/sec and queue time per model and replica."
+
+- id: ai-e-108
+  category: AI/MLOps
+  type: mcq
+  question: "How should application code get the API key for a hosted LLM provider?"
+  options: ["From a secret manager at runtime (scoped key per service), never committed or baked into images", "Hard-coded in the frontend", "In the Git README", "In the container image layer"]
+  answer: 0
+  explanation: "Leaked LLM keys get abused within hours (for crypto prompts, resale or spam). Prefer scoped keys per service with spend limits, or IAM-authenticated services such as Bedrock."
+
+- id: ai-e-109
+  category: AI/MLOps
+  type: mcq
+  question: "Which Kubernetes add-on autoscales workloads on external metrics such as queue length or requests per second (useful for inference workers)?"
+  options: ["KEDA", "CoreDNS", "kube-proxy", "etcd"]
+  answer: 0
+  explanation: "KEDA scales on SQS depth, Kafka lag, Prometheus queries and more, including to zero. Pair it with Karpenter GPU NodePools so nodes follow the Pods."
+
+- id: ai-e-110
+  category: AI/MLOps
+  type: mcq
+  question: "Why should long training jobs on Spot GPUs checkpoint regularly?"
+  options: ["Spot instances can be reclaimed with ~2 minutes notice; checkpoints let the job resume instead of restarting", "Checkpoints make GPUs faster", "AWS requires it", "It reduces model size"]
+  answer: 0
+  explanation: "Write checkpoints to S3 or FSx, handle SIGTERM, and use frameworks with resumable training. That's how you get 60–70% Spot savings without losing days of work."
+
+- id: ai-e-111
+  category: AI/MLOps
+  type: mcq
+  question: "What is an LLM 'guardrail' in production?"
+  options: ["Input/output checks (PII redaction, topic limits, jailbreak and toxicity filters, schema validation) around model calls", "A GPU cooling system", "A Kubernetes taint", "A Terraform module"]
+  answer: 0
+  explanation: "Examples are Bedrock Guardrails, NeMo Guardrails and custom validators. They complement — never replace — least-privilege tool permissions."
+
+- id: ai-e-112
+  category: AI/MLOps
+  type: mcq
+  question: "Which practice catches quality regressions when you change a prompt or model version?"
+  options: ["An evaluation suite (golden datasets, graded outputs) run in CI before release", "Reading a few answers manually in prod", "Increasing temperature", "Doubling max tokens"]
+  answer: 0
+  explanation: "Treat prompts and model versions like code: version them, run evals on every change, and canary in production with metrics."
+
+- id: ai-m-101
+  level: medium
+  category: AI/MLOps
+  type: mcq
+  title: "GPU Pod stuck Pending"
+  context:
+    - kind: terminal
+      title: events
+      content: |
+        $ kubectl describe pod llm-0 | tail -2
+          Warning  FailedScheduling  30s  default-scheduler  0/8 nodes are available: 8 Insufficient nvidia.com/gpu.
+  question: "Karpenter is installed. What's the most likely missing piece?"
+  options:
+    - "A NodePool/EC2NodeClass allowing GPU instance families (e.g. g6, p5) with the right AMI and GPU taint; Pod tolerates it"
+    - "More CPU on existing nodes"
+    - "A bigger PVC"
+    - "Disable the scheduler"
+  answer: 0
+  explanation: "Karpenter only launches what NodePool requirements allow. Use a GPU-ready AMI (EKS-optimised accelerated or Bottlerocket NVIDIA), and taint GPU nodes so only GPU workloads land on them."
+
+- id: ai-m-102
+  level: medium
+  category: AI/MLOps
+  type: mcq
+  title: "CUDA out of memory"
+  context:
+    - kind: log
+      title: vllm
+      content: |
+        torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.00 GiB. GPU 0 has a total capacity of 22.05 GiB of which 1.12 GiB is free.
+  question: "A 13B model in FP16 on a 24 GB L4 crashes at startup. Best options?"
+  options:
+    - "Use a quantised build (AWQ/GPTQ 4-bit), lower `--max-model-len` / `--gpu-memory-utilization`, or use a larger GPU / tensor parallelism across 2 GPUs"
+    - "Increase Pod CPU requests"
+    - "Add swap to the node"
+    - "Restart the Pod until it works"
+  answer: 0
+  explanation: "13B in FP16 is about 26 GB of weights alone, before the KV cache. Memory planning means weights plus a KV cache sized by context length and concurrency."
+
+- id: ai-m-103
+  level: medium
+  category: AI/MLOps
+  type: mcq
+  title: "429s from the model API"
+  scenario: "Your support bot calls a hosted LLM API. During peak, 15% of calls fail with HTTP 429."
+  question: "Best mitigation?"
+  options:
+    - "Retry with exponential backoff and jitter, queue/limit concurrency client-side, request higher quotas or provisioned throughput, and cache repeated answers"
+    - "Retry immediately in a tight loop"
+    - "Switch to a bigger prompt"
+    - "Ignore failures"
+  answer: 0
+  explanation: "429 means rate- or token-limited. Tight retries make it worse. Token-aware rate limiting and semantic caching cut both errors and cost."
+
+- id: ai-m-104
+  level: medium
+  category: AI/MLOps
+  type: mcq
+  title: "Model rollout strategy"
+  scenario: "A new fraud model version must not hurt approval rates, but you can't fully evaluate it offline."
+  question: "Which rollout gives real-traffic evidence with zero customer impact?"
+  options: ["Shadow deployment: send a copy of traffic to the new model, compare outputs, don't use its decisions", "Big-bang replace", "Deploy only on Fridays", "Turn off the old model first"]
+  answer: 0
+  explanation: "Run in shadow first, then canary with guardrail metrics, then full rollout. Keep the old version deployable for an instant rollback."
+
+- id: ai-m-105
+  level: medium
+  category: AI/MLOps
+  type: multi
+  title: "Agent with tools in production"
+  scenario: "An internal AI agent can query Jira, read Confluence and open PRs in your infra repo."
+  question: "Which controls are appropriate? (select all)"
+  options:
+    - "Separate, least-privilege credentials per tool; no org-admin tokens"
+    - "Treat retrieved documents and tickets as untrusted input (prompt-injection risk)"
+    - "Human approval for write actions such as merging or changing prod"
+    - "Let the agent store any secret it finds for later use"
+  answer: [0, 1, 2]
+  explanation: "An agent is a new principal in your system. Scope its permissions, log every tool call, and keep a human in the loop for anything irreversible."
+
+- id: ai-m-106
+  level: medium
+  category: AI/MLOps
+  type: mcq
+  title: "Cost per request exploded"
+  scenario: "After adding RAG, the LLM bill tripled. Logs show prompts of about 18k tokens."
+  question: "Which change usually helps most?"
+  options:
+    - "Retrieve fewer, better chunks (top-k, re-ranking), trim system prompts, use prompt caching, and route simple queries to a smaller model"
+    - "Increase max tokens"
+    - "Send the whole knowledge base every time"
+    - "Disable streaming"
+  answer: 0
+  explanation: "Cost scales with tokens. Measure tokens per request per feature, then trim context. Model routing (small first, escalate if needed) is a big lever."
+
+- id: ai-m-107
+  level: medium
+  category: AI/MLOps
+  type: mcq
+  title: "Model weights download on every start"
+  scenario: "Each new inference Pod downloads 30 GB of weights from S3, taking 8 minutes, so scale-ups are useless during spikes."
+  question: "Best fix?"
+  options:
+    - "Cache weights near nodes (shared FSx/EFS/PVC, node-local cache, or pre-pulled image layers) and keep a warm minimum"
+    - "Lower the readiness probe timeout"
+    - "Use smaller nodes"
+    - "Download with curl instead of the SDK"
+  answer: 0
+  explanation: "Cold start is dominated by weight transfer and GPU load time. Pre-stage the weights and give `startupProbe` enough time so liveness doesn't kill loading Pods."
+
+- id: ai-m-108
+  level: medium
+  category: AI/MLOps
+  type: mcq
+  title: "What to monitor for an LLM service"
+  question: "Which signals give the best operational picture of a self-hosted LLM endpoint?"
+  options:
+    - "TTFT and tokens/sec, queue depth, GPU utilisation and memory, KV-cache usage, error/429 rates, and token counts per tenant"
+    - "Only Pod CPU"
+    - "Only HTTP 200 count"
+    - "Disk free space on the node"
+  answer: 0
+  explanation: "vLLM and Triton expose Prometheus metrics, and DCGM exporter covers the GPUs. Per-tenant token metrics enable chargeback and abuse detection."
+
+- id: ai-m-109
+  level: medium
+  category: AI/MLOps
+  type: mcq
+  title: "PII in prompts"
+  scenario: "Support agents paste customer card details into an internal LLM tool, and prompts are logged for debugging."
+  question: "What's the right control set for a PCI environment?"
+  options:
+    - "Redact/tokenise PANs before the model and before logging, restrict log access and retention, and use a provider/region with appropriate data agreements"
+    - "Tell agents to be careful"
+    - "Log everything and encrypt later"
+    - "Disable logging only on Fridays"
+  answer: 0
+  explanation: "Prompts and completions are data, so scope and handle them like any other system that touches cardholder data. Guardrail PII filters help, but redaction must happen before storage."
+
+- id: ai-m-110
+  level: medium
+  category: AI/MLOps
+  type: mcq
+  title: "Reproducible training"
+  scenario: "An auditor asks you to reproduce the model that made a credit decision 4 months ago."
+  question: "What must you have recorded?"
+  options:
+    - "Code commit, training data version (e.g. DVC/S3 versioned snapshot), hyperparameters, environment/image digest and the resulting model artifact hash"
+    - "Only the model file"
+    - "The Jupyter notebook screenshot"
+    - "The GPU serial number"
+  answer: 0
+  explanation: "Lineage is MLOps' version of build provenance. Experiment trackers and registries link these together, and regulators increasingly expect it."
+
+- id: ai-h-101
+  level: hard
+  category: AI/MLOps
+  type: fill
+  title: "Request a GPU in a Pod"
+  scenario: "Schedule an inference Pod with one NVIDIA GPU onto tainted GPU nodes."
+  lang: yaml
+  template: |
+    spec:
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: {{effect}}
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:v0.6.4
+          resources:
+            limits:
+              {{res}}: 1
+  blanks:
+    effect: { accept: ["^NoSchedule$"], solution: NoSchedule, width: 11 }
+    res:    { accept: ["^nvidia\\.com/gpu$"], solution: nvidia.com/gpu, width: 15 }
+  explanation: "GPUs are requested as extended resources in `limits` (the request defaults to the same value). The toleration matches the `NoSchedule` taint that keeps general workloads off expensive GPU nodes."
+
+- id: ai-h-102
+  level: hard
+  category: AI/MLOps
+  type: order
+  title: "Ship a new model version"
+  question: "Order a safe release of a new model version to production."
+  items:
+    - "Register the trained model with lineage (data version, code commit, metrics)"
+    - "Run the offline evaluation suite against the golden dataset and thresholds"
+    - "Deploy in shadow mode and compare against the current model on live traffic"
+    - "Canary to a small % with business and latency guardrail metrics"
+    - "Promote to 100% and keep the previous version ready for rollback"
+  explanation: "Evidence first offline, then on live traffic without impact, then with limited impact. The same progressive-delivery ideas as app releases apply to models."

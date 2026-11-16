@@ -1,0 +1,342 @@
+# PowerShell — Windows automation for engineers who mostly live on Linux.
+level: easy
+questions:
+
+- id: ps-e-001
+  category: PowerShell
+  type: mcq
+  question: "What does the PowerShell pipeline pass between commands, unlike Bash?"
+  options: ["Objects with properties", "Plain text lines", "Binary streams only", "JSON strings"]
+  answer: 0
+  explanation: "`Get-Process | Where-Object CPU -gt 100` filters on a real `CPU` property, so there's no awk or cut on text columns. That's the biggest mental shift coming from Bash."
+
+- id: ps-e-002
+  category: PowerShell
+  type: mcq
+  question: "Which cmdlet lists the properties and methods of whatever comes down the pipeline?"
+  options: ["Get-Member", "Get-Help", "Get-Command", "Select-Object"]
+  answer: 0
+  explanation: "`Get-Service | Get-Member` shows the type and every property you can filter or select on. `Get-Command` finds commands, and `Get-Help` explains them."
+
+- id: ps-e-003
+  category: PowerShell
+  type: mcq
+  question: "PowerShell cmdlet names follow which pattern?"
+  options: ["Verb-Noun, e.g. Get-Service", "noun_verb, e.g. service_get", "Any free-form name", "Prefix-Verb, e.g. PSGet"]
+  answer: 0
+  explanation: "Approved verbs (`Get-Verb`) plus a singular noun. Knowing the pattern lets you guess commands: `Get-Service`, `Restart-Service`, `Stop-Service`."
+
+- id: ps-e-004
+  category: PowerShell
+  type: mcq
+  question: "Which is the PowerShell equivalent of `grep -i error app.log`?"
+  options: ["Select-String -Path app.log -Pattern error", "Find-Item app.log error", "Get-Content app.log -Grep error", "Search-File error app.log"]
+  answer: 0
+  explanation: "`Select-String` is case-insensitive by default (use `-CaseSensitive` to change that). It's also aliased as `sls`."
+
+- id: ps-e-005
+  category: PowerShell
+  type: mcq
+  question: "Which is the equivalent of `tail -f app.log`?"
+  options: ["Get-Content app.log -Wait -Tail 20", "Watch-File app.log", "Get-Content app.log -Follow", "Read-Host app.log"]
+  answer: 0
+  explanation: "`-Tail` shows the last N lines and `-Wait` keeps following the file as it grows."
+
+- id: ps-e-006
+  category: PowerShell
+  type: mcq
+  question: "Which comparison operator means 'greater than' in PowerShell?"
+  options: ["-gt", ">", "-greater", "gt"]
+  answer: 0
+  explanation: "`>` is redirection in PowerShell, just like in Bash. Comparisons are `-eq -ne -gt -lt -ge -le -like -match`."
+
+- id: ps-e-007
+  category: PowerShell
+  type: mcq
+  question: "What is the cross-platform, current edition of PowerShell called and which executable starts it?"
+  options: ["PowerShell 7 — `pwsh`", "Windows PowerShell 5.1 — `powershell.exe`", "PowerShell Core 2 — `ps`", "MS-DOS shell — `cmd.exe`"]
+  answer: 0
+  explanation: "PowerShell 7 (`pwsh`) runs on Windows, Linux and macOS and is built on .NET. Windows PowerShell 5.1 still ships with Windows but receives no new features."
+
+- id: ps-e-008
+  category: PowerShell
+  type: mcq
+  question: "A script won't run: `cannot be loaded because running scripts is disabled on this system`. What controls this?"
+  options: ["The execution policy (Get-ExecutionPolicy / Set-ExecutionPolicy)", "UAC", "Windows Firewall", "The PATH variable"]
+  answer: 0
+  explanation: "Execution policy is a safety guard, not a security boundary. For a user, `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser` is the usual fix. Managed fleets set it via GPO, and production scripts should be signed."
+
+- id: ps-e-009
+  category: PowerShell
+  type: mcq
+  question: "Which command runs a script block on remote Windows servers over WinRM?"
+  options: ["Invoke-Command -ComputerName web1,web2 -ScriptBlock { ... }", "ssh web1 powershell", "Start-Remote web1", "Enter-Server web1"]
+  answer: 0
+  explanation: "`Invoke-Command` fans out over PowerShell Remoting (WinRM, or SSH in PowerShell 7). `Enter-PSSession` is the interactive one-host version."
+
+- id: ps-e-010
+  category: PowerShell
+  type: mcq
+  question: "Where does PowerShell expose environment variables?"
+  options: ["The Env: drive, e.g. $env:PATH", "Only through the registry", "In $ENVIRONMENT[]", "With the `export` keyword"]
+  answer: 0
+  explanation: "`$env:APP_ENV = 'prod'` sets one for the session, and `Get-ChildItem Env:` lists them all. To persist it, use `[Environment]::SetEnvironmentVariable(...)`."
+
+- id: ps-e-011
+  category: PowerShell
+  type: mcq
+  question: "What makes a cmdlet's non-terminating error catchable by try/catch?"
+  options: ["-ErrorAction Stop (or $ErrorActionPreference = 'Stop')", "-Verbose", "-WhatIf", "-Force"]
+  answer: 0
+  explanation: "Most cmdlet errors are non-terminating: they print red text and keep going, so `catch` never fires. `-ErrorAction Stop` makes the error terminating. It's the PowerShell counterpart of `set -e`."
+
+- id: ps-e-012
+  category: PowerShell
+  type: mcq
+  question: "What does the `-WhatIf` common parameter do?"
+  options: ["Shows what the command would do without doing it", "Runs it twice", "Asks for credentials", "Runs in the background"]
+  answer: 0
+  explanation: "`Remove-Item C:\\logs\\* -Recurse -WhatIf` is a dry run. `-Confirm` prompts before each change. Support both in your own advanced functions with `SupportsShouldProcess`."
+
+- id: ps-e-013
+  category: PowerShell
+  type: mcq
+  question: "Which cmdlet tests TCP connectivity to a port, like `nc -zv host 443`?"
+  options: ["Test-NetConnection host -Port 443", "Ping-Port host 443", "Get-NetTCPConnection host", "Test-Connection host -Tcp"]
+  answer: 0
+  explanation: "`Test-NetConnection` (alias `tnc`) reports `TcpTestSucceeded`. `Get-NetTCPConnection` lists local sockets, like `ss -tan`."
+
+- id: ps-e-014
+  category: PowerShell
+  type: mcq
+  question: "Which cmdlet stores the output of a loop's objects to CSV for a report?"
+  options: ["Export-Csv -Path report.csv -NoTypeInformation", "Out-File report.csv", "Write-Csv report.csv", "Set-Content -Csv report.csv"]
+  answer: 0
+  explanation: "`Export-Csv` writes object properties as columns. `Out-File` writes the formatted text you see on screen, which is a classic mistake for reports. In PowerShell 7, `-NoTypeInformation` is the default."
+
+- id: ps-m-001
+  level: medium
+  category: PowerShell
+  type: mcq
+  title: "Services that should be running"
+  scenario: "After a reboot you want every service set to start automatically that is currently stopped."
+  question: "Which pipeline gives exactly that?"
+  options:
+    - "`Get-Service | Where-Object { $_.StartType -eq 'Automatic' -and $_.Status -eq 'Stopped' }`"
+    - "`Get-Service | grep Stopped`"
+    - "`Get-Service -Status Stopped -StartType Automatic`"
+    - "`Get-Service | Select-String Automatic`"
+  answer: 0
+  explanation: "`$_` is the current object, and you filter on real properties. `Get-Service` has no `-Status` parameter, and grep or `Select-String` would match formatted text, not properties."
+
+- id: ps-m-002
+  level: medium
+  category: PowerShell
+  type: mcq
+  title: "Disk space across 40 servers"
+  scenario: "You need free space on C: for 40 Windows servers listed in `servers.txt`, in one table."
+  question: "What's the most practical approach?"
+  options:
+    - "`Invoke-Command -ComputerName (Get-Content servers.txt) -ScriptBlock { Get-PSDrive C | Select-Object Used, Free }`"
+    - "RDP into each server and check Explorer"
+    - "`foreach` with `ping` to each host"
+    - "`Get-PSDrive C -ComputerName servers.txt`"
+  answer: 0
+  explanation: "`Invoke-Command` runs in parallel (32 at a time by default) and tags each result with `PSComputerName`. Pipe it to `Sort-Object Free` or `Export-Csv` for the report."
+
+- id: ps-m-003
+  level: medium
+  category: PowerShell
+  type: mcq
+  title: "Password in the script"
+  context:
+    - kind: text
+      title: deploy.ps1
+      content: |
+        $pass = "Sup3rS3cret!"
+        $cred = New-Object PSCredential("acme\svc-deploy", (ConvertTo-SecureString $pass -AsPlainText -Force))
+        Invoke-Command -ComputerName app01 -Credential $cred -ScriptBlock { ... }
+  question: "A reviewer blocks this. What's the better pattern for an automated job?"
+  options:
+    - "Fetch the secret at runtime from a vault (SecretManagement module with Azure Key Vault/AWS Secrets Manager/CyberArk), or use a gMSA so there's no password at all"
+    - "Base64-encode the password"
+    - "Move the password to a comment"
+    - "Rename the variable to `$p`"
+  answer: 0
+  explanation: "`Microsoft.PowerShell.SecretManagement` plus a vault extension gives `Get-Secret`, and group Managed Service Accounts let Windows rotate the password itself. Hard-coded secrets end up in Git, backups and transcripts."
+
+- id: ps-m-004
+  level: medium
+  category: PowerShell
+  type: mcq
+  title: "Event IDs that matter"
+  scenario: "Security asks for every **failed logon** on a domain controller in the last 24 hours."
+  question: "Which query is right?"
+  options:
+    - "`Get-WinEvent -FilterHashtable @{ LogName='Security'; Id=4625; StartTime=(Get-Date).AddDays(-1) }`"
+    - "`Get-WinEvent -LogName Security | Where-Object Id -eq 4624`"
+    - "`Get-EventLog -LogName Application -InstanceId 4625`"
+    - "`Select-String 4625 C:\\Windows\\System32\\winevt`"
+  answer: 0
+  explanation: "4625 is a failed logon (4624 is a success). `-FilterHashtable` filters inside the event log service, which is far faster than reading everything and piping it to `Where-Object`."
+
+- id: ps-m-005
+  level: medium
+  category: PowerShell
+  type: mcq
+  title: "Script works by hand, fails in Task Scheduler"
+  scenario: "`cleanup.ps1` works in your console. As a scheduled task running as SYSTEM, it does nothing, and the task shows result `0x1`."
+  question: "What's the most likely cause?"
+  options:
+    - "Relative paths / mapped drives / user-profile assumptions that don't exist for SYSTEM — use absolute (UNC) paths, `$PSScriptRoot`, and log with `Start-Transcript`"
+    - "Task Scheduler can't run PowerShell"
+    - "SYSTEM has fewer rights than an admin"
+    - "The script must be renamed to .bat"
+  answer: 0
+  explanation: "The working directory is `C:\\Windows\\System32`, mapped drives belong to your logon session, and `$HOME` differs. Make the action `pwsh.exe -NoProfile -File C:\\scripts\\cleanup.ps1`, and log so you can see what happened."
+
+- id: ps-m-006
+  level: medium
+  category: PowerShell
+  type: multi
+  title: "Bash habits that bite in PowerShell"
+  question: "Which statements are TRUE for PowerShell? (select all)"
+  options:
+    - "`>` is redirection, so `if ($a > 5)` writes a file named 5"
+    - "`curl` and `wget` in Windows PowerShell 5.1 are aliases for `Invoke-WebRequest`"
+    - "Variables are case-insensitive: `$Path` and `$path` are the same"
+    - "Single quotes expand variables, like double quotes"
+  answer: [0, 1, 2]
+  explanation: "Use `-gt` for comparisons. Call `curl.exe` explicitly or use `Invoke-RestMethod` (the aliases were removed in PowerShell 7). Single quotes are literal; double quotes expand `$var` and `$(expr)`."
+
+- id: ps-m-007
+  level: medium
+  category: PowerShell
+  type: mcq
+  title: "Call a REST API"
+  scenario: "You need the `status` field from `https://api.acme.io/health`, which returns JSON."
+  question: "What's the idiomatic way?"
+  options:
+    - "`(Invoke-RestMethod https://api.acme.io/health).status`"
+    - "`Invoke-WebRequest https://api.acme.io/health | Select-String status`"
+    - "`curl https://api.acme.io/health | jq .status`"
+    - "`Get-Content https://api.acme.io/health`"
+  answer: 0
+  explanation: "`Invoke-RestMethod` deserialises JSON into objects automatically. `Invoke-WebRequest` returns the raw response (`.Content`, `.StatusCode`); to parse it yourself, use `ConvertFrom-Json`."
+
+- id: ps-m-008
+  level: medium
+  category: PowerShell
+  type: mcq
+  title: "IIS logs are eating the disk"
+  scenario: "Delete IIS log files older than 14 days under `C:\\inetpub\\logs\\LogFiles`, safely."
+  question: "Which command does it (and lets you preview first)?"
+  options:
+    - "`Get-ChildItem C:\\inetpub\\logs\\LogFiles -Recurse -Filter *.log | Where-Object LastWriteTime -lt (Get-Date).AddDays(-14) | Remove-Item -WhatIf`"
+    - "`Remove-Item C:\\inetpub\\logs\\LogFiles -Recurse -Force`"
+    - "`del *.log /s`"
+    - "`Clear-Content C:\\inetpub\\logs\\LogFiles\\*`"
+  answer: 0
+  explanation: "Filter by `LastWriteTime`, preview with `-WhatIf`, then remove it to run for real. Schedule it — or configure IIS log rollover and retention."
+
+- id: ps-m-009
+  level: medium
+  category: PowerShell
+  type: mcq
+  title: "PowerShell DSC vs a script"
+  question: "What does Desired State Configuration give you that a plain install script doesn't?"
+  options:
+    - "Declarative, idempotent configuration with Test/Set logic and drift detection"
+    - "Faster execution"
+    - "A GUI"
+    - "Linux kernel modules"
+  answer: 0
+  explanation: "DSC resources implement Test, Get and Set, so re-running only fixes drift. Today, many teams drive the same idea through Azure Machine Configuration, Ansible `win_*` modules, or DSC v3."
+
+- id: ps-m-010
+  level: medium
+  category: PowerShell
+  type: mcq
+  title: "Measure it"
+  scenario: "A teammate says the `-Filter` version of a query is faster than piping to `Where-Object`. You want proof."
+  question: "Which cmdlet times a script block?"
+  options: ["Measure-Command { ... }", "Get-Timer { ... }", "Time-Object { ... }", "Start-Stopwatch"]
+  answer: 0
+  explanation: "`Measure-Command` returns a TimeSpan. Filtering on the left (provider or cmdlet parameters) almost always beats filtering on the right, because fewer objects are created."
+
+- id: ps-m-011
+  level: medium
+  category: PowerShell
+  type: mcq
+  title: "Run once on 200 servers, fast"
+  scenario: "PowerShell 7. You need to process 500 log files in parallel on one machine."
+  question: "Which construct is built for that?"
+  options: ["`ForEach-Object -Parallel { ... } -ThrottleLimit 8`", "`foreach ($f in $files) { Start-Sleep 0 }`", "`Get-Job -Parallel`", "`Invoke-Parallel` (built-in in 5.1)"]
+  answer: 0
+  explanation: "PowerShell 7 added `ForEach-Object -Parallel`, which runs each item in its own runspace. Use `$using:var` to pass outer variables in. In 5.1 you'd reach for jobs or runspace pools."
+
+- id: ps-h-001
+  level: hard
+  category: PowerShell
+  type: spot
+  title: "This catch never fires"
+  scenario: "The script should log and exit when the copy fails, but on failure it prints red text and carries on."
+  lang: bash
+  code: |
+    try {
+        Copy-Item \\fs01\builds\app.zip C:\deploy\
+        Expand-Archive C:\deploy\app.zip -DestinationPath C:\app -Force
+    }
+    catch {
+        Write-Error "Deploy failed: $_"
+        exit 1
+    }
+  answer: [2]
+  explanation: "`Copy-Item` raises a non-terminating error, so `catch` is skipped. Add `-ErrorAction Stop` to line 2 (or set `$ErrorActionPreference = 'Stop'` at the top)."
+
+- id: ps-h-002
+  level: hard
+  category: PowerShell
+  type: fill
+  title: "Restart a service on many servers"
+  scenario: "Restart the `W3SVC` service on every server in `web.txt`, in parallel over remoting, and stop on the first error."
+  lang: bash
+  template: |
+    $servers = Get-Content .\web.txt
+    {{cmd}} -ComputerName $servers -ScriptBlock {
+        Restart-Service -Name W3SVC -ErrorAction {{ea}}
+    }
+  blanks:
+    cmd: { accept: ["^Invoke-Command$", "^invoke-command$", "^icm$"], solution: Invoke-Command, width: 15 }
+    ea:  { accept: ["^Stop$", "^stop$"], solution: Stop, width: 5 }
+  explanation: "`Invoke-Command -ComputerName` fans out over WinRM in parallel, and `-ErrorAction Stop` turns a failed restart into a real error you can see per server (`PSComputerName`)."
+
+- id: ps-h-003
+  level: hard
+  category: PowerShell
+  type: order
+  title: "Patch night for an IIS farm"
+  question: "Order a safe rolling patch of one IIS node behind a load balancer."
+  items:
+    - "Drain the node in the load balancer and wait for connections to finish"
+    - "Install updates (`Install-WindowsUpdate` / WSUS / Azure Update Manager)"
+    - "Reboot and wait for it to come back"
+    - "Verify `Get-Service W3SVC,WAS` and `Test-NetConnection -Port 443`, plus a synthetic check"
+    - "Put the node back in the pool, then move to the next one"
+  explanation: "Drain, patch, reboot, verify, return — one node at a time. The verification step catches what bit the IIS lab: a service whose start type was changed during patching."
+
+- id: ps-e-015
+  category: PowerShell
+  type: mcq
+  question: "Which cmdlet shows the processes using the most memory, like `ps aux --sort=-%mem | head`?"
+  options: ["Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 5", "Get-Process -Top 5", "tasklist /mem", "Get-Memory -Top 5"]
+  answer: 0
+  explanation: "Sort on a real property and take the first N objects. `Select-Object -First` is PowerShell's `head`."
+
+- id: ps-e-016
+  category: PowerShell
+  type: mcq
+  question: "Which cmdlet records everything in a session to a file, which is useful for change tickets and audits?"
+  options: ["Start-Transcript -Path C:\\logs\\change-123.txt", "Out-Log", "Set-History -Save", "Write-Audit"]
+  answer: 0
+  explanation: "`Start-Transcript` and `Stop-Transcript` capture commands and output. Many orgs enforce transcription via GPO, and Script Block Logging (event 4104) is what blue teams read."

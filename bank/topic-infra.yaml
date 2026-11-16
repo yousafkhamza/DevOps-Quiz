@@ -1,0 +1,297 @@
+# Docker, Linux and Terraform top-ups.
+level: easy
+questions:
+
+# ---------------- Docker ----------------
+- id: dk-e-101
+  category: Docker
+  type: mcq
+  question: "Which builds one image for both amd64 and arm64 (e.g. for Graviton)?"
+  options: ["docker buildx build --platform linux/amd64,linux/arm64 --push -t app:1.0 .", "docker build --arch all .", "docker build twice and rename", "docker save --multiarch"]
+  answer: 0
+  explanation: "buildx (BuildKit) builds a multi-arch manifest list. Cross-building uses QEMU, or native builders per architecture for speed."
+
+- id: dk-e-102
+  category: Docker
+  type: mcq
+  question: "Which BuildKit feature passes a secret (like an npm token) to a build step without leaving it in any image layer?"
+  options: ["RUN --mount=type=secret,id=npmrc ...", "ARG NPM_TOKEN", "ENV NPM_TOKEN=...", "COPY .npmrc . then delete it"]
+  answer: 0
+  explanation: "ARG and ENV values end up in the image history, and COPY-then-delete still leaves the file in a lower layer. Secret mounts exist only for that one RUN."
+
+- id: dk-e-103
+  category: Docker
+  type: mcq
+  question: "What does a Dockerfile `HEALTHCHECK` do?"
+  options: ["Docker runs a command periodically and marks the container healthy/unhealthy", "Restarts Kubernetes Pods", "Scans for CVEs", "Limits memory"]
+  answer: 0
+  explanation: "Compose and Swarm use it, for example with `depends_on: condition: service_healthy`. Kubernetes ignores it and uses liveness and readiness probes."
+
+- id: dk-m-101
+  level: medium
+  category: Docker
+  type: mcq
+  title: "Container can't reach the DB on the host"
+  scenario: "On a Linux dev box, an app container tries `localhost:5432` to reach Postgres running on the host, and gets connection refused."
+  question: "Why, and what's a fix?"
+  options:
+    - "`localhost` inside the container is the container itself — use `host.docker.internal` (add `--add-host=host.docker.internal:host-gateway` on Linux) or run Postgres in the same Compose network"
+    - "Postgres doesn't support containers"
+    - "Docker blocks port 5432"
+    - "Use `127.0.0.2`"
+  answer: 0
+  explanation: "Each container has its own network namespace. In Compose, use the service name (`db:5432`) on the shared network — that's the cleanest option."
+
+- id: dk-m-102
+  level: medium
+  category: Docker
+  type: multi
+  title: "Harden a container run"
+  question: "Which `docker run` flags reduce the blast radius if the app is compromised? (select all)"
+  options:
+    - "`--read-only` with a `--tmpfs /tmp`"
+    - "`--cap-drop ALL` (add back only what's needed)"
+    - "`--user 10001:10001`"
+    - "`--privileged`"
+  answer: [0, 1, 2]
+  explanation: "A read-only root filesystem, no Linux capabilities and a non-root user cover most of the hardening benefit. `--privileged` gives the container almost full host access."
+
+- id: dk-e-104
+  category: Docker
+  type: mcq
+  question: "Which command removes dangling images only (untagged layers left after rebuilds)?"
+  options: ["docker image prune", "docker image prune -a", "docker rmi $(docker images -q)", "docker system prune --volumes"]
+  answer: 0
+  explanation: "Without `-a`, only dangling images go. With `-a`, every image not used by a container is removed, including base images you'll download again."
+
+# ---------------- Linux ----------------
+- id: lx-e-101
+  category: Linux
+  type: mcq
+  question: "Which command shows why the system is slow, with per-process CPU, memory and I/O in one interactive view?"
+  options: ["htop (or top)", "ls -la", "uname -a", "cat /etc/os-release"]
+  answer: 0
+  explanation: "Start with `uptime` (load), `htop`, `vmstat 1`, `iostat -x 1`, `free -h`, `dmesg -T | tail` — Brendan Gregg's '60-second' checklist."
+
+- id: lx-e-102
+  category: Linux
+  type: mcq
+  question: "Which file controls static hostname → IP lookups before DNS?"
+  options: ["/etc/hosts", "/etc/resolv.conf", "/etc/hostname", "/etc/nsswitch.conf only"]
+  answer: 0
+  explanation: "`/etc/nsswitch.conf` decides the order (`files dns`), `/etc/resolv.conf` lists DNS servers, and `/etc/hosts` holds static entries. `getent hosts name` tests the full chain."
+
+- id: lx-e-103
+  category: Linux
+  type: mcq
+  question: "Which command makes a systemd service start on boot AND start now?"
+  options: ["systemctl enable --now app", "systemctl start app", "systemctl daemon-reload", "service app boot"]
+  answer: 0
+  explanation: "`enable` creates the boot symlinks, and `--now` also starts the service. After editing unit files, run `systemctl daemon-reload` first."
+
+- id: lx-m-101
+  level: medium
+  category: Linux
+  type: mcq
+  title: "No space left, but df shows free space"
+  context:
+    - kind: terminal
+      title: server
+      content: |
+        $ touch /var/spool/app/new.job
+        touch: cannot touch '/var/spool/app/new.job': No space left on device
+        $ df -h /var
+        /dev/nvme1n1   50G   21G   29G  42% /var
+        $ df -i /var
+        Filesystem      Inodes  IUsed IFree IUse% Mounted on
+        /dev/nvme1n1   3276800 3276800    0  100% /var
+  question: "What's wrong?"
+  options:
+    - "Inodes are exhausted — millions of tiny files (e.g. a spool or session dir); find and clean them"
+    - "The disk is read-only"
+    - "df is lying"
+    - "The kernel is out of memory"
+  answer: 0
+  explanation: "Each file uses an inode. Find the culprit with `sudo du --inodes -x /var | sort -n | tail`. XFS allocates inodes dynamically, while ext4 sets the count when the filesystem is created."
+
+- id: lx-m-102
+  level: medium
+  category: Linux
+  type: mcq
+  title: "Permission denied, permissions look fine"
+  context:
+    - kind: terminal
+      title: rhel9
+      content: |
+        $ ls -l /srv/www/index.html
+        -rw-r--r--. 1 root root 512 Nov 16 09:10 /srv/www/index.html
+        $ curl -s localhost | head -1
+        <title>403 Forbidden</title>
+        $ sudo ausearch -m avc -ts recent | tail -1
+        type=AVC msg=audit(...): avc:  denied  { read } for  pid=1402 comm="nginx" name="index.html" scontext=system_u:system_r:httpd_t:s0 tcontext=unconfined_u:object_r:var_t:s0
+  question: "What's the correct fix?"
+  options:
+    - "Label the content for the web server: `semanage fcontext -a -t httpd_sys_content_t '/srv/www(/.*)?'` then `restorecon -Rv /srv/www`"
+    - "`setenforce 0` permanently"
+    - "`chmod 777 /srv/www`"
+    - "Reinstall nginx"
+  answer: 0
+  explanation: "SELinux denied it: the file has type `var_t`, but httpd may only read `httpd_sys_content_t`. Fix the label persistently instead of turning SELinux off. `audit2why` explains denials."
+
+- id: lx-m-103
+  level: medium
+  category: Linux
+  type: mcq
+  title: "Time drift breaks TLS"
+  scenario: "A VM's clock is 9 minutes ahead. AWS API calls fail with `SignatureDoesNotMatch` / `RequestTimeTooSkewed`."
+  question: "Correct fix?"
+  options:
+    - "Enable chrony/systemd-timesyncd against a reliable source (on EC2: the Amazon Time Sync Service 169.254.169.123) and check `chronyc tracking`"
+    - "Set the clock by hand once"
+    - "Disable TLS verification"
+    - "Change the timezone to UTC"
+  answer: 0
+  explanation: "SigV4 tolerates about 5 minutes of skew. Timezone isn't the issue — the clock itself is wrong. Alert on `node_timex_offset_seconds`."
+
+# ---------------- Terraform ----------------
+- id: tf-e-101
+  category: Terraform
+  type: mcq
+  question: "What does `.terraform.lock.hcl` record?"
+  options: ["Exact provider versions and checksums selected by init", "The state lock ID", "Module source code", "Variable values"]
+  answer: 0
+  explanation: "Commit it so every run uses the same provider builds. Update it deliberately with `terraform init -upgrade`."
+
+- id: tf-e-102
+  category: Terraform
+  type: mcq
+  question: "Which block lets you read an existing resource you don't manage (e.g. a VPC by tag)?"
+  options: ["data \"aws_vpc\" \"main\" { ... }", "resource \"aws_vpc\" \"main\" {}", "import { }", "locals { }"]
+  answer: 0
+  explanation: "Data sources only read. Use them for lookups — AMIs, VPCs, caller identity — instead of hard-coding IDs."
+
+- id: tf-e-103
+  category: Terraform
+  type: mcq
+  question: "How should you mark a variable holding a password?"
+  options: ["sensitive = true", "secret = true", "hidden = true", "encrypted = true"]
+  answer: 0
+  explanation: "`sensitive` redacts the value in plan and apply output, but it's still stored in state in plain text — so encrypt state and restrict who can read it."
+
+- id: tf-e-104
+  category: Terraform
+  type: mcq
+  question: "What does `terraform plan -refresh-only` show?"
+  options: ["Drift between state and real infrastructure, without proposing config changes", "Only new resources", "A dry run of destroy", "Provider upgrades"]
+  answer: 0
+  explanation: "Run `-refresh-only` to see what changed outside Terraform. Apply it to accept the drift into state, or fix the config or the console change."
+
+- id: tf-m-101
+  level: medium
+  category: Terraform
+  type: mcq
+  title: "Same module, three environments"
+  scenario: "You have dev, staging and prod with the same architecture but different sizes and accounts."
+  question: "Which layout is most common and least surprising?"
+  options:
+    - "One root module per environment (separate state/backends), each calling shared versioned modules with its own tfvars"
+    - "One state file for all three with `count` switches"
+    - "Copy-paste the whole code per env"
+    - "Workspaces sharing one AWS account and one state bucket key for everything"
+  answer: 0
+  explanation: "Separate state per environment limits blast radius and lets prod pin module versions. Workspaces can work, but they hide which environment you're in — a classic way to apply to prod by mistake."
+
+- id: tf-m-102
+  level: medium
+  category: Terraform
+  type: mcq
+  title: "Error: Cycle"
+  context:
+    - kind: log
+      title: plan
+      content: |
+        Error: Cycle: aws_security_group.app, aws_security_group.db
+  question: "Two security groups reference each other in inline ingress rules. How do you break the cycle?"
+  options:
+    - "Create the groups without inline rules and add `aws_vpc_security_group_ingress_rule` resources that reference both"
+    - "Add depends_on in both directions"
+    - "Merge both into one group"
+    - "Run apply twice"
+  answer: 0
+  explanation: "Separate rule resources let Terraform create both groups first, then the rules. AWS provider v5 recommends `aws_vpc_security_group_ingress_rule` / `egress_rule` over inline rules."
+
+- id: tf-m-103
+  level: medium
+  category: Terraform
+  type: multi
+  title: "Terraform in CI, properly"
+  question: "Which belong in a Terraform pipeline for prod? (select all)"
+  options:
+    - "`fmt -check`, `validate`, tflint and a policy/security scan (Checkov/Trivy/OPA)"
+    - "Post the plan on the PR; apply exactly the saved plan file after approval"
+    - "OIDC role with least privilege; separate plan (read) and apply (write) roles"
+    - "Run `apply -auto-approve` from every developer laptop"
+  answer: [0, 1, 2]
+  explanation: "Plan on the PR, review it, then apply that exact plan. Read-only plan roles mean a malicious PR can't change infrastructure during plan — though plans can still run arbitrary data sources and providers, so scope those roles tightly."
+
+- id: tf-m-104
+  level: medium
+  category: Terraform
+  type: mcq
+  title: "Ignore what autoscaling changes"
+  scenario: "Your ASG's `desired_capacity` is changed by scaling policies, and every plan wants to reset it."
+  question: "What's the clean fix?"
+  options: ["`lifecycle { ignore_changes = [desired_capacity] }`", "Remove the ASG from Terraform", "Run plan less often", "`prevent_destroy = true`"]
+  answer: 0
+  explanation: "`ignore_changes` tells Terraform to stop fighting the controller that owns that field — the same idea as removing `replicas` when an HPA owns scaling."
+
+- id: tf-h-101
+  level: hard
+  category: Terraform
+  type: fill
+  title: "for_each over a map"
+  scenario: "Create one private subnet per AZ from a map, so removing one AZ never shifts the others."
+  lang: hcl
+  template: |
+    variable "private_subnets" {
+      default = { "eu-central-1a" = "10.20.1.0/24", "eu-central-1b" = "10.20.2.0/24" }
+    }
+    resource "aws_subnet" "private" {
+      {{loop}} = var.private_subnets
+      vpc_id            = aws_vpc.main.id
+      availability_zone = each.{{k}}
+      cidr_block        = each.{{v}}
+    }
+  blanks:
+    loop: { accept: ["^for_each$"], solution: for_each, width: 9 }
+    k:    { accept: ["^key$"], solution: key, width: 4 }
+    v:    { accept: ["^value$"], solution: value, width: 6 }
+  explanation: "Addresses become `aws_subnet.private[\"eu-central-1a\"]`, which stay stable. With `count`, removing the first element would shift every index and recreate subnets."
+
+- id: tf-h-102
+  level: hard
+  category: Terraform
+  type: spot
+  title: "Plan shows a new provider every run"
+  scenario: "Different engineers get different AWS provider versions and occasional surprise diffs. Which line is the problem?"
+  lang: hcl
+  code: |
+    terraform {
+      required_version = ">= 1.6"
+      required_providers {
+        aws = {
+          source  = "hashicorp/aws"
+          version = ">= 4.0"
+        }
+      }
+    }
+  answer: [6]
+  explanation: "`>= 4.0` accepts any future major version, including breaking ones. Use `~> 5.80` (allows 5.x minor upgrades only) and commit `.terraform.lock.hcl`."
+
+- id: tf-e-105
+  category: Terraform
+  type: mcq
+  question: "What does `terraform output -json` give you?"
+  options: ["All root-module outputs as JSON for scripts and pipelines", "The plan as JSON", "The state file", "Provider logs"]
+  answer: 0
+  explanation: "`terraform output -raw db_endpoint` gives a single value. For other stacks, prefer reading outputs through a `terraform_remote_state` data source or SSM parameters, rather than parsing CLI output."

@@ -1,0 +1,770 @@
+# MEDIUM — simple real-world scenarios: read the logs / manifest / output, pick the right move.
+level: medium
+questions:
+
+- id: m-k8s-001
+  category: Kubernetes
+  type: mcq
+  title: The pod that keeps restarting
+  scenario: A new release of `payments-api` went out 10 minutes ago. Grafana shows the error rate climbing and on-call pulls this from the cluster.
+  context:
+    - kind: terminal
+      title: bastion
+      content: |
+        $ kubectl get pods -n payments
+        NAME                            READY   STATUS             RESTARTS      AGE
+        payments-api-6c9f7d8b5-2xkqp    0/1     CrashLoopBackOff   6 (32s ago)   9m
+        payments-api-6c9f7d8b5-h7r4m    0/1     CrashLoopBackOff   6 (41s ago)   9m
+        payments-api-5b7d9c4f8-lq2zt    1/1     Running            0             3d
+  question: What is the most useful next command to find the root cause?
+  options:
+    - "`kubectl logs payments-api-6c9f7d8b5-2xkqp -n payments --previous`"
+    - "`kubectl delete pod payments-api-6c9f7d8b5-2xkqp -n payments`"
+    - "`kubectl get nodes`"
+    - "`kubectl scale deploy payments-api --replicas=10 -n payments`"
+  answer: 0
+  explanation: In CrashLoopBackOff the current container may have only just restarted, so `--previous` (`-p`) shows the logs of the instance that crashed. Deleting or scaling only treats the symptom. The old ReplicaSet Pod still running tells you the rollout stalled, which is good — maxUnavailable did its job.
+
+- id: m-k8s-002
+  category: Kubernetes
+  type: mcq
+  title: Exit code 137
+  scenario: A Java service restarts every few hours under load.
+  context:
+    - kind: terminal
+      title: describe
+      content: |
+        $ kubectl describe pod orders-7f8d9-abcde | sed -n '/Last State/,/Restart/p'
+            Last State:     Terminated
+              Reason:       OOMKilled
+              Exit Code:    137
+              Started:      Mon, 16 Nov 2026 09:12:03 +0400
+              Finished:     Mon, 16 Nov 2026 11:47:55 +0400
+            Ready:          True
+            Restart Count:  4
+        $ kubectl get pod orders-7f8d9-abcde -o jsonpath='{.spec.containers[0].resources}'
+        {"limits":{"memory":"512Mi"},"requests":{"cpu":"250m","memory":"512Mi"}}
+  question: What is the best fix?
+  options:
+    - Raise the memory limit to fit the real working set (and size the JVM heap with `-XX:MaxRAMPercentage`), based on observed usage
+    - Add a CPU limit so the container uses less memory
+    - Switch the restartPolicy to Never
+    - Increase the liveness probe timeout
+  answer: 0
+  explanation: 137 = 128 + 9 (SIGKILL), and `OOMKilled` confirms the kernel cgroup OOM killer fired at the 512Mi limit. Right-size from real usage (e.g. VPA recommendations or a tool like PodGauge), and make the JVM container-aware so heap + metaspace + threads fit under the limit. CPU limits don't affect memory.
+
+- id: m-k8s-003
+  category: Kubernetes
+  type: mcq
+  title: Pending forever
+  context:
+    - kind: terminal
+      title: events
+      content: |
+        $ kubectl describe pod ml-worker-0 | tail -4
+        Events:
+          Type     Reason            Age   From               Message
+          ----     ------            ----  ----               -------
+          Warning  FailedScheduling  2m    default-scheduler  0/6 nodes are available: 3 Insufficient cpu, 3 node(s) had untolerated taint {dedicated: gpu}. preemption: 0/6 nodes are available: 6 No preemption victims found for incoming pod.
+  question: The Pod is a CPU workload and should NOT run on GPU nodes. What is the correct fix?
+  options:
+    - Add a toleration for `dedicated=gpu` to the Pod
+    - Lower the Pod's CPU request to what it really needs, or add CPU capacity (e.g. let Karpenter provision a node)
+    - Remove the taint from the GPU nodes
+    - Delete and recreate the Pod
+  answer: 1
+  explanation: Three nodes are excluded by the taint, which is correct here, and the other three lack CPU. Fix the request or add capacity. Tolerating or removing the taint would put CPU work on expensive GPU nodes.
+
+- id: m-k8s-004
+  category: Kubernetes
+  type: mcq
+  title: Service with no endpoints
+  scenario: Users get `503` from the ingress. The Pods are Running and Ready.
+  context:
+    - kind: terminal
+      title: bastion
+      content: |
+        $ kubectl get endpointslices -l kubernetes.io/service-name=web
+        NAME        ADDRESSTYPE   PORTS     ENDPOINTS   AGE
+        web-8sdk2   IPv4          <unset>   <unset>     20m
+        $ kubectl get svc web -o jsonpath='{.spec.selector}'
+        {"app":"web"}
+        $ kubectl get pods --show-labels | grep web
+        web-5d4b7c9f6-x2v9q   1/1   Running   0   20m   app.kubernetes.io/name=web,pod-template-hash=5d4b7c9f6
+  question: Why does the Service have no endpoints?
+  options:
+    - The Pods are not Ready
+    - The Service selector `app=web` doesn't match the Pod label `app.kubernetes.io/name=web`
+    - kube-proxy is down
+    - The Service type must be LoadBalancer
+  answer: 1
+  explanation: A Service selects Pods by label. After a chart was migrated to the recommended `app.kubernetes.io/*` labels, the Service still selects `app=web`. Align the selector (and remember that a Deployment's selector is immutable).
+
+- id: m-k8s-005
+  category: Kubernetes
+  type: multi
+  title: Safe node drain
+  scenario: You need to drain a node for an AMI upgrade with zero customer impact.
+  question: Which of these help ensure the drain does not cause downtime? (select all)
+  options:
+    - A PodDisruptionBudget for each critical workload
+    - At least 2 replicas spread across nodes/zones (topologySpreadConstraints)
+    - Readiness probes so new Pods receive traffic only when ready
+    - "`kubectl drain --disable-eviction --force` to speed it up"
+  answer: [0, 1, 2]
+  explanation: PDBs throttle evictions, spread replicas so one node never holds them all, and readiness gates traffic. `--disable-eviction` bypasses PDBs by deleting Pods directly — the opposite of safe.
+
+- id: m-k8s-006
+  category: Kubernetes
+  type: mcq
+  title: ImagePullBackOff on EKS
+  context:
+    - kind: log
+      title: events
+      content: |
+        Warning  Failed   12s  kubelet  Failed to pull image "123456789012.dkr.ecr.eu-central-1.amazonaws.com/api:1.8.2": rpc error: code = NotFound desc = failed to pull and unpack image: not found
+  question: What is the most likely cause?
+  options:
+    - The node IAM role lacks ECR permissions
+    - The tag `1.8.2` doesn't exist in that repository/region (pipeline pushed a different tag or region)
+    - The cluster is out of disk
+    - The image is too large
+  answer: 1
+  explanation: '`NotFound` means the registry answered and the manifest doesn''t exist. An IAM problem shows up as `403 Forbidden` / `no basic auth credentials`. Check `aws ecr describe-images --repository-name api --image-ids imageTag=1.8.2 --region eu-central-1`.'
+
+- id: m-k8s-007
+  category: Kubernetes
+  type: spot
+  title: Rollout that never finishes
+  scenario: '`kubectl rollout status` hangs, and new Pods are Running but never Ready. The app listens on port 8080 and serves health checks at `/healthz`.'
+  lang: yaml
+  code: |
+    containers:
+      - name: api
+        image: ghcr.io/acme/api:2.4.0
+        ports:
+          - containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 80
+          periodSeconds: 5
+  answer: [9]
+  explanation: 'The probe targets port 80, but the app listens on 8080, so readiness never passes and the rollout stalls (and the old ReplicaSet keeps serving, thanks to maxUnavailable). Use `port: 8080` or a named port such as `port: http`.'
+
+- id: m-k8s-008
+  category: Kubernetes
+  type: mcq
+  title: HPA shows <unknown>
+  context:
+    - kind: terminal
+      title: bastion
+      content: |
+        $ kubectl get hpa api
+        NAME   REFERENCE        TARGETS              MINPODS   MAXPODS   REPLICAS
+        api    Deployment/api   cpu: <unknown>/70%   2         10        2
+  question: What are the two most common reasons for `<unknown>` CPU targets?
+  options:
+    - metrics-server not installed/healthy, or the containers have no CPU requests
+    - The HPA needs a LoadBalancer Service
+    - maxReplicas is too low
+    - The Deployment uses a ConfigMap
+  answer: 0
+  explanation: CPU utilisation is a percentage of the request, so without `resources.requests.cpu` there's nothing to divide by. Without metrics-server (`kubectl top pods` fails), there's no data at all.
+
+- id: m-aws-001
+  category: AWS
+  type: mcq
+  title: AccessDenied with an explicit deny
+  context:
+    - kind: log
+      title: CLI
+      content: |
+        An error occurred (AccessDenied) when calling the PutObject operation: User: arn:aws:sts::111122223333:assumed-role/ci-deploy/gha-1731744000 is not authorized to perform: s3:PutObject on resource: "arn:aws:s3:::acme-artifacts/build/app.zip" with an explicit deny in a service control policy
+  question: The role's IAM policy allows `s3:PutObject` on the bucket. Where must you look to fix this?
+  options:
+    - The bucket ACL
+    - The Organizations SCP attached to the account/OU
+    - The KMS key policy
+    - The role's trust policy
+  answer: 1
+  explanation: The message names the source, an explicit deny in an SCP. An explicit deny anywhere (SCP, permission boundary, resource policy, identity policy) beats any allow. Common SCPs deny actions outside approved regions or without required tags or encryption headers.
+
+- id: m-aws-002
+  category: AWS
+  type: mcq
+  title: Private subnet can't reach the internet
+  scenario: An EC2 instance in a private subnet can't `curl https://api.github.com`. Security groups allow all egress.
+  context:
+    - kind: terminal
+      title: route table
+      content: |
+        $ aws ec2 describe-route-tables --route-table-ids rtb-0priv --query 'RouteTables[].Routes'
+        [
+            { "DestinationCidrBlock": "10.20.0.0/16", "GatewayId": "local", "State": "active" },
+            { "DestinationCidrBlock": "0.0.0.0/0", "NatGatewayId": "nat-0abc", "State": "blackhole" }
+        ]
+  question: What does `blackhole` indicate?
+  options:
+    - The NAT Gateway the route points to was deleted (or failed) — traffic is dropped
+    - The route is working but slow
+    - DNS resolution is disabled
+    - The NACL is blocking port 443
+  answer: 0
+  explanation: A blackhole route means its target no longer exists. Recreate the NAT Gateway (one per AZ for HA) and update the route, or use VPC endpoints for AWS services.
+
+- id: m-aws-003
+  category: AWS
+  type: multi
+  title: Cut the NAT Gateway bill
+  scenario: 'Cost Explorer shows NAT Gateway data processing as the #2 line item. Most traffic is EKS nodes pulling images from ECR and writing to S3.'
+  question: Which actions reduce that cost? (select all)
+  options:
+    - Add an S3 gateway VPC endpoint
+    - Add ECR API/DKR interface endpoints (plus S3 gateway endpoint for layer storage)
+    - Move all nodes to public subnets with public IPs
+    - Enable pull-through cache and reduce image size with multi-stage builds
+  answer: [0, 1, 3]
+  explanation: The S3 gateway endpoint is free, ECR layers are served from S3, and interface endpoints cost far less per GB than NAT processing. Smaller images mean fewer bytes. Public nodes would technically avoid NAT but go against basic security posture.
+
+- id: m-aws-004
+  category: AWS
+  type: mcq
+  title: ALB 502s after deploy
+  context:
+    - kind: log
+      title: ALB access log
+      content: |
+        https 2026-11-16T07:02:11Z app/prod-alb/... 10.0.3.41:51234 10.0.12.7:8080 0.001 -1 -1 502 - 412 0 "GET https://api.acme.io:443/v1/orders HTTP/2.0" ... "-" "-" 0 2026-11-16T07:02:11Z "forward" "-" "-" "10.0.12.7:8080" "-" "-" "-" TargetConnectionError
+  question: Target response time is `-1` and the reason is `TargetConnectionError`. What's most likely?
+  options:
+    - The ALB couldn't open a TCP connection to the target (app not listening yet, wrong port, or SG blocks the ALB)
+    - The app returned a 502 itself
+    - TLS certificate expired on the ALB
+    - WAF blocked the request
+  answer: 0
+  explanation: '`-1` means no response was received. Typical causes are targets registered before the app listens (a missing readiness/health check), a container port mismatch, or the target SG not allowing the ALB SG.'
+
+- id: m-aws-005
+  category: AWS
+  type: mcq
+  title: Lambda timeouts in a VPC
+  scenario: A Lambda inside a VPC (private subnets) times out calling Secrets Manager. Outside the VPC it worked.
+  question: What's the cleanest fix?
+  options:
+    - Increase the Lambda timeout to 15 minutes
+    - Add a Secrets Manager interface VPC endpoint (or NAT) so the function can reach the API privately
+    - Give the Lambda a public IP
+    - Move the secret to an environment variable in plaintext
+  answer: 1
+  explanation: VPC-attached Lambdas have no internet path and can't get public IPs. Use interface endpoints (PrivateLink) for AWS APIs, or route through NAT. Never put plaintext secrets in env vars.
+
+- id: m-aws-006
+  category: AWS
+  type: mcq
+  title: GuardDuty finding
+  context:
+    - kind: json
+      title: finding
+      content: |
+        {
+          "Type": "UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration.OutsideAWS",
+          "Severity": 8,
+          "Resource": { "AccessKeyDetails": { "UserName": "web-ec2-role" } },
+          "Service": { "Action": { "AwsApiCallAction": { "Api": "ListBuckets", "RemoteIpDetails": { "IpAddressV4": "185.220.101.4" } } } }
+        }
+  question: What is the best FIRST containment step?
+  options:
+    - Revoke the role's active sessions (deny by `aws:TokenIssueTime`) and enforce IMDSv2 on the instance
+    - Delete the EC2 instance immediately
+    - Disable GuardDuty to stop the alerts
+    - Rotate the root account password
+  answer: 0
+  explanation: Instance-role credentials are being used outside AWS, which typically means SSRF against IMDSv1. Revoke sessions issued before now (the IAM console's 'Revoke active sessions' does this), require IMDSv2, then investigate. Snapshot before terminating anything — that's evidence.
+
+- id: m-tf-001
+  category: Terraform
+  type: mcq
+  title: State lock stuck
+  context:
+    - kind: terminal
+      title: pipeline
+      content: |
+        $ terraform plan
+        ╷
+        │ Error: Error acquiring the state lock
+        │
+        │ Lock Info:
+        │   ID:        7d1c2f3a-9b2e-4c1d-a5f0-3e8b9d7c6a21
+        │   Path:      acme-tfstate/prod/network.tfstate
+        │   Operation: OperationTypeApply
+        │   Who:       runner@gha-runner-42
+        │   Created:   2026-11-16 03:11:09 UTC
+  question: The runner that created the lock was cancelled hours ago. What should you do?
+  options:
+    - Confirm no apply is running, then `terraform force-unlock 7d1c2f3a-9b2e-4c1d-a5f0-3e8b9d7c6a21`
+    - Delete the state file and re-apply
+    - Run `terraform apply -lock=false` on every pipeline from now on
+    - Recreate the S3 bucket
+  answer: 0
+  explanation: Locks protect state from concurrent writes. Once you've verified that nobody is mid-apply, `force-unlock` with the lock ID is the documented fix. Disabling locking permanently invites state corruption.
+
+- id: m-tf-002
+  category: Terraform
+  type: mcq
+  title: Plan wants to replace the database
+  context:
+    - kind: diff
+      title: plan
+      content: |
+        # aws_db_instance.main must be replaced
+        -/+ resource "aws_db_instance" "main" {
+              ~ identifier = "prod-db" -> "prod-postgres" # forces replacement
+                ...
+            }
+        Plan: 1 to add, 0 to change, 1 to destroy.
+  question: Someone renamed the identifier for "consistency". What's the right response?
+  options:
+    - Revert the identifier change (and add `lifecycle { prevent_destroy = true }` to critical data stores)
+    - Apply — RDS will migrate data automatically
+    - Run `terraform state rm` first
+    - Use `-target` to apply only the DB
+  answer: 0
+  explanation: Some arguments force replacement, and replacing a database destroys its data. Read every `-/+` in a plan. `prevent_destroy` makes Terraform error out instead. A `moved` block won't help, because the resource address didn't change — the argument did.
+
+- id: m-tf-003
+  category: Terraform
+  type: multi
+  title: Remote state done right
+  question: Which are good practices for Terraform state in a team? (select all)
+  options:
+    - Remote backend (e.g. S3) with versioning and encryption enabled
+    - State locking (S3 `use_lockfile` or DynamoDB)
+    - Commit terraform.tfstate to Git so everyone has it
+    - Split state per environment/component to reduce blast radius
+  answer: [0, 1, 3]
+  explanation: State often contains secrets and must never be in Git. Use a versioned, encrypted remote backend with locking, and separate states for prod and dev and for network, data and apps.
+
+- id: m-tf-004
+  category: Terraform
+  type: mcq
+  title: for_each vs count
+  scenario: 'You created 3 subnets with `count = length(var.azs)`. Removing the first AZ from the list makes Terraform want to destroy and recreate two subnets.'
+  question: How do you avoid this index-shift problem?
+  options:
+    - Use `for_each` over a map/set keyed by AZ so each subnet has a stable address
+    - Use `depends_on`
+    - Add `ignore_changes = all`
+    - Pin the provider version
+  answer: 0
+  explanation: '`count` addresses resources by index ([0], [1], …), so removing one shifts the rest. `for_each` keys (e.g. `aws_subnet.private["eu-central-1a"]`) stay stable. Migrate the existing ones with `moved` blocks.'
+
+- id: m-docker-001
+  category: Docker
+  type: spot
+  title: Image is 1.4 GB
+  scenario: The Go service's image is huge and the scanner reports 300+ CVEs. Which line is the root cause?
+  lang: dockerfile
+  code: |
+    FROM golang:1.23
+    WORKDIR /src
+    COPY go.mod go.sum ./
+    RUN go mod download
+    COPY . .
+    RUN CGO_ENABLED=0 go build -o /app ./cmd/api
+    EXPOSE 8080
+    CMD ["/app"]
+  answer: [1]
+  explanation: The final image is the full Go toolchain image. Add a second stage — `FROM gcr.io/distroless/static-debian12` + `COPY --from=build /app /app` + `USER nonroot` — and the image shrinks to ~15 MB with almost no CVEs.
+
+- id: m-docker-002
+  category: Docker
+  type: mcq
+  title: Cache busts on every build
+  context:
+    - kind: dockerfile
+      title: Dockerfile
+      content: |
+        FROM node:22-alpine
+        WORKDIR /app
+        COPY . .
+        RUN npm ci
+        RUN npm run build
+        CMD ["node","dist/server.js"]
+  question: Every code change re-runs `npm ci` (3 min). Best fix?
+  options:
+    - Copy `package.json` and `package-lock.json` first, run `npm ci`, then `COPY . .`
+    - Use `npm install` instead of `npm ci`
+    - Add `--no-cache` to docker build
+    - Switch to `node:latest`
+  answer: 0
+  explanation: Layers are cached until an input changes. Copying only the lockfiles first means dependencies are reinstalled only when they change. Also add `.dockerignore` (node_modules, .git) and consider `RUN --mount=type=cache,target=/root/.npm`.
+
+- id: m-docker-003
+  category: Docker
+  type: mcq
+  title: Container ignores SIGTERM
+  scenario: Pods take the full 30s `terminationGracePeriodSeconds` to stop, dropping in-flight requests.
+  context:
+    - kind: dockerfile
+      title: Dockerfile (tail)
+      content: |
+        CMD sh -c "python manage.py migrate && gunicorn app.wsgi -b 0.0.0.0:8000"
+  question: Why doesn't the app shut down gracefully?
+  options:
+    - The shell form makes `sh` PID 1; it doesn't forward SIGTERM to gunicorn
+    - gunicorn doesn't support SIGTERM
+    - Port 8000 is privileged
+    - The image lacks bash
+  answer: 0
+  explanation: With `sh -c`, PID 1 is the shell, which doesn't forward signals. Use exec form, `exec gunicorn ...` inside the script, or an init such as tini (`--init`). Run migrations in a Job or initContainer, not on every Pod start.
+
+- id: m-linux-001
+  category: Linux
+  type: mcq
+  title: Disk full but du disagrees
+  context:
+    - kind: terminal
+      title: server
+      content: |
+        $ df -h /var
+        Filesystem      Size  Used Avail Use% Mounted on
+        /dev/nvme1n1    50G   50G     0 100% /var
+        $ sudo du -sh /var
+        12G     /var
+        $ sudo lsof +L1 | head -3
+        COMMAND   PID USER  FD  TYPE DEVICE   SIZE/OFF NLINK  NODE NAME
+        java     2211 app   45w  REG  259,1 40265318400     0  1311 /var/log/app/app.log (deleted)
+  question: What explains the gap and how do you free space without data loss?
+  options:
+    - A deleted log file is still held open by PID 2211; restart/reload the app (or truncate via `/proc/2211/fd/45`)
+    - The filesystem is corrupted; run fsck now
+    - du doesn't count hidden files
+    - Inodes are exhausted
+  answer: 0
+  explanation: 'Space isn''t freed until every open file descriptor is closed. Someone `rm`''d a 40 GB log the app still writes to. Truncate via `: > /proc/2211/fd/45` or restart the app, then fix logrotate (`copytruncate` or a reopen signal).'
+
+- id: m-linux-002
+  category: Linux
+  type: mcq
+  title: High load, idle CPU
+  context:
+    - kind: terminal
+      title: top
+      content: |
+        $ uptime
+         10:42:01 up 12 days,  3:11,  1 user,  load average: 18.32, 17.90, 15.11
+        $ vmstat 1 3
+        procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+         r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+         1 17      0 812344  10232 4123344   0    0   120 48211 1800 2100  3  2 10 85  0
+  question: Load is 18 on a 4-vCPU box but CPU is mostly idle. What's going on?
+  options:
+    - Processes are blocked on I/O (b=17, wa=85%) — check the disk/EBS volume (iostat -x, burst balance)
+    - CPU is saturated
+    - The system is swapping heavily
+    - Too many network interrupts
+  answer: 0
+  explanation: Linux load counts tasks in uninterruptible (D-state) I/O waits. The high `wa` and `b` columns point to storage — e.g. a gp2 volume out of burst credits, or EBS throughput limits. Moving to gp3 with provisioned IOPS/throughput is a common fix.
+
+- id: m-linux-003
+  category: Linux
+  type: mcq
+  title: Service won't start
+  context:
+    - kind: terminal
+      title: server
+      content: |
+        $ systemctl status api
+        × api.service - Acme API
+             Loaded: loaded (/etc/systemd/system/api.service; enabled)
+             Active: failed (Result: exit-code) since Mon 2026-11-16 10:01:22 +04
+            Process: 9812 ExecStart=/opt/api/bin/api (code=exited, status=203/EXEC)
+  question: What does `status=203/EXEC` usually mean?
+  options:
+    - systemd couldn't execute the binary — wrong path, missing execute bit, wrong architecture, or bad shebang
+    - The app crashed with a segfault
+    - The port is already in use
+    - The unit file has a syntax error
+  answer: 0
+  explanation: 203/EXEC fails before your program runs. Check `ls -l /opt/api/bin/api`, `file` (an amd64 vs arm64 mismatch after moving to Graviton is a classic), and SELinux contexts. `journalctl -u api -b` shows the details.
+
+- id: m-cicd-001
+  category: CI/CD
+  type: spot
+  title: Workflow leaks power
+  scenario: This workflow runs on every PR, including PRs from forks. Which **two** lines together create a critical vulnerability?
+  lang: yaml
+  code: |
+    name: pr-check
+    on:
+      pull_request_target:
+        types: [opened, synchronize]
+    permissions:
+      contents: read
+    jobs:
+      test:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v4
+            with:
+              ref: ${{ github.event.pull_request.head.sha }}
+          - run: npm ci && npm test
+  answer: [3, 13]
+  explanation: '`pull_request_target` runs in the base repo''s context, with secrets and a write-capable token. Checking out the fork''s head SHA and running `npm ci && npm test` executes untrusted code with those privileges (a "pwn request"). Use `pull_request` for untrusted code, or never check out the PR head in `pull_request_target`.'
+
+- id: m-cicd-002
+  category: CI/CD
+  type: mcq
+  title: OIDC trust too wide
+  context:
+    - kind: json
+      title: trust policy
+      content: |
+        {
+          "Effect": "Allow",
+          "Principal": { "Federated": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com" },
+          "Action": "sts:AssumeRoleWithWebIdentity",
+          "Condition": {
+            "StringEquals": { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" },
+            "StringLike":   { "token.actions.githubusercontent.com:sub": "repo:acme/*" }
+          }
+        }
+  question: This role can deploy to production. What's the risk?
+  options:
+    - Any repo, branch or PR in the `acme` org can assume the prod role — restrict `sub` to e.g. `repo:acme/infra:environment:prod`
+    - The audience should be `github.com`
+    - OIDC providers can't be used for production
+    - StringLike is not a valid operator
+  answer: 0
+  explanation: The `sub` claim encodes repo plus ref or environment. Wildcarding the whole org lets any workflow in any repo (feature branches included) get prod credentials. Pin it to the specific repo and a protected environment or branch.
+
+- id: m-cicd-003
+  category: CI/CD
+  type: order
+  title: A sane deployment pipeline
+  question: Order the stages of a typical secure container pipeline for a merge to main.
+  items:
+    - Lint, unit tests and SAST
+    - Build the image (multi-stage) and generate an SBOM
+    - Scan the image for CVEs and fail on HIGH/CRITICAL
+    - Sign the image (cosign) and push by digest
+    - Update the GitOps repo with the new digest (Argo CD syncs)
+  explanation: Test cheap things first (shift-left), build once, scan before you trust it, sign what passed, and let GitOps deploy the immutable digest — never a mutable tag.
+
+- id: m-git-001
+  category: Git
+  type: mcq
+  title: Secret pushed to GitHub
+  scenario: A developer pushed an AWS access key in a commit to a public repo 5 minutes ago.
+  question: What is the correct FIRST action?
+  options:
+    - Deactivate/rotate the key in IAM immediately, then check CloudTrail for its usage
+    - Force-push a commit that removes the line
+    - Make the repo private
+    - Run `git filter-repo` and hope nobody saw it
+  answer: 0
+  explanation: Bots scrape public pushes within seconds, so assume the key is compromised. Revoke it first, then investigate and clean history. Prevention means push protection, secret scanning, gitleaks pre-commit hooks, and OIDC instead of static keys.
+
+- id: m-git-002
+  category: Git
+  type: mcq
+  title: Detached HEAD work
+  context:
+    - kind: terminal
+      title: laptop
+      content: |
+        $ git status
+        HEAD detached at 4f2a9c1
+        nothing to commit, working tree clean
+        $ git log --oneline -2
+        a91be03 (HEAD) fix: retry on 429
+        4f2a9c1 (tag: v2.3.0) release 2.3.0
+  question: You committed a fix while detached. How do you keep it?
+  options:
+    - "`git switch -c fix/retry-429` to create a branch at the current commit"
+    - "`git checkout main` — the commit is saved automatically"
+    - "`git reset --hard v2.3.0`"
+    - "`git stash`"
+  answer: 0
+  explanation: The commit only lives under HEAD. Leaving without a branch makes it reachable only through the reflog until garbage collection. Create a branch now, then open a PR or cherry-pick.
+
+- id: m-net-001
+  category: Networking
+  type: mcq
+  title: DNS works, TLS fails
+  context:
+    - kind: terminal
+      title: pod
+      content: |
+        $ curl -sv https://payments.partner.io/health 2>&1 | grep -E 'Connected|SSL|certificate'
+        * Connected to payments.partner.io (52.28.10.4) port 443
+        * SSL certificate problem: unable to get local issuer certificate
+  question: It works from your laptop but fails from the new distroless container. Why?
+  options:
+    - The image has no CA certificate bundle (or the partner sends an incomplete chain your laptop tolerates)
+    - The DNS record is wrong
+    - Port 443 is blocked by the NACL
+    - HTTP/2 is not supported
+  answer: 0
+  explanation: The TCP connection succeeded, so this is trust validation. Minimal images may lack `/etc/ssl/certs` — use a base image with ca-certificates. Also check that the server sends intermediates (`openssl s_client -showcerts`); browsers cache intermediates, CLIs don't.
+
+- id: m-net-002
+  category: Networking
+  type: mcq
+  title: Overlapping CIDRs
+  scenario: You must peer the new `prod-eu` VPC with the shared-services VPC and connect on-prem via Transit Gateway.
+  context:
+    - kind: text
+      title: CIDRs
+      content: |
+        shared-services   10.0.0.0/16
+        on-prem           10.0.0.0/12
+        prod-eu (planned) 10.20.0.0/16
+  question: What's the problem?
+  options:
+    - On-prem 10.0.0.0/12 (10.0–10.15.x.x) overlaps shared-services 10.0.0.0/16 — routing will be ambiguous
+    - /16 is too small for a VPC
+    - prod-eu overlaps on-prem
+    - Transit Gateway can't route 10.x ranges
+  answer: 0
+  explanation: 10.0.0.0/12 covers 10.0.0.0–10.15.255.255, which contains shared-services. prod-eu (10.20/16) is outside it. Plan an IPAM (AWS VPC IPAM) before building — re-addressing later is painful.
+
+- id: m-sec-001
+  category: Security
+  type: multi
+  title: Harden this Pod
+  scenario: Security asks you to bring a workload up to the Kubernetes Pod Security Standards `restricted` profile.
+  question: Which settings are required or recommended? (select all)
+  options:
+    - "`runAsNonRoot: true`"
+    - "`allowPrivilegeEscalation: false`"
+    - "`capabilities: { drop: [\"ALL\"] }`"
+    - "`hostNetwork: true`"
+    - "`seccompProfile: { type: RuntimeDefault }`"
+  answer: [0, 1, 2, 4]
+  explanation: The restricted profile requires non-root, no privilege escalation, dropping all capabilities, and the RuntimeDefault (or Localhost) seccomp profile. hostNetwork is forbidden even at the baseline level. Enforce it with the label `pod-security.kubernetes.io/enforce=restricted`.
+
+- id: m-sec-002
+  category: Security
+  type: mcq
+  title: Secrets in Kubernetes
+  scenario: An auditor (PCI DSS) asks how database passwords in your EKS cluster are protected.
+  question: Which setup best answers them?
+  options:
+    - Secrets live in AWS Secrets Manager, synced via External Secrets Operator; EKS envelope encryption with KMS; RBAC restricts `get secrets`
+    - Secrets are base64-encoded so they are encrypted
+    - Passwords are in the Helm values file in Git
+    - Passwords are baked into the image
+  answer: 0
+  explanation: Base64 is encoding, not encryption. Use a central secret manager with rotation and audit, KMS envelope encryption for etcd, and tight RBAC — reading a Secret is equivalent to having the password.
+
+- id: m-obs-001
+  category: Observability
+  type: mcq
+  title: Which PromQL?
+  scenario: You want the per-second HTTP 5xx error ratio of the `checkout` service over the last 5 minutes.
+  question: Which query is correct?
+  options:
+    - '`sum(rate(http_requests_total{service="checkout",code=~"5.."}[5m])) / sum(rate(http_requests_total{service="checkout"}[5m]))`'
+    - '`http_requests_total{code="5xx"} / http_requests_total`'
+    - '`sum(http_requests_total{service="checkout",code=~"5.."})`'
+    - '`avg_over_time(http_requests_total[5m])`'
+  answer: 0
+  explanation: Counters must go through `rate()` before you sum or divide them. Raw counter ratios compare lifetime totals and break on restarts. `code=~"5.."` is a regex for any 5xx.
+
+- id: m-obs-002
+  category: Observability
+  type: mcq
+  title: Alert fatigue
+  scenario: On-call gets 40 pages a night — mostly `CPU > 80%` on single Pods that recover on their own.
+  question: What's the best improvement?
+  options:
+    - Alert on symptoms tied to SLOs (error rate / latency burn rate), and route cause-based alerts like CPU to dashboards/tickets
+    - Raise the CPU threshold to 95%
+    - Mute all alerts at night
+    - Add more CPU to every Pod
+  answer: 0
+  explanation: Page on user impact, using multi-window burn-rate alerts on the error budget. CPU spikes are causes; they belong in dashboards or tickets unless they predict impact.
+
+- id: m-obs-003
+  category: Observability
+  type: mcq
+  title: Logs with no trace
+  scenario: You see a slow request in Tempo but can't find its logs in Loki.
+  question: What change makes logs and traces correlate?
+  options:
+    - Inject `trace_id`/`span_id` into structured logs (OpenTelemetry SDK/log bridge) and configure derived fields in Grafana
+    - Increase Loki retention
+    - Sample 100% of traces
+    - Log at DEBUG level
+  answer: 0
+  explanation: Correlation needs a shared key. OTel SDKs put the trace context into log records, and Grafana derived fields or `tracesToLogs` link the two in one click.
+
+- id: m-gitops-001
+  category: GitOps
+  type: mcq
+  title: Hotfix reverted itself
+  scenario: During an incident you ran `kubectl scale deploy api --replicas=8`. Two minutes later it went back to 3.
+  context:
+    - kind: yaml
+      title: Application
+      content: |
+        apiVersion: argoproj.io/v1alpha1
+        kind: Application
+        metadata:
+          name: api
+        spec:
+          syncPolicy:
+            automated:
+              prune: true
+              selfHeal: true
+  question: What happened and what's the GitOps-correct fix?
+  options:
+    - Argo CD self-heal reverted the drift to Git; change replicas in Git (or let HPA own replicas and drop `spec.replicas` from Git)
+    - The HPA is broken
+    - Kubernetes rolled back automatically
+    - Argo CD crashed and restarted
+  answer: 0
+  explanation: selfHeal makes Git the only way in. For autoscaled apps, remove `replicas` from the manifest or add `ignoreDifferences` on `/spec/replicas`, so the HPA and Argo CD don't fight.
+
+- id: m-gitops-002
+  category: GitOps
+  type: mcq
+  title: Promotion by digest
+  question: Why do mature GitOps setups deploy `image@sha256:...` instead of `image:1.4`?
+  options:
+    - Digests are immutable — what you scanned and signed is exactly what runs, and rollbacks are deterministic
+    - Digests are shorter
+    - Tags are not supported by Kubernetes
+    - Digests make images smaller
+  answer: 0
+  explanation: Tags are mutable pointers. Pinning digests (updated by Renovate or Argo CD Image Updater) ties the deployment to the verified artifact and makes signature verification meaningful.
+
+- id: m-aiops-001
+  category: AI/MLOps
+  type: mcq
+  title: LLM inference pod cold start
+  scenario: A vLLM Deployment serving a 7B model takes ~6 minutes to become Ready after each scale-up, and the HPA scale-ups are useless during traffic spikes.
+  question: Which change helps most?
+  options:
+    - Cache model weights close to the node (pre-pulled image/PVC/node-local cache) and keep a warm minimum of replicas; use a startupProbe
+    - Lower the livenessProbe timeout
+    - Use CPU instead of GPU
+    - Increase the HPA CPU target
+  answer: 0
+  explanation: The cold start is dominated by downloading weights and loading them into GPU memory. Pre-stage the weights (e.g. image pre-pull, shared PVC, or a model cache), keep warm capacity, and give startupProbes enough time so liveness doesn't kill loading Pods.
+
+- id: m-aiops-002
+  category: AI/MLOps
+  type: multi
+  title: Guardrails for a CI AI agent
+  scenario: You're adding an AI agent to GitHub Actions that reads PR descriptions and can comment and push fixes.
+  question: Which guardrails are appropriate? (select all)
+  options:
+    - 'Minimal `permissions:` on the workflow token (e.g. `contents: read`, `pull-requests: write`)'
+    - Never run the agent with secrets on PRs from forks
+    - Require human review before the agent's commits can merge
+    - Give the agent an admin PAT so it never fails
+  answer: [0, 1, 2]
+  explanation: PR text is untrusted input and a prompt-injection vector. Least-privilege tokens, no secrets on untrusted triggers, and human approval for writes limit the blast radius. Admin PATs are the opposite.

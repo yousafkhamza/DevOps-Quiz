@@ -1,0 +1,4337 @@
+[
+ {
+  "id": "e-001",
+  "category": "AWS",
+  "type": "mcq",
+  "question": "Which AWS service allows you to run code without provisioning servers?",
+  "options": [
+   "AWS Lambda",
+   "EC2",
+   "Elastic Beanstalk",
+   "Lightsail"
+  ],
+  "answer": 0,
+  "explanation": "Lambda runs your code on demand and bills per request and duration — no servers to patch or scale.",
+  "level": "easy"
+ },
+ {
+  "id": "e-002",
+  "category": "Docker",
+  "type": "mcq",
+  "question": "Which Docker command builds an image from a Dockerfile?",
+  "options": [
+   "docker run",
+   "docker build",
+   "docker pull",
+   "docker exec"
+  ],
+  "answer": 1,
+  "explanation": "`docker build -t name:tag .` reads the Dockerfile in the build context and produces an image (BuildKit is the default builder today).",
+  "level": "easy"
+ },
+ {
+  "id": "e-003",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "question": "Which Kubernetes object manages stateless application replicas?",
+  "options": [
+   "StatefulSet",
+   "DaemonSet",
+   "Deployment",
+   "Job"
+  ],
+  "answer": 2,
+  "explanation": "Deployments manage ReplicaSets for stateless apps and give you rolling updates and `kubectl rollout undo`.",
+  "level": "easy"
+ },
+ {
+  "id": "e-004",
+  "category": "Linux",
+  "type": "mcq",
+  "question": "Which command shows used/free space per mounted filesystem in human-readable units?",
+  "options": [
+   "du -sh",
+   "mount",
+   "lsblk",
+   "df -h"
+  ],
+  "answer": 3,
+  "explanation": "`df -h` reports per-filesystem usage. `du -sh` measures a directory's size, which is a different question.",
+  "level": "easy"
+ },
+ {
+  "id": "e-005",
+  "category": "CI/CD",
+  "type": "mcq",
+  "question": "What is the main goal of Continuous Integration?",
+  "options": [
+   "Deploy code to production",
+   "Merge code frequently",
+   "Provision infrastructure",
+   "Monitor applications"
+  ],
+  "answer": 1,
+  "explanation": "CI means merging small changes to the main branch often, with an automated build and tests on every merge.",
+  "level": "easy"
+ },
+ {
+  "id": "e-006",
+  "category": "AWS",
+  "type": "mcq",
+  "question": "Which AWS service provides managed Kubernetes?",
+  "options": [
+   "ECS",
+   "EKS",
+   "Fargate",
+   "EC2"
+  ],
+  "answer": 1,
+  "explanation": "Amazon EKS is managed Kubernetes. ECS is AWS's own orchestrator, and Fargate is a serverless compute engine used by both.",
+  "level": "easy"
+ },
+ {
+  "id": "e-007",
+  "category": "Docker",
+  "type": "mcq",
+  "question": "What is the purpose of a Docker volume?",
+  "options": [
+   "Improve container startup time",
+   "Persist container data",
+   "Increase image size",
+   "Expose container ports"
+  ],
+  "answer": 1,
+  "explanation": "Volumes keep data outside the container's writable layer, so it survives when the container is removed or recreated.",
+  "level": "easy"
+ },
+ {
+  "id": "e-008",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "question": "Which component stores Kubernetes cluster state?",
+  "options": [
+   "kubelet",
+   "kube-proxy",
+   "etcd",
+   "controller-manager"
+  ],
+  "answer": 2,
+  "explanation": "etcd is the consistent key-value store holding all cluster state. Back it up, or rely on the managed control plane to do it.",
+  "level": "easy"
+ },
+ {
+  "id": "e-009",
+  "category": "Linux",
+  "type": "mcq",
+  "question": "Which file stores user account information?",
+  "options": [
+   "/etc/group",
+   "/etc/shadow",
+   "/etc/passwd",
+   "/etc/profile"
+  ],
+  "answer": 2,
+  "explanation": "`/etc/passwd` lists accounts (user, UID, GID, home, shell). Password hashes live in `/etc/shadow`.",
+  "level": "easy"
+ },
+ {
+  "id": "e-010",
+  "category": "Terraform",
+  "type": "mcq",
+  "question": "What does `terraform plan` do?",
+  "options": [
+   "Applies infrastructure changes",
+   "Initializes providers",
+   "Shows execution plan",
+   "Destroys resources"
+  ],
+  "answer": 2,
+  "explanation": "`terraform plan` compares config, state and real infrastructure and shows what would change. Save it with `-out` and apply exactly that plan.",
+  "level": "easy"
+ },
+ {
+  "id": "e-011",
+  "category": "AWS",
+  "type": "mcq",
+  "question": "Which AWS service stores application logs in log groups and log streams?",
+  "options": [
+   "CloudTrail",
+   "CloudWatch Logs",
+   "X-Ray",
+   "AWS Config"
+  ],
+  "answer": 1,
+  "explanation": "CloudWatch Logs stores logs. CloudTrail records API calls, X-Ray does tracing and AWS Config tracks resource configuration.",
+  "level": "easy"
+ },
+ {
+  "id": "e-012",
+  "category": "Docker",
+  "type": "mcq",
+  "question": "Which Dockerfile instruction specifies the base image?",
+  "options": [
+   "RUN",
+   "FROM",
+   "CMD",
+   "ENTRYPOINT"
+  ],
+  "answer": 1,
+  "explanation": "`FROM` sets the base image and starts a build stage. Multi-stage builds use several FROM lines.",
+  "level": "easy"
+ },
+ {
+  "id": "e-013",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "question": "Which object exposes services externally via HTTP?",
+  "options": [
+   "Service",
+   "Ingress",
+   "Pod",
+   "ConfigMap"
+  ],
+  "answer": 1,
+  "explanation": "Ingress routes HTTP(S) by host and path to Services. The newer Gateway API (HTTPRoute) is its role-oriented successor.",
+  "level": "easy"
+ },
+ {
+  "id": "e-014",
+  "category": "Linux",
+  "type": "mcq",
+  "question": "Which command changes file ownership?",
+  "options": [
+   "chmod",
+   "usermod",
+   "chown",
+   "passwd"
+  ],
+  "answer": 2,
+  "explanation": "`chown user:group file` changes ownership. `chmod` changes permission bits.",
+  "level": "easy"
+ },
+ {
+  "id": "e-015",
+  "category": "CI/CD",
+  "type": "mcq",
+  "question": "Which of these is a CI/CD pipeline tool?",
+  "options": [
+   "Terraform",
+   "Ansible",
+   "GitHub Actions",
+   "Prometheus"
+  ],
+  "answer": 2,
+  "explanation": "GitHub Actions runs CI/CD workflows. Terraform and Ansible handle provisioning and configuration, and Prometheus handles monitoring.",
+  "level": "easy"
+ },
+ {
+  "id": "e-016",
+  "category": "AWS",
+  "type": "mcq",
+  "question": "Which AWS service protects against DDoS attacks?",
+  "options": [
+   "WAF",
+   "Shield",
+   "GuardDuty",
+   "Inspector"
+  ],
+  "answer": 1,
+  "explanation": "AWS Shield (Standard is free; Advanced is paid) protects against DDoS. WAF filters layer-7 requests.",
+  "level": "easy"
+ },
+ {
+  "id": "e-017",
+  "category": "Networking",
+  "type": "mcq",
+  "question": "Which protocol secures HTTP traffic?",
+  "options": [
+   "FTP",
+   "SMTP",
+   "TLS",
+   "SNMP"
+  ],
+  "answer": 2,
+  "explanation": "TLS encrypts HTTP and turns it into HTTPS. SSL is its deprecated predecessor.",
+  "level": "easy"
+ },
+ {
+  "id": "e-018",
+  "category": "Security",
+  "type": "mcq",
+  "question": "What principle grants only required permissions?",
+  "options": [
+   "Zero Trust",
+   "Least privilege",
+   "Defense in depth",
+   "RBAC"
+  ],
+  "answer": 1,
+  "explanation": "Least privilege means granting only the permissions a task needs, for only as long as it needs them.",
+  "level": "easy"
+ },
+ {
+  "id": "e-019",
+  "category": "Observability",
+  "type": "mcq",
+  "question": "Which tool is commonly used with Prometheus for visualization?",
+  "options": [
+   "Kibana",
+   "Grafana",
+   "Datadog",
+   "Nagios"
+  ],
+  "answer": 1,
+  "explanation": "Grafana visualises Prometheus (and Loki, Tempo, etc.) data in dashboards.",
+  "level": "easy"
+ },
+ {
+  "id": "e-020",
+  "category": "Git",
+  "type": "mcq",
+  "question": "Which command creates a new Git branch?",
+  "options": [
+   "git pull",
+   "git branch",
+   "git merge",
+   "git rebase"
+  ],
+  "answer": 1,
+  "explanation": "`git branch name` creates a branch. `git switch -c name` creates it and switches to it in one step.",
+  "level": "easy"
+ },
+ {
+  "id": "e-021",
+  "category": "AWS",
+  "type": "mcq",
+  "question": "Which AWS service provides object storage?",
+  "options": [
+   "EBS",
+   "S3",
+   "EFS",
+   "FSx"
+  ],
+  "answer": 1,
+  "explanation": "S3 is object storage. EBS is block storage for one instance, and EFS is a shared NFS file system.",
+  "level": "easy"
+ },
+ {
+  "id": "e-022",
+  "category": "Docker",
+  "type": "mcq",
+  "question": "Which Docker command lists running containers?",
+  "options": [
+   "docker ps",
+   "docker images",
+   "docker run",
+   "docker inspect"
+  ],
+  "answer": 0,
+  "explanation": "`docker ps` lists running containers. Add `-a` to include stopped ones.",
+  "level": "easy"
+ },
+ {
+  "id": "e-023",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "question": "Which Kubernetes object runs a Pod on every node?",
+  "options": [
+   "Deployment",
+   "StatefulSet",
+   "DaemonSet",
+   "ReplicaSet"
+  ],
+  "answer": 2,
+  "explanation": "A DaemonSet runs one Pod per (matching) node, e.g. log shippers, CNI agents and node exporters.",
+  "level": "easy"
+ },
+ {
+  "id": "e-024",
+  "category": "Linux",
+  "type": "mcq",
+  "question": "Which command shows running processes?",
+  "options": [
+   "ps",
+   "df",
+   "uptime",
+   "free"
+  ],
+  "answer": 0,
+  "explanation": "`ps aux` / `ps -ef` take a snapshot of processes. `top`/`htop` give a live view.",
+  "level": "easy"
+ },
+ {
+  "id": "e-025",
+  "category": "CI/CD",
+  "type": "mcq",
+  "question": "Which stage typically runs unit tests?",
+  "options": [
+   "Build",
+   "Test",
+   "Deploy",
+   "Release"
+  ],
+  "answer": 1,
+  "explanation": "Unit tests run in the test stage, early and fast, so failures surface before anything is deployed.",
+  "level": "easy"
+ },
+ {
+  "id": "e-026",
+  "category": "Terraform",
+  "type": "mcq",
+  "question": "Which file stores Terraform state by default?",
+  "options": [
+   "terraform.tfvars",
+   "backend.tf",
+   "terraform.state",
+   "terraform.tfstate"
+  ],
+  "answer": 3,
+  "explanation": "By default state lives in a local `terraform.tfstate`. In teams, use a remote backend with locking.",
+  "level": "easy"
+ },
+ {
+  "id": "e-027",
+  "category": "AWS",
+  "type": "mcq",
+  "question": "Which AWS service stores secrets with built-in automatic rotation (e.g. RDS credentials)?",
+  "options": [
+   "SSM Parameter Store",
+   "Secrets Manager",
+   "KMS",
+   "IAM"
+  ],
+  "answer": 1,
+  "explanation": "Secrets Manager has native rotation using Lambda rotators. Parameter Store SecureString is cheaper but has no built-in rotation.",
+  "level": "easy"
+ },
+ {
+  "id": "e-028",
+  "category": "Docker",
+  "type": "mcq",
+  "question": "Which network driver allows containers to communicate on the same host?",
+  "options": [
+   "overlay",
+   "bridge",
+   "macvlan",
+   "none"
+  ],
+  "answer": 1,
+  "explanation": "The default `bridge` network connects containers on one host. `overlay` spans hosts in Swarm.",
+  "level": "easy"
+ },
+ {
+  "id": "e-029",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "question": "Which kubectl command shows Pod logs?",
+  "options": [
+   "kubectl get logs",
+   "kubectl describe pod",
+   "kubectl logs",
+   "kubectl exec"
+  ],
+  "answer": 2,
+  "explanation": "`kubectl logs pod [-c container]`. Add `-p/--previous` to see the logs of a crashed container instance.",
+  "level": "easy"
+ },
+ {
+  "id": "e-030",
+  "category": "Linux",
+  "type": "mcq",
+  "question": "Which command displays memory usage?",
+  "options": [
+   "top",
+   "df",
+   "free",
+   "lsblk"
+  ],
+  "answer": 2,
+  "explanation": "`free -h` shows RAM and swap. Read the `available` column, not `free`.",
+  "level": "easy"
+ },
+ {
+  "id": "e-031",
+  "category": "AWS",
+  "type": "mcq",
+  "question": "Which AWS service enables infrastructure as code?",
+  "options": [
+   "CloudFormation",
+   "CodeDeploy",
+   "Elastic Beanstalk",
+   "OpsWorks"
+  ],
+  "answer": 0,
+  "explanation": "CloudFormation is AWS-native IaC. CDK synthesises to CloudFormation too.",
+  "level": "easy"
+ },
+ {
+  "id": "e-032",
+  "category": "Git",
+  "type": "mcq",
+  "question": "Which command stages files for commit?",
+  "options": [
+   "git add",
+   "git commit",
+   "git push",
+   "git merge"
+  ],
+  "answer": 0,
+  "explanation": "`git add` stages changes into the index for the next commit.",
+  "level": "easy"
+ },
+ {
+  "id": "e-033",
+  "category": "Security",
+  "type": "mcq",
+  "question": "Which AWS service detects malicious activity?",
+  "options": [
+   "Inspector",
+   "GuardDuty",
+   "Shield",
+   "WAF"
+  ],
+  "answer": 1,
+  "explanation": "GuardDuty analyses CloudTrail, VPC Flow Logs, DNS logs and EKS audit logs for threats.",
+  "level": "easy"
+ },
+ {
+  "id": "e-034",
+  "category": "Observability",
+  "type": "mcq",
+  "question": "Which Prometheus component triggers alerts?",
+  "options": [
+   "Exporter",
+   "Alertmanager",
+   "Grafana",
+   "Node exporter"
+  ],
+  "answer": 1,
+  "explanation": "Prometheus evaluates alert rules, and Alertmanager deduplicates, groups, silences and routes the alerts.",
+  "level": "easy"
+ },
+ {
+  "id": "e-035",
+  "category": "Networking",
+  "type": "mcq",
+  "question": "Which subnet mask corresponds to a /24 CIDR prefix?",
+  "options": [
+   "255.255.255.0",
+   "255.255.0.0",
+   "255.0.0.0",
+   "255.255.255.255"
+  ],
+  "answer": 0,
+  "explanation": "/24 means 24 network bits, i.e. mask 255.255.255.0 with 256 addresses (AWS reserves 5 per subnet).",
+  "level": "easy"
+ },
+ {
+  "id": "e-036",
+  "category": "Docker",
+  "type": "mcq",
+  "question": "Which instruction defines default container command?",
+  "options": [
+   "CMD",
+   "RUN",
+   "FROM",
+   "ENV"
+  ],
+  "answer": 0,
+  "explanation": "`CMD` gives the default command or arguments. `ENTRYPOINT` sets the executable, and CMD supplies its default args.",
+  "level": "easy"
+ },
+ {
+  "id": "e-037",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "question": "Which object stores non-sensitive configuration?",
+  "options": [
+   "Secret",
+   "ConfigMap",
+   "Volume",
+   "Namespace"
+  ],
+  "answer": 1,
+  "explanation": "ConfigMaps hold non-secret config. Secrets are only base64-encoded by default, so enable encryption at rest.",
+  "level": "easy"
+ },
+ {
+  "id": "e-038",
+  "category": "Linux",
+  "type": "mcq",
+  "question": "Which command changes file permissions?",
+  "options": [
+   "chown",
+   "chmod",
+   "usermod",
+   "passwd"
+  ],
+  "answer": 1,
+  "explanation": "`chmod 640 file` / `chmod u+x` change permission bits.",
+  "level": "easy"
+ },
+ {
+  "id": "e-039",
+  "category": "CI/CD",
+  "type": "mcq",
+  "question": "Which CI/CD principle reduces integration issues?",
+  "options": [
+   "Long-lived branches",
+   "Frequent commits",
+   "Manual testing",
+   "Delayed merges"
+  ],
+  "answer": 1,
+  "explanation": "Small, frequent commits to trunk keep merges small and conflicts rare.",
+  "level": "easy"
+ },
+ {
+  "id": "e-040",
+  "category": "Terraform",
+  "type": "mcq",
+  "question": "Which command initializes a Terraform project?",
+  "options": [
+   "terraform plan",
+   "terraform apply",
+   "terraform init",
+   "terraform validate"
+  ],
+  "answer": 2,
+  "explanation": "`terraform init` downloads providers and modules and configures the backend.",
+  "level": "easy"
+ },
+ {
+  "id": "e-041",
+  "category": "AWS",
+  "type": "mcq",
+  "question": "Which AWS service provides managed relational databases?",
+  "options": [
+   "DynamoDB",
+   "RDS",
+   "Aurora Serverless",
+   "S3"
+  ],
+  "answer": 1,
+  "explanation": "RDS runs managed relational engines (PostgreSQL, MySQL, etc.). DynamoDB is NoSQL.",
+  "level": "easy"
+ },
+ {
+  "id": "e-042",
+  "category": "Docker",
+  "type": "mcq",
+  "question": "Which command removes stopped containers, unused networks, dangling images and build cache in one go?",
+  "options": [
+   "docker rm -a",
+   "docker system prune",
+   "docker clean",
+   "docker delete --all"
+  ],
+  "answer": 1,
+  "explanation": "`docker system prune` cleans unused objects. Add `-a` to also remove unused (not just dangling) images, and `--volumes` for volumes.",
+  "level": "easy"
+ },
+ {
+  "id": "e-043",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "question": "Which component runs on every Kubernetes node?",
+  "options": [
+   "kube-apiserver",
+   "etcd",
+   "kubelet",
+   "controller-manager"
+  ],
+  "answer": 2,
+  "explanation": "The kubelet runs on every node and makes the containers match the PodSpecs it receives.",
+  "level": "easy"
+ },
+ {
+  "id": "e-044",
+  "category": "Linux",
+  "type": "mcq",
+  "question": "Which modern Linux command lists listening TCP/UDP sockets with their processes (the netstat replacement)?",
+  "options": [
+   "ifconfig",
+   "ss -tulpn",
+   "ip route",
+   "who"
+  ],
+  "answer": 1,
+  "explanation": "`ss -tulpn` is from iproute2 and is the modern replacement for `netstat` (net-tools is deprecated on most distros).",
+  "level": "easy"
+ },
+ {
+  "id": "e-045",
+  "category": "Git",
+  "type": "mcq",
+  "question": "Which command downloads changes without merging?",
+  "options": [
+   "git fetch",
+   "git pull",
+   "git clone",
+   "git push"
+  ],
+  "answer": 0,
+  "explanation": "`git fetch` updates remote-tracking branches without touching your working branch. `pull` = fetch + merge/rebase.",
+  "level": "easy"
+ },
+ {
+  "id": "e-046",
+  "category": "Observability",
+  "type": "mcq",
+  "question": "Which metric type only increases?",
+  "options": [
+   "Gauge",
+   "Histogram",
+   "Counter",
+   "Summary"
+  ],
+  "answer": 2,
+  "explanation": "Counters only go up, or reset on restart. Query them with `rate()` / `increase()`.",
+  "level": "easy"
+ },
+ {
+  "id": "e-047",
+  "category": "Networking",
+  "type": "mcq",
+  "question": "Which port is used by HTTPS?",
+  "options": [
+   "21",
+   "22",
+   "80",
+   "443"
+  ],
+  "answer": 3,
+  "explanation": "HTTPS uses TCP 443. HTTP/3 runs over QUIC on UDP 443.",
+  "level": "easy"
+ },
+ {
+  "id": "e-048",
+  "category": "AWS",
+  "type": "mcq",
+  "question": "Which AWS construct is a stateful firewall attached to ENIs/instances?",
+  "options": [
+   "Security Group",
+   "Network ACL",
+   "Route Table",
+   "Internet Gateway"
+  ],
+  "answer": 0,
+  "explanation": "Security Groups are stateful and attach to ENIs. NACLs are stateless and apply at the subnet level.",
+  "level": "easy"
+ },
+ {
+  "id": "e-049",
+  "category": "AWS",
+  "type": "mcq",
+  "question": "Which AWS service provides a managed NoSQL key-value database?",
+  "options": [
+   "RDS",
+   "Aurora",
+   "DynamoDB",
+   "Redshift"
+  ],
+  "answer": 2,
+  "explanation": "DynamoDB is a serverless key-value and document database with single-digit-millisecond latency.",
+  "level": "easy"
+ },
+ {
+  "id": "e-050",
+  "category": "Docker",
+  "type": "mcq",
+  "question": "Which Docker command runs a container in detached mode?",
+  "options": [
+   "docker run -d",
+   "docker start",
+   "docker exec",
+   "docker attach"
+  ],
+  "answer": 0,
+  "explanation": "`-d` runs the container detached, in the background.",
+  "level": "easy"
+ },
+ {
+  "id": "e-051",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "question": "Which Kubernetes object is used for batch jobs?",
+  "options": [
+   "Deployment",
+   "Job",
+   "DaemonSet",
+   "StatefulSet"
+  ],
+  "answer": 1,
+  "explanation": "A Job runs Pods until they complete successfully. A CronJob creates Jobs on a schedule.",
+  "level": "easy"
+ },
+ {
+  "id": "e-052",
+  "category": "Linux",
+  "type": "mcq",
+  "question": "Which command shows the current working directory?",
+  "options": [
+   "pwd",
+   "whoami",
+   "ls",
+   "cd"
+  ],
+  "answer": 0,
+  "explanation": "`pwd` prints the working directory.",
+  "level": "easy"
+ },
+ {
+  "id": "e-053",
+  "category": "CI/CD",
+  "type": "mcq",
+  "question": "Which practice keeps every change releasable, with production deploys gated by a manual approval?",
+  "options": [
+   "Continuous Delivery",
+   "Continuous Integration",
+   "Manual testing",
+   "Feature branching"
+  ],
+  "answer": 0,
+  "explanation": "Continuous Delivery keeps every change releasable, with a manual gate to production. Continuous Deployment removes that gate.",
+  "level": "easy"
+ },
+ {
+  "id": "e-054",
+  "category": "Terraform",
+  "type": "mcq",
+  "question": "Which block defines a provider configuration in Terraform?",
+  "options": [
+   "resource",
+   "provider",
+   "module",
+   "backend"
+  ],
+  "answer": 1,
+  "explanation": "A `provider` block configures a plugin such as aws or kubernetes (region, auth, default tags).",
+  "level": "easy"
+ },
+ {
+  "id": "e-055",
+  "category": "AWS",
+  "type": "mcq",
+  "question": "Which AWS service automatically scales EC2 capacity?",
+  "options": [
+   "ELB",
+   "Auto Scaling",
+   "CloudWatch",
+   "Elastic Beanstalk"
+  ],
+  "answer": 1,
+  "explanation": "EC2 Auto Scaling groups add or remove instances based on policies or schedules.",
+  "level": "easy"
+ },
+ {
+  "id": "e-056",
+  "category": "Docker",
+  "type": "mcq",
+  "question": "Which file name does Docker Compose v2 look for first by default?",
+  "options": [
+   "Dockerfile",
+   "compose.yaml",
+   "container.json",
+   "stack.ini"
+  ],
+  "answer": 1,
+  "explanation": "Compose v2 prefers `compose.yaml`. It still reads `docker-compose.yml` for backwards compatibility.",
+  "level": "easy"
+ },
+ {
+  "id": "e-057",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "question": "Which Kubernetes resource defines network access to Pods?",
+  "options": [
+   "Service",
+   "Ingress",
+   "NetworkPolicy",
+   "Endpoint"
+  ],
+  "answer": 2,
+  "explanation": "A NetworkPolicy restricts Pod ingress/egress, as long as your CNI enforces it.",
+  "level": "easy"
+ },
+ {
+  "id": "e-058",
+  "category": "Linux",
+  "type": "mcq",
+  "question": "Which command displays system uptime?",
+  "options": [
+   "uptime",
+   "top",
+   "who",
+   "time"
+  ],
+  "answer": 0,
+  "explanation": "`uptime` shows time since boot and the 1/5/15-minute load averages.",
+  "level": "easy"
+ },
+ {
+  "id": "e-059",
+  "category": "Git",
+  "type": "mcq",
+  "question": "Which command force-deletes a local branch even if it is not merged?",
+  "options": [
+   "git branch -D",
+   "git delete",
+   "git reset --hard",
+   "git clean -fd"
+  ],
+  "answer": 0,
+  "explanation": "`-d` refuses to delete unmerged branches. `-D` forces the delete.",
+  "level": "easy"
+ },
+ {
+  "id": "e-060",
+  "category": "Security",
+  "type": "mcq",
+  "question": "Which AWS service manages encryption keys?",
+  "options": [
+   "IAM",
+   "KMS",
+   "Secrets Manager",
+   "CloudHSM"
+  ],
+  "answer": 1,
+  "explanation": "KMS creates and controls encryption keys and integrates with almost every AWS service.",
+  "level": "easy"
+ },
+ {
+  "id": "e-061",
+  "category": "Observability",
+  "type": "mcq",
+  "question": "Which Prometheus exporter collects node-level metrics?",
+  "options": [
+   "kube-state-metrics",
+   "node-exporter",
+   "alertmanager",
+   "pushgateway"
+  ],
+  "answer": 1,
+  "explanation": "node-exporter exposes host metrics (CPU, memory, disk, network). kube-state-metrics exposes the state of Kubernetes objects.",
+  "level": "easy"
+ },
+ {
+  "id": "e-062",
+  "category": "Networking",
+  "type": "mcq",
+  "question": "Which protocol maps an IPv4 address to a MAC address on the local network?",
+  "options": [
+   "HTTP",
+   "ARP",
+   "DNS",
+   "ICMP"
+  ],
+  "answer": 1,
+  "explanation": "ARP resolves IPv4 addresses to MAC addresses on a LAN. DNS resolves names to IPs.",
+  "level": "easy"
+ },
+ {
+  "id": "e-063",
+  "category": "AWS",
+  "type": "mcq",
+  "question": "Which AWS service records API activity for auditing?",
+  "options": [
+   "CloudWatch",
+   "CloudTrail",
+   "Config",
+   "Inspector"
+  ],
+  "answer": 1,
+  "explanation": "CloudTrail records who called which AWS API, when, and from where.",
+  "level": "easy"
+ },
+ {
+  "id": "e-064",
+  "category": "Docker",
+  "type": "mcq",
+  "question": "Which instruction is used to expose ports in Dockerfile?",
+  "options": [
+   "PORT",
+   "PUBLISH",
+   "EXPOSE",
+   "LISTEN"
+  ],
+  "answer": 2,
+  "explanation": "`EXPOSE` is documentation only. Ports are actually published with `-p` / Service definitions.",
+  "level": "easy"
+ },
+ {
+  "id": "e-065",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "question": "Which Kubernetes object stores sensitive information?",
+  "options": [
+   "ConfigMap",
+   "Secret",
+   "Volume",
+   "Namespace"
+  ],
+  "answer": 1,
+  "explanation": "Secrets store sensitive data. Prefer External Secrets / CSI drivers backed by a real secret manager.",
+  "level": "easy"
+ },
+ {
+  "id": "e-066",
+  "category": "Linux",
+  "type": "mcq",
+  "question": "Which command edits the current user's recurring scheduled jobs?",
+  "options": [
+   "at",
+   "cron",
+   "crontab -e",
+   "watch"
+  ],
+  "answer": 2,
+  "explanation": "`crontab -e` edits your cron table, and the cron daemon runs the jobs.",
+  "level": "easy"
+ },
+ {
+  "id": "e-067",
+  "category": "CI/CD",
+  "type": "mcq",
+  "question": "Which practice allows automated deployment to production?",
+  "options": [
+   "Continuous Integration",
+   "Continuous Testing",
+   "Continuous Deployment",
+   "Manual Approval"
+  ],
+  "answer": 2,
+  "explanation": "Continuous Deployment ships every change that passes the pipeline to production automatically.",
+  "level": "easy"
+ },
+ {
+  "id": "e-068",
+  "category": "Terraform",
+  "type": "mcq",
+  "question": "Which command formats Terraform configuration files?",
+  "options": [
+   "terraform fmt",
+   "terraform validate",
+   "terraform init",
+   "terraform plan"
+  ],
+  "answer": 0,
+  "explanation": "`terraform fmt -recursive` rewrites files into canonical style. Use `-check` in CI.",
+  "level": "easy"
+ },
+ {
+  "id": "e-069",
+  "category": "AWS",
+  "type": "mcq",
+  "question": "Which AWS service provides a content delivery network (CDN)?",
+  "options": [
+   "Route53",
+   "CloudFront",
+   "API Gateway",
+   "Global Accelerator"
+  ],
+  "answer": 1,
+  "explanation": "CloudFront is AWS's CDN, caching content at edge locations.",
+  "level": "easy"
+ },
+ {
+  "id": "e-070",
+  "category": "Docker",
+  "type": "mcq",
+  "question": "Which command shows Docker daemon information?",
+  "options": [
+   "docker stats",
+   "docker info",
+   "docker system",
+   "docker version"
+  ],
+  "answer": 1,
+  "explanation": "`docker info` shows daemon-wide details: storage driver, cgroup version, number of containers and so on.",
+  "level": "easy"
+ },
+ {
+  "id": "e-071",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "question": "Which command displays cluster information?",
+  "options": [
+   "kubectl describe cluster",
+   "kubectl cluster-info",
+   "kubectl get nodes",
+   "kubectl info"
+  ],
+  "answer": 1,
+  "explanation": "`kubectl cluster-info` prints the control-plane and core add-on endpoints.",
+  "level": "easy"
+ },
+ {
+  "id": "e-072",
+  "category": "Git",
+  "type": "mcq",
+  "question": "Which command undoes the last commit but keeps changes staged?",
+  "options": [
+   "git revert",
+   "git reset --soft HEAD~1",
+   "git reset --hard",
+   "git checkout"
+  ],
+  "answer": 1,
+  "explanation": "`--soft` moves HEAD back but keeps the changes staged. `--mixed` (the default) unstages them, and `--hard` discards them.",
+  "level": "easy"
+ },
+ {
+  "id": "e-073",
+  "category": "Security",
+  "type": "mcq",
+  "question": "Which concept verifies identity before granting access?",
+  "options": [
+   "Authorization",
+   "Authentication",
+   "Auditing",
+   "Accounting"
+  ],
+  "answer": 1,
+  "explanation": "Authentication = who you are. Authorization = what you're allowed to do.",
+  "level": "easy"
+ },
+ {
+  "id": "e-074",
+  "category": "Observability",
+  "type": "mcq",
+  "question": "Which Grafana feature groups multiple panels?",
+  "options": [
+   "Folder",
+   "Row",
+   "Dashboard",
+   "Variable"
+  ],
+  "answer": 1,
+  "explanation": "Rows group panels and can be collapsed or repeated per variable value.",
+  "level": "easy"
+ },
+ {
+  "id": "e-075",
+  "category": "Networking",
+  "type": "mcq",
+  "question": "Which protocol is used for secure remote login?",
+  "options": [
+   "Telnet",
+   "RDP",
+   "SSH",
+   "FTP"
+  ],
+  "answer": 2,
+  "explanation": "SSH gives encrypted remote shells. Many teams now prefer SSM Session Manager or a PAM bastion over open port 22.",
+  "level": "easy"
+ },
+ {
+  "id": "e-076",
+  "category": "AWS",
+  "type": "mcq",
+  "question": "Which AWS service allows event-driven workflows?",
+  "options": [
+   "Step Functions",
+   "SNS",
+   "SQS",
+   "EventBridge"
+  ],
+  "answer": 3,
+  "explanation": "EventBridge routes events from AWS services, SaaS and your apps to targets using rules.",
+  "level": "easy"
+ },
+ {
+  "id": "e-077",
+  "category": "Terraform",
+  "type": "mcq",
+  "question": "Which Terraform feature enables reusable infrastructure?",
+  "options": [
+   "Variables",
+   "Providers",
+   "Modules",
+   "Backends"
+  ],
+  "answer": 2,
+  "explanation": "Modules package reusable infrastructure with inputs (variables) and outputs.",
+  "level": "easy"
+ },
+ {
+  "id": "e-078",
+  "category": "AWS",
+  "type": "mcq",
+  "question": "Which AWS service is used to decouple microservices?",
+  "options": [
+   "SNS",
+   "SQS",
+   "EventBridge",
+   "Step Functions"
+  ],
+  "answer": 1,
+  "explanation": "SQS queues decouple producers from consumers and absorb load spikes.",
+  "level": "easy"
+ },
+ {
+  "id": "e-079",
+  "category": "Docker",
+  "type": "mcq",
+  "question": "Which Docker command stops a running container?",
+  "options": [
+   "docker kill",
+   "docker stop",
+   "docker pause",
+   "docker rm"
+  ],
+  "answer": 1,
+  "explanation": "`docker stop` sends SIGTERM, then SIGKILL after the grace period. `kill` sends SIGKILL immediately.",
+  "level": "easy"
+ },
+ {
+  "id": "e-080",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "question": "Which Kubernetes resource ensures Pod autoscaling?",
+  "options": [
+   "Deployment",
+   "HPA",
+   "VPA",
+   "ReplicaSet"
+  ],
+  "answer": 1,
+  "explanation": "The HorizontalPodAutoscaler changes replica count based on CPU, memory or custom metrics.",
+  "level": "easy"
+ },
+ {
+  "id": "e-081",
+  "category": "Linux",
+  "type": "mcq",
+  "question": "Which command shows CPU architecture details?",
+  "options": [
+   "arch",
+   "uname -m",
+   "lscpu",
+   "hostname"
+  ],
+  "answer": 2,
+  "explanation": "`lscpu` shows architecture, cores, threads and caches. `uname -m` prints only the arch string.",
+  "level": "easy"
+ },
+ {
+  "id": "e-082",
+  "category": "CI/CD",
+  "type": "mcq",
+  "question": "Which practice reduces deployment risk?",
+  "options": [
+   "Blue-green deployment",
+   "Big bang release",
+   "Manual rollback",
+   "Delayed testing"
+  ],
+  "answer": 0,
+  "explanation": "Blue-green runs two environments and switches traffic, so rollback is just switching back.",
+  "level": "easy"
+ },
+ {
+  "id": "e-083",
+  "category": "Terraform",
+  "type": "mcq",
+  "question": "Which Terraform command destroys infrastructure?",
+  "options": [
+   "terraform delete",
+   "terraform remove",
+   "terraform destroy",
+   "terraform clean"
+  ],
+  "answer": 2,
+  "explanation": "`terraform destroy` removes everything in the state. It's effectively `apply -destroy`.",
+  "level": "easy"
+ },
+ {
+  "id": "e-084",
+  "category": "AWS",
+  "type": "mcq",
+  "question": "Which AWS service is used for API management?",
+  "options": [
+   "ALB",
+   "API Gateway",
+   "CloudFront",
+   "App Mesh"
+  ],
+  "answer": 1,
+  "explanation": "API Gateway manages REST, HTTP and WebSocket APIs with auth, throttling and stages.",
+  "level": "easy"
+ },
+ {
+  "id": "e-085",
+  "category": "Docker",
+  "type": "mcq",
+  "question": "Which Dockerfile instruction sets environment variables?",
+  "options": [
+   "ENV",
+   "ARG",
+   "RUN",
+   "LABEL"
+  ],
+  "answer": 0,
+  "explanation": "`ENV` sets runtime environment variables. `ARG` exists only at build time.",
+  "level": "easy"
+ },
+ {
+  "id": "e-086",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "question": "Which component handles network rules in Kubernetes?",
+  "options": [
+   "kubelet",
+   "kube-proxy",
+   "etcd",
+   "scheduler"
+  ],
+  "answer": 1,
+  "explanation": "kube-proxy programs iptables/IPVS rules for Services. Some CNIs (e.g. Cilium) replace it with eBPF.",
+  "level": "easy"
+ },
+ {
+  "id": "e-087",
+  "category": "Linux",
+  "type": "mcq",
+  "question": "Which command displays kernel version?",
+  "options": [
+   "uname -r",
+   "kernel",
+   "lsmod",
+   "dmesg"
+  ],
+  "answer": 0,
+  "explanation": "`uname -r` prints the running kernel release.",
+  "level": "easy"
+ },
+ {
+  "id": "e-088",
+  "category": "Git",
+  "type": "mcq",
+  "question": "Which command shows commit history?",
+  "options": [
+   "git status",
+   "git log",
+   "git diff",
+   "git show"
+  ],
+  "answer": 1,
+  "explanation": "`git log --oneline --graph` gives a compact history view.",
+  "level": "easy"
+ },
+ {
+  "id": "e-089",
+  "category": "Security",
+  "type": "mcq",
+  "question": "Which AWS service scans EC2 for vulnerabilities?",
+  "options": [
+   "GuardDuty",
+   "Inspector",
+   "Shield",
+   "WAF"
+  ],
+  "answer": 1,
+  "explanation": "Amazon Inspector continuously scans EC2, ECR images and Lambda for CVEs.",
+  "level": "easy"
+ },
+ {
+  "id": "e-090",
+  "category": "Observability",
+  "type": "mcq",
+  "question": "Which Prometheus metric type represents instantaneous values?",
+  "options": [
+   "Counter",
+   "Gauge",
+   "Histogram",
+   "Summary"
+  ],
+  "answer": 1,
+  "explanation": "Gauges go up and down (memory in use, queue depth).",
+  "level": "easy"
+ },
+ {
+  "id": "e-091",
+  "category": "Networking",
+  "type": "mcq",
+  "question": "Which protocol tests network reachability?",
+  "options": [
+   "ARP",
+   "ICMP",
+   "DNS",
+   "SNMP"
+  ],
+  "answer": 1,
+  "explanation": "ICMP echo (ping) tests reachability. Many networks block it, so 'no ping' is not proof of 'down'.",
+  "level": "easy"
+ },
+ {
+  "id": "e-092",
+  "category": "AWS",
+  "type": "mcq",
+  "question": "Which AWS service is used for centralized configuration compliance?",
+  "options": [
+   "CloudTrail",
+   "Config",
+   "Inspector",
+   "Trusted Advisor"
+  ],
+  "answer": 1,
+  "explanation": "AWS Config records resource configuration history and evaluates compliance rules.",
+  "level": "easy"
+ },
+ {
+  "id": "e-093",
+  "category": "Docker",
+  "type": "mcq",
+  "question": "Which command shows container resource usage?",
+  "options": [
+   "docker top",
+   "docker stats",
+   "docker ps",
+   "docker inspect"
+  ],
+  "answer": 1,
+  "explanation": "`docker stats` streams live CPU, memory, network and I/O per container.",
+  "level": "easy"
+ },
+ {
+  "id": "e-094",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "question": "Which resource defines persistent storage?",
+  "options": [
+   "ConfigMap",
+   "Secret",
+   "PersistentVolume",
+   "StatefulSet"
+  ],
+  "answer": 2,
+  "explanation": "A PersistentVolume is a piece of storage that Pods claim through a PersistentVolumeClaim. StorageClasses provision PVs dynamically.",
+  "level": "easy"
+ },
+ {
+  "id": "e-095",
+  "category": "Linux",
+  "type": "mcq",
+  "question": "Which command searches text in files?",
+  "options": [
+   "find",
+   "grep",
+   "awk",
+   "sed"
+  ],
+  "answer": 1,
+  "explanation": "`grep -rn pattern dir` searches text recursively and shows line numbers.",
+  "level": "easy"
+ },
+ {
+  "id": "e-096",
+  "category": "CI/CD",
+  "type": "mcq",
+  "question": "Which strategy deploys code to a subset of users?",
+  "options": [
+   "Canary deployment",
+   "Rolling update",
+   "Blue-green",
+   "Recreate"
+  ],
+  "answer": 0,
+  "explanation": "Canary sends a small share of traffic to the new version first, then ramps up.",
+  "level": "easy"
+ },
+ {
+  "id": "e-097",
+  "category": "Terraform",
+  "type": "mcq",
+  "question": "Which block defines input variables?",
+  "options": [
+   "output",
+   "provider",
+   "variable",
+   "resource"
+  ],
+  "answer": 2,
+  "explanation": "`variable` blocks declare inputs. Set them with tfvars, `-var`, or `TF_VAR_*` env vars.",
+  "level": "easy"
+ },
+ {
+  "id": "e-098",
+  "category": "AWS",
+  "type": "mcq",
+  "question": "Which AWS feature forwards DNS queries between a VPC and on-premises DNS servers?",
+  "options": [
+   "Route 53 Resolver endpoints",
+   "CloudFront",
+   "Global Accelerator",
+   "Elastic Load Balancing"
+  ],
+  "answer": 0,
+  "explanation": "Route 53 Resolver inbound/outbound endpoints plus forwarding rules give you hybrid DNS.",
+  "level": "easy"
+ },
+ {
+  "id": "e-099",
+  "category": "Docker",
+  "type": "mcq",
+  "question": "Which command removes a Docker image?",
+  "options": [
+   "docker delete",
+   "docker rm",
+   "docker rmi",
+   "docker purge"
+  ],
+  "answer": 2,
+  "explanation": "`docker rmi` (or `docker image rm`) deletes images. `docker rm` deletes containers.",
+  "level": "easy"
+ },
+ {
+  "id": "e-100",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "question": "Which object manages Stateful applications?",
+  "options": [
+   "Deployment",
+   "ReplicaSet",
+   "StatefulSet",
+   "DaemonSet"
+  ],
+  "answer": 2,
+  "explanation": "StatefulSets give stable network IDs, ordered rollout and per-Pod PVCs.",
+  "level": "easy"
+ },
+ {
+  "id": "e-101",
+  "category": "Linux",
+  "type": "mcq",
+  "question": "Which command lists open files?",
+  "options": [
+   "ls",
+   "lsof",
+   "fuser",
+   "stat"
+  ],
+  "answer": 1,
+  "explanation": "`lsof` lists open files, sockets included. Try `lsof -i :8080`.",
+  "level": "easy"
+ },
+ {
+  "id": "e-102",
+  "category": "Git",
+  "type": "mcq",
+  "question": "Which command temporarily saves uncommitted changes?",
+  "options": [
+   "git stash",
+   "git reset",
+   "git commit",
+   "git revert"
+  ],
+  "answer": 0,
+  "explanation": "`git stash` shelves uncommitted changes, and `git stash pop` brings them back.",
+  "level": "easy"
+ },
+ {
+  "id": "e-103",
+  "category": "Security",
+  "type": "mcq",
+  "question": "Which model assumes no implicit trust?",
+  "options": [
+   "Least privilege",
+   "Zero Trust",
+   "Defense in depth",
+   "RBAC"
+  ],
+  "answer": 1,
+  "explanation": "Zero Trust: never trust the network location, and verify every request (identity, device, context).",
+  "level": "easy"
+ },
+ {
+  "id": "e-104",
+  "category": "Observability",
+  "type": "mcq",
+  "question": "Which Grafana feature enables dynamic dashboards?",
+  "options": [
+   "Panels",
+   "Variables",
+   "Alerts",
+   "Annotations"
+  ],
+  "answer": 1,
+  "explanation": "Template variables turn one dashboard into many (per cluster, namespace, service).",
+  "level": "easy"
+ },
+ {
+  "id": "e-105",
+  "category": "Networking",
+  "type": "mcq",
+  "question": "Which protocol is used for time synchronization?",
+  "options": [
+   "SNMP",
+   "NTP",
+   "SMTP",
+   "FTP"
+  ],
+  "answer": 1,
+  "explanation": "NTP (or chrony) keeps clocks in sync. Skew breaks TLS, Kerberos, logs and distributed systems.",
+  "level": "easy"
+ },
+ {
+  "id": "e-106",
+  "category": "AWS",
+  "type": "mcq",
+  "question": "Which AWS service is used for workflow orchestration?",
+  "options": [
+   "Step Functions",
+   "SNS",
+   "SQS",
+   "Lambda"
+  ],
+  "answer": 0,
+  "explanation": "Step Functions orchestrates multi-step workflows with retries, branches and waits.",
+  "level": "easy"
+ },
+ {
+  "id": "e-107",
+  "category": "Terraform",
+  "type": "mcq",
+  "question": "Which backend stores Terraform state remotely?",
+  "options": [
+   "local",
+   "s3",
+   "null",
+   "file"
+  ],
+  "answer": 1,
+  "explanation": "The `s3` backend stores state remotely. Terraform ≥1.10 can lock natively with `use_lockfile = true`, with no DynamoDB table needed.",
+  "level": "easy"
+ },
+ {
+  "id": "e-108",
+  "category": "AWS",
+  "type": "mcq",
+  "question": "Which AWS service provides managed message queues?",
+  "options": [
+   "SNS",
+   "SQS",
+   "EventBridge",
+   "MQ"
+  ],
+  "answer": 1,
+  "explanation": "SQS is fully managed queuing (standard or FIFO). Amazon MQ is managed ActiveMQ/RabbitMQ.",
+  "level": "easy"
+ },
+ {
+  "id": "e-109",
+  "category": "Docker",
+  "type": "mcq",
+  "question": "Which flag automatically removes a container after exit?",
+  "options": [
+   "--rm",
+   "-d",
+   "-it",
+   "--force"
+  ],
+  "answer": 0,
+  "explanation": "`--rm` removes the container automatically when it exits, which is handy for one-off tasks.",
+  "level": "easy"
+ },
+ {
+  "id": "e-110",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "question": "Which object defines ingress traffic routing rules?",
+  "options": [
+   "Service",
+   "Ingress",
+   "Endpoint",
+   "Route"
+  ],
+  "answer": 1,
+  "explanation": "Ingress rules map hosts and paths to backend Services.",
+  "level": "easy"
+ },
+ {
+  "id": "e-111",
+  "category": "Linux",
+  "type": "mcq",
+  "question": "Which command shows disk I/O statistics?",
+  "options": [
+   "iostat",
+   "vmstat",
+   "free",
+   "uptime"
+  ],
+  "answer": 0,
+  "explanation": "`iostat -x 1` (sysstat) shows per-device utilisation, await and queue size.",
+  "level": "easy"
+ },
+ {
+  "id": "e-112",
+  "category": "CI/CD",
+  "type": "mcq",
+  "question": "Which concept enables faster feedback cycles?",
+  "options": [
+   "Shift-left testing",
+   "Manual approvals",
+   "Delayed builds",
+   "Monolithic pipelines"
+  ],
+  "answer": 0,
+  "explanation": "Shift-left means running tests and security checks earlier in the lifecycle, where they're cheaper to fix.",
+  "level": "easy"
+ },
+ {
+  "id": "e-113",
+  "category": "Security",
+  "type": "mcq",
+  "question": "Which AWS service provides web application firewall?",
+  "options": [
+   "Shield",
+   "Inspector",
+   "WAF",
+   "GuardDuty"
+  ],
+  "answer": 2,
+  "explanation": "AWS WAF filters layer-7 requests using managed and custom rules on CloudFront, ALB and API Gateway.",
+  "level": "easy"
+ },
+ {
+  "id": "e-114",
+  "category": "Observability",
+  "type": "mcq",
+  "question": "Which Prometheus component allows pushing metrics?",
+  "options": [
+   "Exporter",
+   "Pushgateway",
+   "Alertmanager",
+   "TSDB"
+  ],
+  "answer": 1,
+  "explanation": "Pushgateway is for short-lived batch jobs that can't be scraped. Don't use it for services.",
+  "level": "easy"
+ },
+ {
+  "id": "e-115",
+  "category": "Networking",
+  "type": "mcq",
+  "question": "Which OSI layer handles routing?",
+  "options": [
+   "Layer 2",
+   "Layer 3",
+   "Layer 4",
+   "Layer 7"
+  ],
+  "answer": 1,
+  "explanation": "Layer 3 (Network) handles IP routing.",
+  "level": "easy"
+ },
+ {
+  "id": "e-116",
+  "category": "Linux",
+  "type": "mcq",
+  "question": "Which command monitors real-time process activity?",
+  "options": [
+   "top",
+   "ps",
+   "free",
+   "watch"
+  ],
+  "answer": 0,
+  "explanation": "`top` shows live process activity. `htop` and `btop` are friendlier alternatives.",
+  "level": "easy"
+ },
+ {
+  "id": "e-117",
+  "category": "Kubernetes",
+  "question": "Which Kubernetes API is the role-oriented successor to Ingress (Gateway, HTTPRoute, GRPCRoute)?",
+  "options": [
+   "Gateway API",
+   "Service Mesh Interface",
+   "IngressClass v2",
+   "EndpointSlice"
+  ],
+  "answer": 0,
+  "explanation": "Gateway API (GA since v1.0) splits responsibilities: infra teams own `Gateway`, app teams own `HTTPRoute`. Ingress is frozen — no new features.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-118",
+  "category": "Kubernetes",
+  "question": "Which probe failure removes a Pod from Service endpoints WITHOUT restarting the container?",
+  "options": [
+   "livenessProbe",
+   "readinessProbe",
+   "startupProbe",
+   "preStop hook"
+  ],
+  "answer": 1,
+  "explanation": "Readiness controls traffic. Liveness failures restart the container. Startup probes hold off the other two while a slow app boots.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-119",
+  "category": "Kubernetes",
+  "question": "Which object limits how many Pods of an app can be voluntarily evicted at once (e.g. during node drains)?",
+  "options": [
+   "ResourceQuota",
+   "PodDisruptionBudget",
+   "LimitRange",
+   "PriorityClass"
+  ],
+  "answer": 1,
+  "explanation": "A PDB (`minAvailable` / `maxUnavailable`) is respected by `kubectl drain`, Karpenter consolidation and cluster upgrades.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-120",
+  "category": "Kubernetes",
+  "question": "Which tool packages Kubernetes manifests as versioned, templated charts?",
+  "options": [
+   "Kustomize",
+   "Helm",
+   "kubeadm",
+   "Skaffold"
+  ],
+  "answer": 1,
+  "explanation": "Helm charts are templated and versioned (and can be stored as OCI artifacts). Kustomize patches plain YAML without templating.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-121",
+  "category": "AWS",
+  "question": "What is the current AWS-recommended way to give EKS Pods IAM permissions without node-wide credentials?",
+  "options": [
+   "Attach the policy to the node instance role",
+   "EKS Pod Identity (or IRSA)",
+   "Store access keys in a Secret",
+   "Use the EC2 metadata endpoint from the Pod"
+  ],
+  "answer": 1,
+  "explanation": "EKS Pod Identity associates an IAM role with a ServiceAccount through the Pod Identity Agent. IRSA (OIDC) still works. Node-role sharing breaks least privilege.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-122",
+  "category": "AWS",
+  "question": "What does IMDSv2 add over IMDSv1 on EC2?",
+  "options": [
+   "Encryption of EBS volumes",
+   "Session tokens obtained via a PUT request",
+   "IPv6 metadata only",
+   "A public metadata endpoint"
+  ],
+  "answer": 1,
+  "explanation": "IMDSv2 needs a session token (PUT /latest/api/token), which blocks most SSRF credential theft. Enforce it with `HttpTokens=required` and keep the hop limit at 1–2.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-123",
+  "category": "AWS",
+  "question": "Which open-source node autoscaler provisions right-sized EC2 instances directly from pending Pod requirements?",
+  "options": [
+   "Cluster Autoscaler",
+   "Karpenter",
+   "KEDA",
+   "Vertical Pod Autoscaler"
+  ],
+  "answer": 1,
+  "explanation": "Karpenter watches unschedulable Pods, picks instance types via NodePools/EC2NodeClasses, and consolidates under-used nodes.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-124",
+  "category": "AWS",
+  "question": "Which VPC feature lets private subnets reach S3 without a NAT Gateway (and without its data-processing charge)?",
+  "options": [
+   "Gateway VPC endpoint",
+   "Internet Gateway",
+   "Transit Gateway",
+   "Elastic IP"
+  ],
+  "answer": 0,
+  "explanation": "Gateway endpoints for S3 and DynamoDB are free route-table targets. Interface endpoints (PrivateLink) cover most other services, at an hourly cost.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-125",
+  "category": "AWS",
+  "question": "Which EC2 processor family usually gives the best price-performance for Linux/ARM-compatible workloads?",
+  "options": [
+   "Graviton",
+   "Inferentia",
+   "Xeon Phi",
+   "Nitro Enclaves"
+  ],
+  "answer": 0,
+  "explanation": "Graviton (ARM64) instances are typically cheaper per unit of performance. Build multi-arch images (`docker buildx --platform linux/amd64,linux/arm64`) so you can use them.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-126",
+  "category": "CI/CD",
+  "question": "How should GitHub Actions authenticate to AWS without long-lived access keys?",
+  "options": [
+   "Store keys in repository secrets",
+   "OIDC federation with an IAM role (id-token: write)",
+   "Use the root account",
+   "Commit ~/.aws/credentials"
+  ],
+  "answer": 1,
+  "explanation": "GitHub's OIDC token is exchanged for short-lived STS credentials (`aws-actions/configure-aws-credentials` with `role-to-assume`). Scope the trust policy's `sub` to the repo and branch.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-127",
+  "category": "CI/CD",
+  "question": "Why should third-party GitHub Actions be pinned to a full commit SHA?",
+  "options": [
+   "It makes workflows faster",
+   "Tags can be moved to malicious code; a SHA is immutable",
+   "SHAs are required by YAML",
+   "It enables caching"
+  ],
+  "answer": 1,
+  "explanation": "The 2025 tj-actions/changed-files compromise rewrote tags to exfiltrate secrets. A pinned SHA (plus Dependabot updates) prevents that.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-128",
+  "category": "GitOps",
+  "question": "In GitOps (e.g. Argo CD, Flux), what is the source of truth for the desired cluster state?",
+  "options": [
+   "The live cluster",
+   "A Git repository",
+   "The CI server",
+   "The container registry"
+  ],
+  "answer": 1,
+  "explanation": "Controllers in the cluster pull from Git and reconcile continuously. Drift shows up as OutOfSync, and self-heal reverts manual changes.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-129",
+  "category": "GitOps",
+  "question": "What does the Argo CD status 'OutOfSync' mean?",
+  "options": [
+   "The app is crashing",
+   "Live resources differ from the manifests in Git",
+   "The repo is unreachable",
+   "The sync is still running"
+  ],
+  "answer": 1,
+  "explanation": "Sync status compares Git with the live cluster. Health status (Healthy/Degraded/Progressing) is tracked separately.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-130",
+  "category": "Docker",
+  "question": "What is the main benefit of a multi-stage Dockerfile?",
+  "options": [
+   "Faster docker pull of the base image",
+   "Build tools stay in the builder stage; the final image ships only runtime artifacts",
+   "It enables Docker Swarm",
+   "It encrypts layers"
+  ],
+  "answer": 1,
+  "explanation": "`COPY --from=build` copies only the binary or bundle into a slim or distroless runtime stage, so the image is smaller and has fewer CVEs.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-131",
+  "category": "Docker",
+  "question": "What is a 'distroless' image?",
+  "options": [
+   "An image with no layers",
+   "A minimal runtime image without a shell or package manager",
+   "A Windows container",
+   "An image built without a Dockerfile"
+  ],
+  "answer": 1,
+  "explanation": "Distroless and Chainguard-style images contain just the runtime, which shrinks the attack surface. Debug them with `kubectl debug` ephemeral containers.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-132",
+  "category": "Docker",
+  "question": "Which Dockerfile instruction makes the container run as a non-root user?",
+  "options": [
+   "RUN chmod 777 /",
+   "USER 10001",
+   "EXPOSE 1000",
+   "ENV ROOT=false"
+  ],
+  "answer": 1,
+  "explanation": "`USER` with a non-zero UID, plus `runAsNonRoot: true` in the Pod securityContext, is a baseline hardening control.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-133",
+  "category": "Security",
+  "question": "What is an SBOM?",
+  "options": [
+   "A list of all components and dependency versions in a software artifact",
+   "A secret-scanning tool",
+   "A kind of firewall rule",
+   "An AWS billing report"
+  ],
+  "answer": 0,
+  "explanation": "A Software Bill of Materials (SPDX or CycloneDX, generated by Syft, Trivy, docker buildx) lets you answer 'are we affected by this CVE?' in minutes.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-134",
+  "category": "Security",
+  "question": "Which tool from Sigstore is commonly used to sign and verify container images?",
+  "options": [
+   "cosign",
+   "trivy",
+   "falco",
+   "vault"
+  ],
+  "answer": 0,
+  "explanation": "`cosign sign` (keyless via OIDC) and `cosign verify` combine with admission policies (Kyverno, Sigstore policy-controller) to enforce signed images.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-135",
+  "category": "Security",
+  "question": "Which tool scans container images, filesystems and IaC for vulnerabilities and misconfigurations?",
+  "options": [
+   "Trivy",
+   "Grafana",
+   "Packer",
+   "Consul"
+  ],
+  "answer": 0,
+  "explanation": "Trivy covers CVEs, misconfigurations (Terraform, K8s), secrets and SBOMs. Run it in CI with `--exit-code 1 --severity HIGH,CRITICAL`.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-136",
+  "category": "Security",
+  "question": "Kyverno and OPA Gatekeeper are examples of what?",
+  "options": [
+   "Service meshes",
+   "Kubernetes policy engines (admission control)",
+   "Log shippers",
+   "Container runtimes"
+  ],
+  "answer": 1,
+  "explanation": "They validate, mutate or generate resources at admission time, e.g. blocking `:latest` tags or privileged Pods. Kubernetes also has a built-in ValidatingAdmissionPolicy (CEL).",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-137",
+  "category": "Terraform",
+  "question": "Since Terraform 1.5, how can you import existing resources declaratively in code?",
+  "options": [
+   "terraform state push",
+   "An import block",
+   "A null_resource",
+   "terraform taint"
+  ],
+  "answer": 1,
+  "explanation": "`import { to = aws_s3_bucket.logs  id = \"my-logs\" }` then `terraform plan -generate-config-out=gen.tf` writes the config for you.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-138",
+  "category": "Terraform",
+  "question": "What does a `moved` block do?",
+  "options": [
+   "Moves state to another backend",
+   "Tells Terraform a resource was renamed/re-addressed so it isn't destroyed and recreated",
+   "Moves resources between AWS regions",
+   "Moves a module to the registry"
+  ],
+  "answer": 1,
+  "explanation": "`moved { from = aws_instance.a  to = aws_instance.web }` refactors addresses safely, and it gets reviewed in a PR, unlike a manual `terraform state mv`.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-139",
+  "category": "Terraform",
+  "question": "What is OpenTofu?",
+  "options": [
+   "A Terraform GUI",
+   "An open-source (MPL) fork of Terraform under the Linux Foundation",
+   "A Terraform provider for Tofu cloud",
+   "A state locking service"
+  ],
+  "answer": 1,
+  "explanation": "OpenTofu forked from Terraform 1.5 after the BSL licence change. The CLI is `tofu`, and it adds features such as native state encryption.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-140",
+  "category": "Observability",
+  "question": "What is OpenTelemetry?",
+  "options": [
+   "A vendor-neutral standard and SDKs for traces, metrics and logs",
+   "A Prometheus fork",
+   "An AWS-only tracing service",
+   "A Grafana plugin"
+  ],
+  "answer": 0,
+  "explanation": "OTel standardises instrumentation (SDKs, OTLP protocol). The Collector or Grafana Alloy receives the data and exports it to any backend.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-141",
+  "category": "Observability",
+  "question": "An SLO of 99.9% monthly availability gives an error budget of roughly how much downtime per 30 days?",
+  "options": [
+   "~43 minutes",
+   "~7 hours",
+   "~4 minutes",
+   "~1 day"
+  ],
+  "answer": 0,
+  "explanation": "0.1% of 43,200 minutes ≈ 43.2 minutes. Spend the budget on releases; when it's exhausted, freeze risky changes.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-142",
+  "category": "Observability",
+  "question": "The RED method for services monitors which signals?",
+  "options": [
+   "Rate, Errors, Duration",
+   "RAM, Ethernet, Disk",
+   "Requests, Events, Deploys",
+   "Retries, Exceptions, Delays"
+  ],
+  "answer": 0,
+  "explanation": "RED fits request-driven services. USE (Utilisation, Saturation, Errors) fits resources such as CPU, disk and queues.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-143",
+  "category": "Linux",
+  "question": "Which command shows logs for a systemd service since the last boot?",
+  "options": [
+   "journalctl -u nginx -b",
+   "cat /var/log/systemd",
+   "systemctl logs nginx",
+   "dmesg -u nginx"
+  ],
+  "answer": 0,
+  "explanation": "`journalctl -u <unit> -b` filters by unit and current boot. Add `-f` to follow and `--since \"10 min ago\"` to narrow the window.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-144",
+  "category": "Linux",
+  "question": "Which kernel feature do containers use to limit CPU and memory per process group?",
+  "options": [
+   "namespaces",
+   "cgroups",
+   "SELinux",
+   "iptables"
+  ],
+  "answer": 1,
+  "explanation": "cgroups (v2 is the modern default) enforce resource limits. Namespaces provide isolation (PID, net, mount, …).",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-145",
+  "category": "Git",
+  "question": "Which command replays your branch's commits on top of the latest main for a linear history?",
+  "options": [
+   "git merge main",
+   "git rebase main",
+   "git cherry main",
+   "git revert main"
+  ],
+  "answer": 1,
+  "explanation": "Rebase rewrites your commits onto the new base. Never rebase shared/public branches without coordinating (`--force-with-lease`).",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-146",
+  "category": "Git",
+  "question": "Which command safely undoes a commit that's already pushed to a shared branch?",
+  "options": [
+   "git reset --hard HEAD~1 && git push -f",
+   "git revert <sha>",
+   "git commit --amend",
+   "git clean -fd"
+  ],
+  "answer": 1,
+  "explanation": "`git revert` creates a new commit that inverts the old one, so shared history isn't rewritten.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-147",
+  "category": "Networking",
+  "question": "Which DNS record type points one hostname at another hostname?",
+  "options": [
+   "A",
+   "AAAA",
+   "CNAME",
+   "MX"
+  ],
+  "answer": 2,
+  "explanation": "CNAME aliases a name to another name. It can't sit at the zone apex — use Route 53 ALIAS records there.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-148",
+  "category": "Networking",
+  "question": "HTTP/3 runs on top of which transport?",
+  "options": [
+   "TCP",
+   "QUIC over UDP",
+   "SCTP",
+   "ICMP"
+  ],
+  "answer": 1,
+  "explanation": "HTTP/3 uses QUIC (UDP 443), which avoids TCP head-of-line blocking and has faster handshakes.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-149",
+  "category": "AI/MLOps",
+  "question": "Which Kubernetes component exposes NVIDIA GPUs as a schedulable resource (`nvidia.com/gpu`)?",
+  "options": [
+   "NVIDIA device plugin",
+   "kube-proxy",
+   "CoreDNS",
+   "metrics-server"
+  ],
+  "answer": 0,
+  "explanation": "The device plugin (usually installed via the NVIDIA GPU Operator) advertises GPUs to the kubelet, and Pods request them in `resources.limits`.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-150",
+  "category": "AI/MLOps",
+  "question": "What is the Model Context Protocol (MCP)?",
+  "options": [
+   "An open protocol for connecting AI assistants to tools and data sources",
+   "A GPU scheduling algorithm",
+   "A model compression format",
+   "An AWS SageMaker API"
+  ],
+  "answer": 0,
+  "explanation": "MCP servers expose tools and resources to AI clients. Treat them like any integration: least-privilege credentials, audited actions, and no blind trust in returned content.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "e-151",
+  "category": "AI/MLOps",
+  "question": "In an AI agent that reads GitHub issues and can run CI commands, what is 'prompt injection'?",
+  "options": [
+   "Untrusted text containing instructions the model may follow",
+   "A faster tokenizer",
+   "A way to compress prompts",
+   "A Kubernetes admission webhook"
+  ],
+  "answer": 0,
+  "explanation": "Any content the agent reads (issues, logs, web pages) can carry instructions. Mitigations: least-privilege tokens, human approval for writes, and separating data from instructions.",
+  "type": "mcq",
+  "level": "easy"
+ },
+ {
+  "id": "ai-e-101",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "question": "Which open-source server is widely used for high-throughput LLM inference with PagedAttention and continuous batching?",
+  "options": [
+   "vLLM",
+   "Jenkins",
+   "MLflow",
+   "Airflow"
+  ],
+  "answer": 0,
+  "explanation": "vLLM (and alternatives such as TGI, SGLang and NVIDIA Triton with TensorRT-LLM) exposes an OpenAI-compatible API. Continuous batching keeps the GPU busy across many concurrent requests.",
+  "level": "easy"
+ },
+ {
+  "id": "ai-e-102",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "question": "What does NVIDIA MIG (Multi-Instance GPU) allow?",
+  "options": [
+   "Partitioning one A100/H100 into isolated GPU slices with their own memory and compute",
+   "Linking GPUs across regions",
+   "Running CUDA on CPUs",
+   "Overclocking"
+  ],
+  "answer": 0,
+  "explanation": "MIG gives hardware isolation for small inference workloads. Time-slicing shares a GPU without isolation. Both are configured through the GPU Operator.",
+  "level": "easy"
+ },
+ {
+  "id": "ai-e-103",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "question": "Which tool is commonly used to track ML experiments and register model versions?",
+  "options": [
+   "MLflow",
+   "Prometheus",
+   "Terraform",
+   "Fluent Bit"
+  ],
+  "answer": 0,
+  "explanation": "The MLflow tracking server logs parameters, metrics and artifacts, and its registry manages stages and aliases (staging, production). SageMaker and Vertex AI have managed equivalents.",
+  "level": "easy"
+ },
+ {
+  "id": "ai-e-104",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "question": "What is model drift?",
+  "options": [
+   "Production data or relationships change, so a model's accuracy degrades over time",
+   "The model file moving between buckets",
+   "GPU temperature changes",
+   "A Git merge conflict"
+  ],
+  "answer": 0,
+  "explanation": "Monitor input distributions and outcome metrics. Retraining pipelines are triggered on schedule or on detected drift.",
+  "level": "easy"
+ },
+ {
+  "id": "ai-e-105",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "question": "In RAG (retrieval-augmented generation), what does the vector database store?",
+  "options": [
+   "Embeddings of document chunks for similarity search",
+   "Model weights",
+   "User passwords",
+   "Container images"
+  ],
+  "answer": 0,
+  "explanation": "Queries are embedded and matched against stored chunks, and the results are added to the prompt. Examples are pgvector, OpenSearch, Qdrant and Pinecone. Re-embed everything if you change the embedding model.",
+  "level": "easy"
+ },
+ {
+  "id": "ai-e-106",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "question": "What does quantisation (e.g. INT8/INT4, AWQ, GPTQ) do to an LLM?",
+  "options": [
+   "Stores weights in fewer bits — less GPU memory and often faster inference, with some accuracy trade-off",
+   "Increases model size",
+   "Encrypts the model",
+   "Trains it faster from scratch"
+  ],
+  "answer": 0,
+  "explanation": "A 7B model in FP16 needs about 14 GB just for weights, and 4-bit cuts that to around 4 GB. Always evaluate quality on your own tasks after quantising.",
+  "level": "easy"
+ },
+ {
+  "id": "ai-e-107",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "question": "Which latency metric matters most for a chat UI's perceived responsiveness?",
+  "options": [
+   "Time to first token (TTFT)",
+   "Total GPU hours",
+   "Model file size",
+   "Disk IOPS"
+  ],
+  "answer": 0,
+  "explanation": "Users see streaming start at TTFT. Also track inter-token latency, tokens/sec and queue time per model and replica.",
+  "level": "easy"
+ },
+ {
+  "id": "ai-e-108",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "question": "How should application code get the API key for a hosted LLM provider?",
+  "options": [
+   "From a secret manager at runtime (scoped key per service), never committed or baked into images",
+   "Hard-coded in the frontend",
+   "In the Git README",
+   "In the container image layer"
+  ],
+  "answer": 0,
+  "explanation": "Leaked LLM keys get abused within hours (for crypto prompts, resale or spam). Prefer scoped keys per service with spend limits, or IAM-authenticated services such as Bedrock.",
+  "level": "easy"
+ },
+ {
+  "id": "ai-e-109",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "question": "Which Kubernetes add-on autoscales workloads on external metrics such as queue length or requests per second (useful for inference workers)?",
+  "options": [
+   "KEDA",
+   "CoreDNS",
+   "kube-proxy",
+   "etcd"
+  ],
+  "answer": 0,
+  "explanation": "KEDA scales on SQS depth, Kafka lag, Prometheus queries and more, including to zero. Pair it with Karpenter GPU NodePools so nodes follow the Pods.",
+  "level": "easy"
+ },
+ {
+  "id": "ai-e-110",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "question": "Why should long training jobs on Spot GPUs checkpoint regularly?",
+  "options": [
+   "Spot instances can be reclaimed with ~2 minutes notice; checkpoints let the job resume instead of restarting",
+   "Checkpoints make GPUs faster",
+   "AWS requires it",
+   "It reduces model size"
+  ],
+  "answer": 0,
+  "explanation": "Write checkpoints to S3 or FSx, handle SIGTERM, and use frameworks with resumable training. That's how you get 60–70% Spot savings without losing days of work.",
+  "level": "easy"
+ },
+ {
+  "id": "ai-e-111",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "question": "What is an LLM 'guardrail' in production?",
+  "options": [
+   "Input/output checks (PII redaction, topic limits, jailbreak and toxicity filters, schema validation) around model calls",
+   "A GPU cooling system",
+   "A Kubernetes taint",
+   "A Terraform module"
+  ],
+  "answer": 0,
+  "explanation": "Examples are Bedrock Guardrails, NeMo Guardrails and custom validators. They complement — never replace — least-privilege tool permissions.",
+  "level": "easy"
+ },
+ {
+  "id": "ai-e-112",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "question": "Which practice catches quality regressions when you change a prompt or model version?",
+  "options": [
+   "An evaluation suite (golden datasets, graded outputs) run in CI before release",
+   "Reading a few answers manually in prod",
+   "Increasing temperature",
+   "Doubling max tokens"
+  ],
+  "answer": 0,
+  "explanation": "Treat prompts and model versions like code: version them, run evals on every change, and canary in production with metrics.",
+  "level": "easy"
+ },
+ {
+  "id": "an-e-001",
+  "category": "Ansible",
+  "type": "mcq",
+  "question": "How does Ansible usually connect to Linux managed nodes?",
+  "options": [
+   "SSH, agentless",
+   "A resident agent on every node",
+   "SNMP",
+   "A VPN tunnel per host"
+  ],
+  "answer": 0,
+  "explanation": "The control node pushes small modules over SSH and runs them with the node's Python. Windows hosts use WinRM, or SSH on newer Windows.",
+  "level": "easy"
+ },
+ {
+  "id": "an-e-002",
+  "category": "Ansible",
+  "type": "mcq",
+  "question": "What does 'idempotent' mean for an Ansible task?",
+  "options": [
+   "Running it again changes nothing if the system is already in the desired state",
+   "It runs only once ever",
+   "It runs on all hosts at the same time",
+   "It never fails"
+  ],
+  "answer": 0,
+  "explanation": "A second run should report `changed=0`. `command` and `shell` tasks break this unless you add `creates:`, `removes:` or `changed_when:`.",
+  "level": "easy"
+ },
+ {
+  "id": "an-e-003",
+  "category": "Ansible",
+  "type": "mcq",
+  "question": "Which file lists the hosts and groups Ansible manages?",
+  "options": [
+   "The inventory (INI/YAML or a dynamic inventory plugin)",
+   "ansible.cfg",
+   "site.yml",
+   "requirements.yml"
+  ],
+  "answer": 0,
+  "explanation": "Inventories can be static files or plugins such as `amazon.aws.aws_ec2`, which builds groups from tags. In the cloud, prefer dynamic inventory to hand-maintained IP lists.",
+  "level": "easy"
+ },
+ {
+  "id": "an-e-004",
+  "category": "Ansible",
+  "type": "mcq",
+  "question": "Which runs a playbook without changing anything and shows what would change?",
+  "options": [
+   "ansible-playbook site.yml --check --diff",
+   "ansible-playbook site.yml --dry",
+   "ansible-lint site.yml",
+   "ansible-playbook site.yml -vvvv"
+  ],
+  "answer": 0,
+  "explanation": "Check mode simulates the run, and `--diff` shows the file changes. Tasks that can't simulate (some `command` tasks) are skipped or need `check_mode: false`.",
+  "level": "easy"
+ },
+ {
+  "id": "an-e-005",
+  "category": "Ansible",
+  "type": "mcq",
+  "question": "What is a handler?",
+  "options": [
+   "A task that runs only when notified by a task that changed, e.g. restart nginx after its config changes",
+   "An error handler like try/catch",
+   "An inventory plugin",
+   "A Jinja filter"
+  ],
+  "answer": 0,
+  "explanation": "Handlers run once at the end of the play, however many tasks notified them. That avoids five restarts for five template changes.",
+  "level": "easy"
+ },
+ {
+  "id": "an-e-006",
+  "category": "Ansible",
+  "type": "mcq",
+  "question": "Which feature encrypts secrets such as passwords inside your repo?",
+  "options": [
+   "ansible-vault",
+   "ansible-galaxy",
+   "ansible-doc",
+   "ansible-pull"
+  ],
+  "answer": 0,
+  "explanation": "`ansible-vault encrypt_string` or encrypted var files. Many teams instead look secrets up at runtime from AWS Secrets Manager or HashiCorp Vault with lookup plugins.",
+  "level": "easy"
+ },
+ {
+  "id": "an-e-007",
+  "category": "Ansible",
+  "type": "mcq",
+  "question": "What is a role?",
+  "options": [
+   "A reusable, structured bundle of tasks, handlers, templates, defaults and files",
+   "An IAM role",
+   "A user on the managed node",
+   "A type of inventory group"
+  ],
+  "answer": 0,
+  "explanation": "Roles follow a standard layout (`tasks/`, `handlers/`, `templates/`, `defaults/`…). Collections package roles and modules for distribution via Galaxy or Automation Hub.",
+  "level": "easy"
+ },
+ {
+  "id": "an-e-008",
+  "category": "Ansible",
+  "type": "mcq",
+  "question": "Which module should you prefer to install a package on RHEL and Ubuntu alike?",
+  "options": [
+   "ansible.builtin.package (or dnf/apt specifically)",
+   "ansible.builtin.shell: yum install -y …",
+   "ansible.builtin.raw",
+   "ansible.builtin.script"
+  ],
+  "answer": 0,
+  "explanation": "Modules are idempotent and report changes correctly. Shelling out loses both. Use `package` for simple cross-distro installs, or `apt` / `dnf` when you need their options.",
+  "level": "easy"
+ },
+ {
+  "id": "an-e-009",
+  "category": "Ansible",
+  "type": "mcq",
+  "question": "Which templating engine do Ansible templates and variables use?",
+  "options": [
+   "Jinja2",
+   "Go templates",
+   "Mustache",
+   "ERB"
+  ],
+  "answer": 0,
+  "explanation": "`{{ var }}`, filters like `{{ list | join(',') }}`, and `.j2` files rendered by the `template` module.",
+  "level": "easy"
+ },
+ {
+  "id": "an-e-010",
+  "category": "Ansible",
+  "type": "mcq",
+  "question": "Which keyword runs a play on only N hosts at a time for rolling updates?",
+  "options": [
+   "serial",
+   "forks",
+   "throttle_all",
+   "batch"
+  ],
+  "answer": 0,
+  "explanation": "`serial: 1` (or `\"25%\"`) rolls through the group, and `max_fail_percentage` stops the rollout early. `forks` only sets how many connections run in parallel.",
+  "level": "easy"
+ },
+ {
+  "id": "an-e-011",
+  "category": "Ansible",
+  "type": "mcq",
+  "question": "Which command installs collections listed in `collections/requirements.yml`?",
+  "options": [
+   "ansible-galaxy collection install -r collections/requirements.yml",
+   "pip install -r requirements.yml",
+   "ansible-pull requirements.yml",
+   "ansible-doc -r"
+  ],
+  "answer": 0,
+  "explanation": "Pin collection versions just like Python packages. Execution environments (container images built with ansible-builder) make the whole toolchain reproducible.",
+  "level": "easy"
+ },
+ {
+  "id": "an-e-012",
+  "category": "Ansible",
+  "type": "mcq",
+  "question": "Which module manages Windows services from Ansible?",
+  "options": [
+   "ansible.windows.win_service",
+   "ansible.builtin.service",
+   "community.windows.sc",
+   "ansible.builtin.systemd"
+  ],
+  "answer": 0,
+  "explanation": "Windows modules live in `ansible.windows` and `community.windows` and run PowerShell over WinRM or SSH: `win_service`, `win_feature`, `win_package`, `win_updates`.",
+  "level": "easy"
+ },
+ {
+  "id": "an-e-013",
+  "category": "Ansible",
+  "type": "mcq",
+  "question": "Which flag makes tasks run with sudo on the managed node?",
+  "options": [
+   "become: true (or -b)",
+   "sudo: yes in ansible.cfg only",
+   "root: true",
+   "--admin"
+  ],
+  "answer": 0,
+  "explanation": "`become` escalates (sudo by default), and `become_user` picks the target user. Scope it per task, not globally, where you can.",
+  "level": "easy"
+ },
+ {
+  "id": "an-e-014",
+  "category": "Ansible",
+  "type": "mcq",
+  "question": "Which tool lints playbooks for bad practices like using `command` where a module exists?",
+  "options": [
+   "ansible-lint",
+   "yamllint only",
+   "shellcheck",
+   "ansible-doc"
+  ],
+  "answer": 0,
+  "explanation": "ansible-lint (with profiles from `basic` to `production`) catches non-idempotent tasks, deprecated syntax and missing names. Run it in CI and pre-commit.",
+  "level": "easy"
+ },
+ {
+  "id": "an-e-015",
+  "category": "Ansible",
+  "type": "mcq",
+  "question": "Which command shows a module's documentation and examples offline?",
+  "options": [
+   "ansible-doc ansible.builtin.copy",
+   "ansible --help copy",
+   "man ansible-copy",
+   "ansible-galaxy info copy"
+  ],
+  "answer": 0,
+  "explanation": "`ansible-doc -l` lists modules, and `ansible-doc <fqcn>` shows parameters and examples. Use fully-qualified names (`ansible.builtin.copy`) in playbooks.",
+  "level": "easy"
+ },
+ {
+  "id": "sh-e-001",
+  "category": "Bash",
+  "type": "mcq",
+  "question": "What does `set -euo pipefail` do at the top of a script?",
+  "options": [
+   "Exit on errors, treat unset variables as errors, and fail a pipeline if any command in it fails",
+   "Enable debug tracing",
+   "Run the script as root",
+   "Disable globbing"
+  ],
+  "answer": 0,
+  "explanation": "Without `pipefail`, `false | true` succeeds. Without `-u`, `$TYPO` silently expands to an empty string. Together they make scripts fail fast instead of half-running.",
+  "level": "easy"
+ },
+ {
+  "id": "sh-e-002",
+  "category": "Bash",
+  "type": "mcq",
+  "question": "Which variable holds the exit status of the last command?",
+  "options": [
+   "$?",
+   "$!",
+   "$$",
+   "$#"
+  ],
+  "answer": 0,
+  "explanation": "`$?` is the last exit code (0 = success). `$!` is the last background PID, `$$` the current shell's PID, and `$#` the number of arguments.",
+  "level": "easy"
+ },
+ {
+  "id": "sh-e-003",
+  "category": "Bash",
+  "type": "mcq",
+  "question": "Why quote variables, as in `rm -- \"$file\"`?",
+  "options": [
+   "Unquoted values are word-split and glob-expanded, so spaces or * break things",
+   "Quotes make it faster",
+   "Bash requires quotes for all strings",
+   "To prevent tab completion"
+  ],
+  "answer": 0,
+  "explanation": "A file named `my report.txt` becomes two arguments unquoted, and `*` would expand to every file. Quote every expansion unless you deliberately want splitting.",
+  "level": "easy"
+ },
+ {
+  "id": "sh-e-004",
+  "category": "Bash",
+  "type": "mcq",
+  "question": "Which redirection sends both stdout and stderr to a file?",
+  "options": [
+   "cmd > out.log 2>&1",
+   "cmd 2> out.log 1>&2",
+   "cmd | out.log",
+   "cmd < out.log"
+  ],
+  "answer": 0,
+  "explanation": "Order matters: redirect stdout first, then point stderr (2) at where stdout (1) now goes. Bash shorthand: `&> out.log`.",
+  "level": "easy"
+ },
+ {
+  "id": "sh-e-005",
+  "category": "Bash",
+  "type": "mcq",
+  "question": "Which runs a cleanup function whenever the script exits, even on error?",
+  "options": [
+   "trap cleanup EXIT",
+   "on_exit cleanup",
+   "finally cleanup",
+   "atexit cleanup"
+  ],
+  "answer": 0,
+  "explanation": "`trap cleanup EXIT` is the shell's `finally`, used for temp dirs (`mktemp -d`), lock files and port-forwards. Add `INT TERM` if you need to handle signals specifically.",
+  "level": "easy"
+ },
+ {
+  "id": "sh-e-006",
+  "category": "Bash",
+  "type": "mcq",
+  "question": "Which makes a temporary directory safely?",
+  "options": [
+   "tmp=$(mktemp -d)",
+   "mkdir /tmp/mydir",
+   "tmp=/tmp/$RANDOM",
+   "touch /tmp/tmp"
+  ],
+  "answer": 0,
+  "explanation": "`mktemp` creates a unique path with safe permissions, avoiding races and symlink attacks on shared /tmp. Pair it with `trap 'rm -rf \"$tmp\"' EXIT`.",
+  "level": "easy"
+ },
+ {
+  "id": "sh-e-007",
+  "category": "Bash",
+  "type": "mcq",
+  "question": "Which reads a file line by line correctly, keeping spaces and backslashes?",
+  "options": [
+   "while IFS= read -r line; do ...; done < file",
+   "for line in $(cat file); do ...; done",
+   "cat file | for line; do ...; done",
+   "read file"
+  ],
+  "answer": 0,
+  "explanation": "`for x in $(cat file)` splits on every space, not on lines. `IFS=` keeps leading whitespace, and `-r` keeps backslashes.",
+  "level": "easy"
+ },
+ {
+  "id": "sh-e-008",
+  "category": "Bash",
+  "type": "mcq",
+  "question": "Which tool is the standard linter for shell scripts?",
+  "options": [
+   "shellcheck",
+   "bashlint (builtin)",
+   "shfmt",
+   "pylint"
+  ],
+  "answer": 0,
+  "explanation": "ShellCheck catches unquoted variables, useless cat, broken conditionals and more. `shfmt` formats. Run both in CI or pre-commit.",
+  "level": "easy"
+ },
+ {
+  "id": "sh-e-009",
+  "category": "Bash",
+  "type": "mcq",
+  "question": "What is the difference between `[[ ... ]]` and `[ ... ]` in Bash?",
+  "options": [
+   "[[ ]] is a Bash keyword: no word splitting inside, supports && || and =~ regex",
+   "They are identical",
+   "[ ] is faster and safer",
+   "[[ ]] only works with numbers"
+  ],
+  "answer": 0,
+  "explanation": "`[ ]` is the POSIX `test` command, so unquoted empty variables break it. In Bash scripts prefer `[[ ]]`; in `/bin/sh` scripts you must use `[ ]`.",
+  "level": "easy"
+ },
+ {
+  "id": "sh-e-010",
+  "category": "Bash",
+  "type": "mcq",
+  "question": "Which extracts the 3rd field of a CSV line?",
+  "options": [
+   "cut -d, -f3",
+   "cut -f3",
+   "awk -F: '{print $3}'",
+   "sed -n 3p"
+  ],
+  "answer": 0,
+  "explanation": "`cut -d, -f3` (or `awk -F, '{print $3}'`). Real CSV with quoted commas needs a proper parser — `mlr`, `csvkit`, or Python.",
+  "level": "easy"
+ },
+ {
+  "id": "sh-e-011",
+  "category": "Bash",
+  "type": "mcq",
+  "question": "Which command pretty-prints and queries JSON in shell scripts?",
+  "options": [
+   "jq",
+   "sed",
+   "awk",
+   "json_pp only"
+  ],
+  "answer": 0,
+  "explanation": "`kubectl get pods -o json | jq -r '.items[].metadata.name'`. `yq` does the same for YAML. Don't parse JSON with grep.",
+  "level": "easy"
+ },
+ {
+  "id": "sh-e-012",
+  "category": "Bash",
+  "type": "mcq",
+  "question": "Which runs a command on many inputs in parallel, 8 at a time?",
+  "options": [
+   "xargs -P 8 -n 1 cmd",
+   "for x in ...; do cmd & done (unbounded)",
+   "parallel is the only way",
+   "cmd --parallel"
+  ],
+  "answer": 0,
+  "explanation": "`xargs -P` bounds the concurrency, and `-0` with `find -print0` is safe for odd filenames. GNU `parallel` is more powerful but isn't always installed.",
+  "level": "easy"
+ },
+ {
+  "id": "sh-e-013",
+  "category": "Bash",
+  "type": "mcq",
+  "question": "What does `${VAR:-default}` expand to?",
+  "options": [
+   "$VAR if it's set and non-empty, otherwise 'default'",
+   "Always 'default'",
+   "An error if VAR is set",
+   "The length of VAR"
+  ],
+  "answer": 0,
+  "explanation": "`${VAR:-x}` gives a default, `${VAR:=x}` also assigns it, and `${VAR:?msg}` aborts with msg if VAR is unset or empty. Use `${#VAR}` for the length.",
+  "level": "easy"
+ },
+ {
+  "id": "sh-e-014",
+  "category": "Bash",
+  "type": "mcq",
+  "question": "Which shebang makes a script use Bash from the PATH (portable across distros and macOS)?",
+  "options": [
+   "#!/usr/bin/env bash",
+   "#!/bin/sh",
+   "#!bash",
+   "#!/usr/local/bash"
+  ],
+  "answer": 0,
+  "explanation": "`/bin/sh` may be dash on Debian and Ubuntu, so Bash-isms like `[[ ]]` and arrays break. Use `env bash` for Bash scripts, or write pure POSIX for `sh`.",
+  "level": "easy"
+ },
+ {
+  "id": "sh-e-015",
+  "category": "Bash",
+  "type": "mcq",
+  "question": "Which command shows what a script actually executes, line by line after expansion?",
+  "options": [
+   "bash -x script.sh",
+   "bash -n script.sh",
+   "bash --version",
+   "sh -v only"
+  ],
+  "answer": 0,
+  "explanation": "`-x` traces each command after expansion — the fastest way to see an empty variable. `-n` only checks syntax without running anything.",
+  "level": "easy"
+ },
+ {
+  "id": "git-e-101",
+  "category": "Git",
+  "type": "mcq",
+  "question": "Which command shows what changed in files you haven't staged yet?",
+  "options": [
+   "git diff",
+   "git diff --staged",
+   "git log -p",
+   "git show"
+  ],
+  "answer": 0,
+  "explanation": "`git diff` compares the working tree with the index. `--staged` (or `--cached`) compares the index with HEAD — what your next commit will contain.",
+  "level": "easy"
+ },
+ {
+  "id": "git-e-102",
+  "category": "Git",
+  "type": "mcq",
+  "question": "Which command applies one specific commit from another branch onto yours?",
+  "options": [
+   "git cherry-pick <sha>",
+   "git merge <sha> --one",
+   "git rebase --pick <sha>",
+   "git apply <sha>"
+  ],
+  "answer": 0,
+  "explanation": "Cherry-pick copies a commit's changes as a new commit, which is common for backporting hotfixes to release branches. Use `-x` to record the original SHA in the message.",
+  "level": "easy"
+ },
+ {
+  "id": "git-e-103",
+  "category": "Git",
+  "type": "mcq",
+  "question": "Which push is safer than `--force` when you must rewrite a branch you pushed?",
+  "options": [
+   "git push --force-with-lease",
+   "git push --all",
+   "git push --mirror",
+   "git push -u"
+  ],
+  "answer": 0,
+  "explanation": "`--force-with-lease` refuses to overwrite remote commits you haven't seen, so you don't wipe a teammate's push.",
+  "level": "easy"
+ },
+ {
+  "id": "git-e-104",
+  "category": "Git",
+  "type": "mcq",
+  "question": "Which command finds the commit that introduced a bug by binary search?",
+  "options": [
+   "git bisect",
+   "git blame",
+   "git grep",
+   "git reflog"
+  ],
+  "answer": 0,
+  "explanation": "`git bisect start`, mark `good` and `bad`, and Git halves the range each step. `git bisect run ./test.sh` automates it.",
+  "level": "easy"
+ },
+ {
+  "id": "git-e-105",
+  "category": "Git",
+  "type": "mcq",
+  "question": "Which command shows who last changed each line of a file?",
+  "options": [
+   "git blame file",
+   "git log --who file",
+   "git show file",
+   "git annotate --all"
+  ],
+  "answer": 0,
+  "explanation": "`git blame -w -C` ignores whitespace changes and follows moved lines. It's for context, not for blaming people.",
+  "level": "easy"
+ },
+ {
+  "id": "git-e-106",
+  "category": "Git",
+  "type": "mcq",
+  "question": "What does a `.gitignore` entry do for a file that is already tracked?",
+  "options": [
+   "Nothing — you must `git rm --cached file` to stop tracking it",
+   "Deletes it from history",
+   "Stops tracking it automatically",
+   "Encrypts it"
+  ],
+  "answer": 0,
+  "explanation": "`.gitignore` only affects untracked files. If it's a leaked secret, also rotate it — removing it from the index doesn't remove it from history.",
+  "level": "easy"
+ },
+ {
+  "id": "git-e-107",
+  "category": "Git",
+  "type": "mcq",
+  "question": "Which branching model keeps one main branch with short-lived feature branches merged frequently?",
+  "options": [
+   "Trunk-based development",
+   "Git Flow with long-lived develop/release branches",
+   "Fork-per-developer forever",
+   "Branch per environment"
+  ],
+  "answer": 0,
+  "explanation": "Trunk-based development, with feature flags for unfinished work, keeps merges small and CI meaningful. It's what high-performing teams in the DORA research tend to use.",
+  "level": "easy"
+ },
+ {
+  "id": "git-e-108",
+  "category": "Git",
+  "type": "mcq",
+  "question": "Which file auto-assigns reviewers for paths like `/terraform/` on GitHub?",
+  "options": [
+   "CODEOWNERS",
+   ".github/reviewers.yml",
+   "OWNERS.md",
+   "MAINTAINERS"
+  ],
+  "answer": 0,
+  "explanation": "Combined with branch protection that requires code-owner review, CODEOWNERS ensures the platform team approves infra changes.",
+  "level": "easy"
+ },
+ {
+  "id": "git-e-109",
+  "category": "Git",
+  "type": "mcq",
+  "question": "Which tool runs checks like formatting and secret scanning before each commit?",
+  "options": [
+   "pre-commit (git hooks)",
+   "git stash",
+   "git notes",
+   "git worktree"
+  ],
+  "answer": 0,
+  "explanation": "The `pre-commit` framework manages hooks: gitleaks, terraform fmt, shellcheck, ruff. Hooks are bypassable (`--no-verify`), so CI must run the same checks.",
+  "level": "easy"
+ },
+ {
+  "id": "git-e-110",
+  "category": "Git",
+  "type": "mcq",
+  "question": "Which command lets you work on two branches at once in separate directories without cloning twice?",
+  "options": [
+   "git worktree add ../hotfix hotfix/1.2",
+   "git clone --branch",
+   "git switch --both",
+   "git stash branch"
+  ],
+  "answer": 0,
+  "explanation": "Worktrees share one object store, which makes reviewing a PR or building a hotfix possible without stashing your current work.",
+  "level": "easy"
+ },
+ {
+  "id": "git-e-111",
+  "category": "Git",
+  "type": "mcq",
+  "question": "What does `git fetch --prune` remove?",
+  "options": [
+   "Local remote-tracking refs for branches deleted on the remote",
+   "Your local branches",
+   "Untracked files",
+   "Old commits"
+  ],
+  "answer": 0,
+  "explanation": "It cleans up stale `origin/*` refs. Set `git config --global fetch.prune true` to do it on every fetch.",
+  "level": "easy"
+ },
+ {
+  "id": "ci-e-101",
+  "category": "CI/CD",
+  "type": "mcq",
+  "question": "What's the difference between a CI cache and an artifact?",
+  "options": [
+   "Cache speeds up future runs (dependencies); artifacts are outputs passed between jobs or kept (builds, reports)",
+   "They are the same",
+   "Artifacts are always public",
+   "Caches are permanent releases"
+  ],
+  "answer": 0,
+  "explanation": "Key caches on the lockfile hash. Never use a cache as the delivery mechanism for a release — build once and promote the artifact.",
+  "level": "easy"
+ },
+ {
+  "id": "ci-e-102",
+  "category": "CI/CD",
+  "type": "mcq",
+  "question": "In GitHub Actions, what does a `matrix` strategy do?",
+  "options": [
+   "Runs the same job across combinations (versions, OSes) in parallel",
+   "Encrypts secrets",
+   "Retries failed steps",
+   "Deploys to Kubernetes"
+  ],
+  "answer": 0,
+  "explanation": "For example, test Python 3.11, 3.12 and 3.13 on Ubuntu and Windows. Use `fail-fast: false` to see every failing combination.",
+  "level": "easy"
+ },
+ {
+  "id": "ci-e-103",
+  "category": "CI/CD",
+  "type": "mcq",
+  "question": "What is the purpose of GitHub Actions 'environments' with required reviewers?",
+  "options": [
+   "Gate deployments (e.g. prod) behind manual approval and scope environment-specific secrets",
+   "Choose the runner OS",
+   "Set Node.js version",
+   "Enable caching"
+  ],
+  "answer": 0,
+  "explanation": "Environment secrets are only exposed to jobs targeting that environment, after approval. Combine this with OIDC trust conditions on `environment:prod`.",
+  "level": "easy"
+ },
+ {
+  "id": "ci-e-104",
+  "category": "CI/CD",
+  "type": "mcq",
+  "question": "Which DORA metric measures how long it takes from commit to running in production?",
+  "options": [
+   "Lead time for changes",
+   "Deployment frequency",
+   "Change failure rate",
+   "Mean time to restore"
+  ],
+  "answer": 0,
+  "explanation": "The four keys are lead time, deployment frequency, change failure rate and time to restore. Small batches and automated pipelines improve all four.",
+  "level": "easy"
+ },
+ {
+  "id": "ci-e-105",
+  "category": "CI/CD",
+  "type": "mcq",
+  "question": "What's 'build once, deploy many'?",
+  "options": [
+   "Build one immutable artifact and promote the same one through every environment",
+   "Rebuild for each environment",
+   "Only deploy once a year",
+   "Build on the production server"
+  ],
+  "answer": 0,
+  "explanation": "Rebuilding per environment means prod runs something you never tested. Inject environment config at deploy time instead.",
+  "level": "easy"
+ },
+ {
+  "id": "ci-e-106",
+  "category": "CI/CD",
+  "type": "mcq",
+  "question": "Which GitHub Actions setting should limit the default `GITHUB_TOKEN`?",
+  "options": [
+   "A top-level `permissions:` block (e.g. contents: read)",
+   "runs-on",
+   "concurrency",
+   "timeout-minutes"
+  ],
+  "answer": 0,
+  "explanation": "Default to read-only at the org level and grant per job (`pull-requests: write`, `id-token: write`) only what each job needs.",
+  "level": "easy"
+ },
+ {
+  "id": "ci-e-107",
+  "category": "CI/CD",
+  "type": "mcq",
+  "question": "What does `concurrency: { group: deploy-prod, cancel-in-progress: false }` achieve?",
+  "options": [
+   "Only one prod deploy runs at a time; later ones queue instead of overlapping",
+   "Runs all deploys in parallel",
+   "Cancels every deploy",
+   "Retries deploys"
+  ],
+  "answer": 0,
+  "explanation": "Overlapping deploys race each other. For PR builds `cancel-in-progress: true` saves minutes; for prod deploys you usually want queuing.",
+  "level": "easy"
+ },
+ {
+  "id": "ci-e-108",
+  "category": "CI/CD",
+  "type": "mcq",
+  "question": "Which is a self-hosted runner risk on public repositories?",
+  "options": [
+   "Fork PRs can run arbitrary code on your runner and reach your network",
+   "They are slower",
+   "They can't run Docker",
+   "They don't support Linux"
+  ],
+  "answer": 0,
+  "explanation": "Never attach persistent self-hosted runners to public repos. Use ephemeral, isolated runners (Actions Runner Controller, one job per pod) with minimal network access.",
+  "level": "easy"
+ },
+ {
+  "id": "ci-e-109",
+  "category": "CI/CD",
+  "type": "mcq",
+  "question": "What are feature flags mainly used for in CD?",
+  "options": [
+   "Separating deploy from release — ship code dark and turn it on gradually or per user",
+   "Encrypting features",
+   "Naming branches",
+   "Choosing CI runners"
+  ],
+  "answer": 0,
+  "explanation": "Flags enable trunk-based development and instant kill switches. Remove stale flags, because they become tech debt and conditional bugs.",
+  "level": "easy"
+ },
+ {
+  "id": "go-e-001",
+  "category": "GitOps",
+  "type": "mcq",
+  "question": "In a pull-based GitOps model, who applies changes to the cluster?",
+  "options": [
+   "A controller running inside the cluster (Argo CD, Flux)",
+   "The CI pipeline with cluster-admin credentials",
+   "Developers with kubectl",
+   "The container registry"
+  ],
+  "answer": 0,
+  "explanation": "The cluster pulls from Git, so CI never needs cluster credentials — a big security win compared with push-based `kubectl apply` from CI.",
+  "level": "easy"
+ },
+ {
+  "id": "go-e-002",
+  "category": "GitOps",
+  "type": "mcq",
+  "question": "What does Argo CD's self-heal do?",
+  "options": [
+   "Reverts manual changes in the cluster back to what Git says",
+   "Restarts crashed pods",
+   "Fixes YAML syntax errors",
+   "Scales nodes"
+  ],
+  "answer": 0,
+  "explanation": "With `automated.selfHeal: true`, drift is corrected automatically. Without it, the app just shows OutOfSync.",
+  "level": "easy"
+ },
+ {
+  "id": "go-e-003",
+  "category": "GitOps",
+  "type": "mcq",
+  "question": "What does `prune: true` in an automated sync policy do?",
+  "options": [
+   "Deletes cluster resources that were removed from Git",
+   "Deletes old Git branches",
+   "Removes unused images",
+   "Trims logs"
+  ],
+  "answer": 0,
+  "explanation": "Without prune, deleting a manifest from Git leaves an orphan running. With prune, Argo deletes it — so be careful with resources that hold data.",
+  "level": "easy"
+ },
+ {
+  "id": "go-e-004",
+  "category": "GitOps",
+  "type": "mcq",
+  "question": "Which Argo CD resource generates many Applications from one template (per cluster, per directory, per PR)?",
+  "options": [
+   "ApplicationSet",
+   "AppProject",
+   "Rollout",
+   "Kustomization"
+  ],
+  "answer": 0,
+  "explanation": "ApplicationSet generators (git directories, clusters, list, matrix, pull request) stamp out Applications, which is ideal for many tenants or environments.",
+  "level": "easy"
+ },
+ {
+  "id": "go-e-005",
+  "category": "GitOps",
+  "type": "mcq",
+  "question": "Which Argo CD object restricts which repos, clusters and namespaces a team's apps may use?",
+  "options": [
+   "AppProject",
+   "ApplicationSet",
+   "ConfigMap argocd-cm only",
+   "ClusterRole"
+  ],
+  "answer": 0,
+  "explanation": "AppProjects are Argo's multi-tenancy boundary: source repos, destinations, and allowed or denied resource kinds (e.g. no ClusterRoleBindings).",
+  "level": "easy"
+ },
+ {
+  "id": "go-e-006",
+  "category": "GitOps",
+  "type": "mcq",
+  "question": "In Flux, which controller applies Kustomize overlays from a Git source?",
+  "options": [
+   "kustomize-controller (Kustomization CR)",
+   "helm-controller only",
+   "image-reflector-controller",
+   "notification-controller"
+  ],
+  "answer": 0,
+  "explanation": "`source-controller` fetches GitRepository/OCIRepository sources, `kustomize-controller` applies them, and `helm-controller` handles HelmReleases.",
+  "level": "easy"
+ },
+ {
+  "id": "go-e-007",
+  "category": "GitOps",
+  "type": "mcq",
+  "question": "Why should plain Kubernetes Secrets not be committed to the GitOps repo?",
+  "options": [
+   "They're only base64-encoded — anyone with repo access can read them",
+   "Git can't store YAML",
+   "Argo CD rejects them",
+   "They're too large"
+  ],
+  "answer": 0,
+  "explanation": "Use Sealed Secrets, SOPS (with KMS/age), or — most commonly — External Secrets Operator referencing AWS Secrets Manager or Vault, so Git only holds references.",
+  "level": "easy"
+ },
+ {
+  "id": "go-e-008",
+  "category": "GitOps",
+  "type": "mcq",
+  "question": "What does an Argo CD sync wave annotation (`argocd.argoproj.io/sync-wave: \"-1\"`) control?",
+  "options": [
+   "The order resources are applied in during a sync",
+   "How often Argo polls Git",
+   "Which cluster to deploy to",
+   "Retry count"
+  ],
+  "answer": 0,
+  "explanation": "Lower waves apply first — CRDs and namespaces before workloads, a DB migration Job (as a PreSync hook) before the app.",
+  "level": "easy"
+ },
+ {
+  "id": "go-e-009",
+  "category": "GitOps",
+  "type": "mcq",
+  "question": "Which tool automatically bumps image tags or digests in the GitOps repo when CI pushes a new image?",
+  "options": [
+   "Argo CD Image Updater / Flux image automation / Renovate",
+   "kubectl set image",
+   "Helm rollback",
+   "Kustomize edit only by hand"
+  ],
+  "answer": 0,
+  "explanation": "Automation writes a commit to Git, which keeps Git as the source of truth, instead of mutating the cluster directly.",
+  "level": "easy"
+ },
+ {
+  "id": "go-e-010",
+  "category": "GitOps",
+  "type": "mcq",
+  "question": "What does 'Health: Degraded' mean for an Argo CD app?",
+  "options": [
+   "Resources are applied but something isn't healthy, e.g. a Deployment not reaching available replicas",
+   "Git is unreachable",
+   "The app was deleted",
+   "Sync is disabled"
+  ],
+  "answer": 0,
+  "explanation": "Sync status (Synced/OutOfSync) and health status (Healthy/Progressing/Degraded) are independent. An app can be Synced and Degraded at the same time.",
+  "level": "easy"
+ },
+ {
+  "id": "go-e-011",
+  "category": "GitOps",
+  "type": "mcq",
+  "question": "What's the common 'app of apps' pattern?",
+  "options": [
+   "One parent Argo Application whose manifests are other Application objects",
+   "Running many Argo CD instances",
+   "Nesting Helm charts 5 deep",
+   "One app per Pod"
+  ],
+  "answer": 0,
+  "explanation": "It bootstraps a whole cluster from one root Application. ApplicationSets are now often used for the same job with less YAML.",
+  "level": "easy"
+ },
+ {
+  "id": "go-e-012",
+  "category": "GitOps",
+  "type": "mcq",
+  "question": "Repo layout: which is the most common way to promote dev → staging → prod in GitOps?",
+  "options": [
+   "Per-environment overlays/values (folders or files) updated by PR",
+   "One branch per environment with cherry-picks forever",
+   "Editing prod in the Argo UI",
+   "Different container registries per env only"
+  ],
+  "answer": 0,
+  "explanation": "Folder-per-environment overlays (Kustomize) or per-environment values files (Helm), with promotion as a reviewed PR. Long-lived environment branches tend to drift and conflict.",
+  "level": "easy"
+ },
+ {
+  "id": "go-e-013",
+  "category": "GitOps",
+  "type": "mcq",
+  "question": "What's the main difference between Kustomize and Helm in GitOps repos?",
+  "options": [
+   "Kustomize patches plain YAML with overlays; Helm renders templates from values",
+   "Helm can't be used with Argo CD",
+   "Kustomize needs a server component",
+   "They're the same tool"
+  ],
+  "answer": 0,
+  "explanation": "Both are rendered by Argo CD and Flux natively. Many teams use Helm for third-party charts and Kustomize for their own apps — or Kustomize's `helmCharts` to patch vendor charts.",
+  "level": "easy"
+ },
+ {
+  "id": "dk-e-101",
+  "category": "Docker",
+  "type": "mcq",
+  "question": "Which builds one image for both amd64 and arm64 (e.g. for Graviton)?",
+  "options": [
+   "docker buildx build --platform linux/amd64,linux/arm64 --push -t app:1.0 .",
+   "docker build --arch all .",
+   "docker build twice and rename",
+   "docker save --multiarch"
+  ],
+  "answer": 0,
+  "explanation": "buildx (BuildKit) builds a multi-arch manifest list. Cross-building uses QEMU, or native builders per architecture for speed.",
+  "level": "easy"
+ },
+ {
+  "id": "dk-e-102",
+  "category": "Docker",
+  "type": "mcq",
+  "question": "Which BuildKit feature passes a secret (like an npm token) to a build step without leaving it in any image layer?",
+  "options": [
+   "RUN --mount=type=secret,id=npmrc ...",
+   "ARG NPM_TOKEN",
+   "ENV NPM_TOKEN=...",
+   "COPY .npmrc . then delete it"
+  ],
+  "answer": 0,
+  "explanation": "ARG and ENV values end up in the image history, and COPY-then-delete still leaves the file in a lower layer. Secret mounts exist only for that one RUN.",
+  "level": "easy"
+ },
+ {
+  "id": "dk-e-103",
+  "category": "Docker",
+  "type": "mcq",
+  "question": "What does a Dockerfile `HEALTHCHECK` do?",
+  "options": [
+   "Docker runs a command periodically and marks the container healthy/unhealthy",
+   "Restarts Kubernetes Pods",
+   "Scans for CVEs",
+   "Limits memory"
+  ],
+  "answer": 0,
+  "explanation": "Compose and Swarm use it, for example with `depends_on: condition: service_healthy`. Kubernetes ignores it and uses liveness and readiness probes.",
+  "level": "easy"
+ },
+ {
+  "id": "dk-e-104",
+  "category": "Docker",
+  "type": "mcq",
+  "question": "Which command removes dangling images only (untagged layers left after rebuilds)?",
+  "options": [
+   "docker image prune",
+   "docker image prune -a",
+   "docker rmi $(docker images -q)",
+   "docker system prune --volumes"
+  ],
+  "answer": 0,
+  "explanation": "Without `-a`, only dangling images go. With `-a`, every image not used by a container is removed, including base images you'll download again.",
+  "level": "easy"
+ },
+ {
+  "id": "lx-e-101",
+  "category": "Linux",
+  "type": "mcq",
+  "question": "Which command shows why the system is slow, with per-process CPU, memory and I/O in one interactive view?",
+  "options": [
+   "htop (or top)",
+   "ls -la",
+   "uname -a",
+   "cat /etc/os-release"
+  ],
+  "answer": 0,
+  "explanation": "Start with `uptime` (load), `htop`, `vmstat 1`, `iostat -x 1`, `free -h`, `dmesg -T | tail` — Brendan Gregg's '60-second' checklist.",
+  "level": "easy"
+ },
+ {
+  "id": "lx-e-102",
+  "category": "Linux",
+  "type": "mcq",
+  "question": "Which file controls static hostname → IP lookups before DNS?",
+  "options": [
+   "/etc/hosts",
+   "/etc/resolv.conf",
+   "/etc/hostname",
+   "/etc/nsswitch.conf only"
+  ],
+  "answer": 0,
+  "explanation": "`/etc/nsswitch.conf` decides the order (`files dns`), `/etc/resolv.conf` lists DNS servers, and `/etc/hosts` holds static entries. `getent hosts name` tests the full chain.",
+  "level": "easy"
+ },
+ {
+  "id": "lx-e-103",
+  "category": "Linux",
+  "type": "mcq",
+  "question": "Which command makes a systemd service start on boot AND start now?",
+  "options": [
+   "systemctl enable --now app",
+   "systemctl start app",
+   "systemctl daemon-reload",
+   "service app boot"
+  ],
+  "answer": 0,
+  "explanation": "`enable` creates the boot symlinks, and `--now` also starts the service. After editing unit files, run `systemctl daemon-reload` first.",
+  "level": "easy"
+ },
+ {
+  "id": "tf-e-101",
+  "category": "Terraform",
+  "type": "mcq",
+  "question": "What does `.terraform.lock.hcl` record?",
+  "options": [
+   "Exact provider versions and checksums selected by init",
+   "The state lock ID",
+   "Module source code",
+   "Variable values"
+  ],
+  "answer": 0,
+  "explanation": "Commit it so every run uses the same provider builds. Update it deliberately with `terraform init -upgrade`.",
+  "level": "easy"
+ },
+ {
+  "id": "tf-e-102",
+  "category": "Terraform",
+  "type": "mcq",
+  "question": "Which block lets you read an existing resource you don't manage (e.g. a VPC by tag)?",
+  "options": [
+   "data \"aws_vpc\" \"main\" { ... }",
+   "resource \"aws_vpc\" \"main\" {}",
+   "import { }",
+   "locals { }"
+  ],
+  "answer": 0,
+  "explanation": "Data sources only read. Use them for lookups — AMIs, VPCs, caller identity — instead of hard-coding IDs.",
+  "level": "easy"
+ },
+ {
+  "id": "tf-e-103",
+  "category": "Terraform",
+  "type": "mcq",
+  "question": "How should you mark a variable holding a password?",
+  "options": [
+   "sensitive = true",
+   "secret = true",
+   "hidden = true",
+   "encrypted = true"
+  ],
+  "answer": 0,
+  "explanation": "`sensitive` redacts the value in plan and apply output, but it's still stored in state in plain text — so encrypt state and restrict who can read it.",
+  "level": "easy"
+ },
+ {
+  "id": "tf-e-104",
+  "category": "Terraform",
+  "type": "mcq",
+  "question": "What does `terraform plan -refresh-only` show?",
+  "options": [
+   "Drift between state and real infrastructure, without proposing config changes",
+   "Only new resources",
+   "A dry run of destroy",
+   "Provider upgrades"
+  ],
+  "answer": 0,
+  "explanation": "Run `-refresh-only` to see what changed outside Terraform. Apply it to accept the drift into state, or fix the config or the console change.",
+  "level": "easy"
+ },
+ {
+  "id": "tf-e-105",
+  "category": "Terraform",
+  "type": "mcq",
+  "question": "What does `terraform output -json` give you?",
+  "options": [
+   "All root-module outputs as JSON for scripts and pipelines",
+   "The plan as JSON",
+   "The state file",
+   "Provider logs"
+  ],
+  "answer": 0,
+  "explanation": "`terraform output -raw db_endpoint` gives a single value. For other stacks, prefer reading outputs through a `terraform_remote_state` data source or SSM parameters, rather than parsing CLI output.",
+  "level": "easy"
+ },
+ {
+  "id": "nw-e-101",
+  "category": "Networking",
+  "type": "mcq",
+  "question": "Which tool shows each network hop and its latency to a destination?",
+  "options": [
+   "traceroute / mtr",
+   "ping only",
+   "arp -a",
+   "nslookup"
+  ],
+  "answer": 0,
+  "explanation": "`mtr` combines ping and traceroute continuously and shows where loss starts. Many cloud hops drop ICMP, so `mtr -T -P 443` uses TCP probes.",
+  "level": "easy"
+ },
+ {
+  "id": "nw-e-102",
+  "category": "Networking",
+  "type": "mcq",
+  "question": "Which command queries a specific DNS server for an A record?",
+  "options": [
+   "dig @1.1.1.1 api.acme.io A",
+   "ping api.acme.io",
+   "host -server",
+   "curl dns://api.acme.io"
+  ],
+  "answer": 0,
+  "explanation": "`dig +short` gives a terse answer and `+trace` follows the delegation from the root. Comparing your resolver with a public one quickly spots split-horizon or caching issues.",
+  "level": "easy"
+ },
+ {
+  "id": "nw-e-103",
+  "category": "Networking",
+  "type": "mcq",
+  "question": "How many usable host addresses does an AWS /28 subnet have?",
+  "options": [
+   "11",
+   "14",
+   "16",
+   "30"
+  ],
+  "answer": 0,
+  "explanation": "A /28 has 16 addresses. AWS reserves 5 per subnet (network, router, DNS, future use, broadcast), leaving 11 — which matters with EKS VPC CNI, where each Pod takes an IP.",
+  "level": "easy"
+ },
+ {
+  "id": "nw-e-104",
+  "category": "Networking",
+  "type": "mcq",
+  "question": "What does an L4 (Network Load Balancer) see that an L7 (Application Load Balancer) also inspects?",
+  "options": [
+   "NLB sees TCP/UDP connections only; ALB also reads HTTP (host, path, headers)",
+   "They're identical",
+   "NLB reads HTTP cookies",
+   "ALB works only with UDP"
+  ],
+  "answer": 0,
+  "explanation": "Use an ALB for path or host routing, WAF and OIDC auth. Use an NLB for static IPs, TCP or UDP, extreme throughput, or to pass TLS straight through.",
+  "level": "easy"
+ },
+ {
+  "id": "nw-e-105",
+  "category": "Networking",
+  "type": "mcq",
+  "question": "What is a DNS TTL?",
+  "options": [
+   "How long resolvers may cache the answer",
+   "The number of hops a packet can take",
+   "The DNS server's uptime",
+   "A record type"
+  ],
+  "answer": 0,
+  "explanation": "Lower the TTL (e.g. to 60s) a day before a migration so cutovers propagate quickly, then raise it again afterwards.",
+  "level": "easy"
+ },
+ {
+  "id": "nw-e-106",
+  "category": "Networking",
+  "type": "mcq",
+  "question": "Which tool captures packets on a Linux interface for analysis?",
+  "options": [
+   "tcpdump",
+   "ss",
+   "ip route",
+   "ethtool -i"
+  ],
+  "answer": 0,
+  "explanation": "`tcpdump -i any -nn port 443 -w cap.pcap`, then open it in Wireshark. In Kubernetes, `kubectl debug` with a netshoot image gives you tcpdump in a Pod's network namespace.",
+  "level": "easy"
+ },
+ {
+  "id": "nw-e-107",
+  "category": "Networking",
+  "type": "mcq",
+  "question": "What is MTU?",
+  "options": [
+   "The largest packet size an interface will send without fragmenting",
+   "A routing protocol",
+   "The maximum number of TCP connections",
+   "A DNS record"
+  ],
+  "answer": 0,
+  "explanation": "Ethernet is usually 1500, AWS inside a VPC supports 9001 (jumbo frames), and tunnels or VPNs reduce it. A mismatch causes 'small requests work, large ones hang'.",
+  "level": "easy"
+ },
+ {
+  "id": "ob-e-101",
+  "category": "Observability",
+  "type": "mcq",
+  "question": "What are the 'three pillars' usually listed for observability?",
+  "options": [
+   "Metrics, logs, traces",
+   "CPU, memory, disk",
+   "Alerts, dashboards, runbooks",
+   "Uptime, latency, cost"
+  ],
+  "answer": 0,
+  "explanation": "Profiles are increasingly treated as a fourth signal. The value comes from correlating them: exemplars link metrics to traces, and trace IDs link logs.",
+  "level": "easy"
+ },
+ {
+  "id": "ob-e-102",
+  "category": "Observability",
+  "type": "mcq",
+  "question": "Why is putting `user_id` as a Prometheus label a bad idea?",
+  "options": [
+   "High cardinality — every unique value creates a new time series, exploding memory and cost",
+   "Labels must be numeric",
+   "Prometheus forbids strings",
+   "It slows down Grafana colors"
+  ],
+  "answer": 0,
+  "explanation": "Keep labels bounded (service, route template, status code). Put high-cardinality context in logs or trace attributes.",
+  "level": "easy"
+ },
+ {
+  "id": "ob-e-103",
+  "category": "Observability",
+  "type": "mcq",
+  "question": "In Grafana Loki, what does LogQL `{app=\"api\"} |= \"error\"` do?",
+  "options": [
+   "Selects the api log stream and keeps lines containing 'error'",
+   "Counts errors per second",
+   "Deletes error lines",
+   "Searches all apps"
+  ],
+  "answer": 0,
+  "explanation": "Label matchers pick streams, and line filters (`|=`, `!=`, `|~`) narrow them. `rate({app=\"api\"} |= \"error\" [5m])` turns logs into a metric.",
+  "level": "easy"
+ },
+ {
+  "id": "ob-e-104",
+  "category": "Observability",
+  "type": "mcq",
+  "question": "What is an SLI?",
+  "options": [
+   "A measured indicator of service level, e.g. % of requests under 300 ms",
+   "A contract with customers",
+   "A logging library",
+   "A Kubernetes object"
+  ],
+  "answer": 0,
+  "explanation": "An SLI is what you measure, an SLO is the target (99.9% over 30 days), and an SLA is the contract with consequences. Alert on SLO burn rate.",
+  "level": "easy"
+ },
+ {
+  "id": "ob-e-105",
+  "category": "Observability",
+  "type": "mcq",
+  "question": "What does the OpenTelemetry Collector do?",
+  "options": [
+   "Receives, processes (batch, filter, redact) and exports telemetry to one or more backends",
+   "Stores metrics long-term",
+   "Replaces Grafana",
+   "Runs synthetic tests"
+  ],
+  "answer": 0,
+  "explanation": "Apps send OTLP to the Collector, which routes to Prometheus, Tempo, Loki or vendors. That avoids vendor lock-in in app code and gives one place to drop PII.",
+  "level": "easy"
+ },
+ {
+  "id": "ob-e-106",
+  "category": "Observability",
+  "type": "mcq",
+  "question": "What is a synthetic check?",
+  "options": [
+   "A scripted request (or browser flow) run on a schedule to test a service from the outside",
+   "A fake metric",
+   "A unit test",
+   "A Prometheus recording rule"
+  ],
+  "answer": 0,
+  "explanation": "Synthetics catch DNS, certificate and CDN problems that internal metrics miss. Examples are the Blackbox exporter, CloudWatch Synthetics, and Grafana synthetic monitoring.",
+  "level": "easy"
+ },
+ {
+  "id": "sc-e-101",
+  "category": "Security",
+  "type": "mcq",
+  "question": "What does SAST do in a pipeline?",
+  "options": [
+   "Analyses source code for vulnerabilities without running it",
+   "Attacks the running app",
+   "Scans container images only",
+   "Manages secrets"
+  ],
+  "answer": 0,
+  "explanation": "SAST examples are Semgrep and CodeQL. DAST (e.g. OWASP ZAP) tests the running app, and SCA (Dependabot, Trivy) checks dependencies. A good pipeline uses all three.",
+  "level": "easy"
+ },
+ {
+  "id": "sc-e-102",
+  "category": "Security",
+  "type": "mcq",
+  "question": "Which tool detects secrets committed to Git repositories?",
+  "options": [
+   "gitleaks / trufflehog",
+   "nmap",
+   "tcpdump",
+   "terraform fmt"
+  ],
+  "answer": 0,
+  "explanation": "Run them in pre-commit and CI, and enable GitHub secret scanning with push protection. Any detected live secret must be rotated, not just removed.",
+  "level": "easy"
+ },
+ {
+  "id": "sc-e-103",
+  "category": "Security",
+  "type": "mcq",
+  "question": "What is CSPM?",
+  "options": [
+   "Continuous checking of cloud configuration against security best practices",
+   "A firewall",
+   "A password manager",
+   "A container runtime"
+  ],
+  "answer": 0,
+  "explanation": "Cloud Security Posture Management — AWS Security Hub with CIS and AWS Foundational benchmarks, Prowler, Wiz — flags public buckets, open SGs, missing MFA and similar.",
+  "level": "easy"
+ },
+ {
+  "id": "sc-e-104",
+  "category": "Security",
+  "type": "mcq",
+  "question": "What does mTLS add over regular TLS?",
+  "options": [
+   "The client also presents a certificate, so both sides authenticate",
+   "Faster encryption",
+   "Compression",
+   "It removes the need for certificates"
+  ],
+  "answer": 0,
+  "explanation": "Service meshes (Istio, Linkerd) issue workload certificates automatically and enforce mTLS between services, which is a building block of zero trust.",
+  "level": "easy"
+ },
+ {
+  "id": "sc-e-105",
+  "category": "Security",
+  "type": "mcq",
+  "question": "Which runtime security tool detects suspicious syscalls in containers (e.g. a shell spawned in a Pod)?",
+  "options": [
+   "Falco",
+   "Trivy",
+   "Checkov",
+   "Kyverno"
+  ],
+  "answer": 0,
+  "explanation": "Falco watches kernel events (via eBPF) against rules. Trivy and Checkov scan before deploy, and Kyverno enforces policy at admission.",
+  "level": "easy"
+ },
+ {
+  "id": "nw-e-108",
+  "category": "Networking",
+  "type": "mcq",
+  "question": "Which port and protocol does DNS use by default?",
+  "options": [
+   "53, UDP (TCP for large responses and zone transfers)",
+   "443 TCP only",
+   "25 TCP",
+   "123 UDP"
+  ],
+  "answer": 0,
+  "explanation": "Make sure security groups and NACLs allow both UDP and TCP 53 to your resolvers. DNS-over-HTTPS uses 443, and NTP is 123.",
+  "level": "easy"
+ },
+ {
+  "id": "ob-e-107",
+  "category": "Observability",
+  "type": "mcq",
+  "question": "What's the difference between a Prometheus histogram and a summary?",
+  "options": [
+   "Histograms expose buckets you can aggregate across instances; summaries compute quantiles client-side and can't be aggregated",
+   "They are identical",
+   "Summaries are always more accurate across Pods",
+   "Histograms can't compute quantiles"
+  ],
+  "answer": 0,
+  "explanation": "Prefer histograms for service latency so `histogram_quantile` works across Pods. Native histograms reduce the bucket-tuning pain.",
+  "level": "easy"
+ },
+ {
+  "id": "ps-e-001",
+  "category": "PowerShell",
+  "type": "mcq",
+  "question": "What does the PowerShell pipeline pass between commands, unlike Bash?",
+  "options": [
+   "Objects with properties",
+   "Plain text lines",
+   "Binary streams only",
+   "JSON strings"
+  ],
+  "answer": 0,
+  "explanation": "`Get-Process | Where-Object CPU -gt 100` filters on a real `CPU` property, so there's no awk or cut on text columns. That's the biggest mental shift coming from Bash.",
+  "level": "easy"
+ },
+ {
+  "id": "ps-e-002",
+  "category": "PowerShell",
+  "type": "mcq",
+  "question": "Which cmdlet lists the properties and methods of whatever comes down the pipeline?",
+  "options": [
+   "Get-Member",
+   "Get-Help",
+   "Get-Command",
+   "Select-Object"
+  ],
+  "answer": 0,
+  "explanation": "`Get-Service | Get-Member` shows the type and every property you can filter or select on. `Get-Command` finds commands, and `Get-Help` explains them.",
+  "level": "easy"
+ },
+ {
+  "id": "ps-e-003",
+  "category": "PowerShell",
+  "type": "mcq",
+  "question": "PowerShell cmdlet names follow which pattern?",
+  "options": [
+   "Verb-Noun, e.g. Get-Service",
+   "noun_verb, e.g. service_get",
+   "Any free-form name",
+   "Prefix-Verb, e.g. PSGet"
+  ],
+  "answer": 0,
+  "explanation": "Approved verbs (`Get-Verb`) plus a singular noun. Knowing the pattern lets you guess commands: `Get-Service`, `Restart-Service`, `Stop-Service`.",
+  "level": "easy"
+ },
+ {
+  "id": "ps-e-004",
+  "category": "PowerShell",
+  "type": "mcq",
+  "question": "Which is the PowerShell equivalent of `grep -i error app.log`?",
+  "options": [
+   "Select-String -Path app.log -Pattern error",
+   "Find-Item app.log error",
+   "Get-Content app.log -Grep error",
+   "Search-File error app.log"
+  ],
+  "answer": 0,
+  "explanation": "`Select-String` is case-insensitive by default (use `-CaseSensitive` to change that). It's also aliased as `sls`.",
+  "level": "easy"
+ },
+ {
+  "id": "ps-e-005",
+  "category": "PowerShell",
+  "type": "mcq",
+  "question": "Which is the equivalent of `tail -f app.log`?",
+  "options": [
+   "Get-Content app.log -Wait -Tail 20",
+   "Watch-File app.log",
+   "Get-Content app.log -Follow",
+   "Read-Host app.log"
+  ],
+  "answer": 0,
+  "explanation": "`-Tail` shows the last N lines and `-Wait` keeps following the file as it grows.",
+  "level": "easy"
+ },
+ {
+  "id": "ps-e-006",
+  "category": "PowerShell",
+  "type": "mcq",
+  "question": "Which comparison operator means 'greater than' in PowerShell?",
+  "options": [
+   "-gt",
+   ">",
+   "-greater",
+   "gt"
+  ],
+  "answer": 0,
+  "explanation": "`>` is redirection in PowerShell, just like in Bash. Comparisons are `-eq -ne -gt -lt -ge -le -like -match`.",
+  "level": "easy"
+ },
+ {
+  "id": "ps-e-007",
+  "category": "PowerShell",
+  "type": "mcq",
+  "question": "What is the cross-platform, current edition of PowerShell called and which executable starts it?",
+  "options": [
+   "PowerShell 7 — `pwsh`",
+   "Windows PowerShell 5.1 — `powershell.exe`",
+   "PowerShell Core 2 — `ps`",
+   "MS-DOS shell — `cmd.exe`"
+  ],
+  "answer": 0,
+  "explanation": "PowerShell 7 (`pwsh`) runs on Windows, Linux and macOS and is built on .NET. Windows PowerShell 5.1 still ships with Windows but receives no new features.",
+  "level": "easy"
+ },
+ {
+  "id": "ps-e-008",
+  "category": "PowerShell",
+  "type": "mcq",
+  "question": "A script won't run: `cannot be loaded because running scripts is disabled on this system`. What controls this?",
+  "options": [
+   "The execution policy (Get-ExecutionPolicy / Set-ExecutionPolicy)",
+   "UAC",
+   "Windows Firewall",
+   "The PATH variable"
+  ],
+  "answer": 0,
+  "explanation": "Execution policy is a safety guard, not a security boundary. For a user, `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser` is the usual fix. Managed fleets set it via GPO, and production scripts should be signed.",
+  "level": "easy"
+ },
+ {
+  "id": "ps-e-009",
+  "category": "PowerShell",
+  "type": "mcq",
+  "question": "Which command runs a script block on remote Windows servers over WinRM?",
+  "options": [
+   "Invoke-Command -ComputerName web1,web2 -ScriptBlock { ... }",
+   "ssh web1 powershell",
+   "Start-Remote web1",
+   "Enter-Server web1"
+  ],
+  "answer": 0,
+  "explanation": "`Invoke-Command` fans out over PowerShell Remoting (WinRM, or SSH in PowerShell 7). `Enter-PSSession` is the interactive one-host version.",
+  "level": "easy"
+ },
+ {
+  "id": "ps-e-010",
+  "category": "PowerShell",
+  "type": "mcq",
+  "question": "Where does PowerShell expose environment variables?",
+  "options": [
+   "The Env: drive, e.g. $env:PATH",
+   "Only through the registry",
+   "In $ENVIRONMENT[]",
+   "With the `export` keyword"
+  ],
+  "answer": 0,
+  "explanation": "`$env:APP_ENV = 'prod'` sets one for the session, and `Get-ChildItem Env:` lists them all. To persist it, use `[Environment]::SetEnvironmentVariable(...)`.",
+  "level": "easy"
+ },
+ {
+  "id": "ps-e-011",
+  "category": "PowerShell",
+  "type": "mcq",
+  "question": "What makes a cmdlet's non-terminating error catchable by try/catch?",
+  "options": [
+   "-ErrorAction Stop (or $ErrorActionPreference = 'Stop')",
+   "-Verbose",
+   "-WhatIf",
+   "-Force"
+  ],
+  "answer": 0,
+  "explanation": "Most cmdlet errors are non-terminating: they print red text and keep going, so `catch` never fires. `-ErrorAction Stop` makes the error terminating. It's the PowerShell counterpart of `set -e`.",
+  "level": "easy"
+ },
+ {
+  "id": "ps-e-012",
+  "category": "PowerShell",
+  "type": "mcq",
+  "question": "What does the `-WhatIf` common parameter do?",
+  "options": [
+   "Shows what the command would do without doing it",
+   "Runs it twice",
+   "Asks for credentials",
+   "Runs in the background"
+  ],
+  "answer": 0,
+  "explanation": "`Remove-Item C:\\logs\\* -Recurse -WhatIf` is a dry run. `-Confirm` prompts before each change. Support both in your own advanced functions with `SupportsShouldProcess`.",
+  "level": "easy"
+ },
+ {
+  "id": "ps-e-013",
+  "category": "PowerShell",
+  "type": "mcq",
+  "question": "Which cmdlet tests TCP connectivity to a port, like `nc -zv host 443`?",
+  "options": [
+   "Test-NetConnection host -Port 443",
+   "Ping-Port host 443",
+   "Get-NetTCPConnection host",
+   "Test-Connection host -Tcp"
+  ],
+  "answer": 0,
+  "explanation": "`Test-NetConnection` (alias `tnc`) reports `TcpTestSucceeded`. `Get-NetTCPConnection` lists local sockets, like `ss -tan`.",
+  "level": "easy"
+ },
+ {
+  "id": "ps-e-014",
+  "category": "PowerShell",
+  "type": "mcq",
+  "question": "Which cmdlet stores the output of a loop's objects to CSV for a report?",
+  "options": [
+   "Export-Csv -Path report.csv -NoTypeInformation",
+   "Out-File report.csv",
+   "Write-Csv report.csv",
+   "Set-Content -Csv report.csv"
+  ],
+  "answer": 0,
+  "explanation": "`Export-Csv` writes object properties as columns. `Out-File` writes the formatted text you see on screen, which is a classic mistake for reports. In PowerShell 7, `-NoTypeInformation` is the default.",
+  "level": "easy"
+ },
+ {
+  "id": "ps-e-015",
+  "category": "PowerShell",
+  "type": "mcq",
+  "question": "Which cmdlet shows the processes using the most memory, like `ps aux --sort=-%mem | head`?",
+  "options": [
+   "Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 5",
+   "Get-Process -Top 5",
+   "tasklist /mem",
+   "Get-Memory -Top 5"
+  ],
+  "answer": 0,
+  "explanation": "Sort on a real property and take the first N objects. `Select-Object -First` is PowerShell's `head`.",
+  "level": "easy"
+ },
+ {
+  "id": "ps-e-016",
+  "category": "PowerShell",
+  "type": "mcq",
+  "question": "Which cmdlet records everything in a session to a file, which is useful for change tickets and audits?",
+  "options": [
+   "Start-Transcript -Path C:\\logs\\change-123.txt",
+   "Out-Log",
+   "Set-History -Save",
+   "Write-Audit"
+  ],
+  "answer": 0,
+  "explanation": "`Start-Transcript` and `Stop-Transcript` capture commands and output. Many orgs enforce transcription via GPO, and Script Block Logging (event 4104) is what blue teams read.",
+  "level": "easy"
+ },
+ {
+  "id": "py-e-001",
+  "category": "Python",
+  "type": "mcq",
+  "question": "Which command creates an isolated environment for a project's dependencies?",
+  "options": [
+   "python3 -m venv .venv",
+   "pip freeze",
+   "python3 -m pip install --global",
+   "sudo pip install"
+  ],
+  "answer": 0,
+  "explanation": "One venv per project keeps dependencies apart and avoids touching the OS Python, which modern distros refuse to let pip modify (PEP 668).",
+  "level": "easy"
+ },
+ {
+  "id": "py-e-002",
+  "category": "Python",
+  "type": "mcq",
+  "question": "Which runs a shell command from Python safely and fails loudly on a non-zero exit?",
+  "options": [
+   "subprocess.run([\"kubectl\", \"get\", \"pods\"], check=True)",
+   "os.system(\"kubectl get pods\")",
+   "eval(\"kubectl get pods\")",
+   "exec(\"kubectl get pods\")"
+  ],
+  "answer": 0,
+  "explanation": "A list of arguments means no shell parsing (no injection), and `check=True` raises `CalledProcessError`. Add `capture_output=True, text=True` to read stdout.",
+  "level": "easy"
+ },
+ {
+  "id": "py-e-003",
+  "category": "Python",
+  "type": "mcq",
+  "question": "Which is the AWS SDK for Python?",
+  "options": [
+   "boto3",
+   "awspy",
+   "pyaws",
+   "aws-cdk"
+  ],
+  "answer": 0,
+  "explanation": "`boto3.client(\"s3\")` for the low-level API, `boto3.resource` for the object style. Credentials come from the standard chain: env vars, profiles, IRSA or Pod Identity, instance roles.",
+  "level": "easy"
+ },
+ {
+  "id": "py-e-004",
+  "category": "Python",
+  "type": "mcq",
+  "question": "Which pattern guarantees a file is closed even if an exception is raised?",
+  "options": [
+   "with open(\"app.log\") as f:",
+   "f = open(\"app.log\") with no close",
+   "open(\"app.log\").read() inside try only",
+   "global f"
+  ],
+  "answer": 0,
+  "explanation": "The `with` statement (a context manager) closes the file on exit. The same pattern covers locks, DB connections and temporary directories.",
+  "level": "easy"
+ },
+ {
+  "id": "py-e-005",
+  "category": "Python",
+  "type": "mcq",
+  "question": "Which standard-library module parses command-line flags like `--env prod --dry-run`?",
+  "options": [
+   "argparse",
+   "sys.flags",
+   "getenv",
+   "click (stdlib)"
+  ],
+  "answer": 0,
+  "explanation": "`argparse` is built in. Click and Typer are popular third-party alternatives. Either way, give every script `--help` and a `--dry-run`.",
+  "level": "easy"
+ },
+ {
+  "id": "py-e-006",
+  "category": "Python",
+  "type": "mcq",
+  "question": "How do you read an environment variable with a default value?",
+  "options": [
+   "os.environ.get(\"APP_ENV\", \"dev\")",
+   "os.getenv[\"APP_ENV\"]",
+   "env(\"APP_ENV\") or \"dev\" (builtin)",
+   "sys.env.APP_ENV"
+  ],
+  "answer": 0,
+  "explanation": "`os.environ[\"X\"]` raises a KeyError if X is missing, and `.get` returns the default. For required config, failing fast with a clear message is better than silently defaulting.",
+  "level": "easy"
+ },
+ {
+  "id": "py-e-007",
+  "category": "Python",
+  "type": "mcq",
+  "question": "Which file pins exact dependency versions for a reproducible install?",
+  "options": [
+   "requirements.txt with == pins (or a lock file like uv.lock/poetry.lock)",
+   "setup.cfg comments",
+   "README.md",
+   ".python-version only"
+  ],
+  "answer": 0,
+  "explanation": "`pip install -r requirements.txt` with exact pins (generated by `pip-compile`, `uv pip compile` or a lock file) means CI and prod install the same versions.",
+  "level": "easy"
+ },
+ {
+  "id": "py-e-008",
+  "category": "Python",
+  "type": "mcq",
+  "question": "Which module turns a Python dict into JSON text?",
+  "options": [
+   "json — json.dumps(obj)",
+   "yaml — yaml.dumps(obj)",
+   "pickle — pickle.text(obj)",
+   "str(obj)"
+  ],
+  "answer": 0,
+  "explanation": "`json.dumps` / `json.loads` handle strings, and `json.dump` / `json.load` handle files. `str(dict)` produces Python repr with single quotes — not valid JSON.",
+  "level": "easy"
+ },
+ {
+  "id": "py-e-009",
+  "category": "Python",
+  "type": "mcq",
+  "question": "Which library is the de-facto choice for HTTP calls in scripts?",
+  "options": [
+   "requests (or httpx)",
+   "urllib3 only",
+   "socket",
+   "http.server"
+  ],
+  "answer": 0,
+  "explanation": "`requests.get(url, timeout=5)` — always set a timeout, or a hung endpoint hangs your job forever. httpx adds async support and HTTP/2.",
+  "level": "easy"
+ },
+ {
+  "id": "py-e-010",
+  "category": "Python",
+  "type": "mcq",
+  "question": "What does `if __name__ == \"__main__\":` do?",
+  "options": [
+   "Runs the block only when the file is executed directly, not when imported",
+   "Declares the main class",
+   "Makes the script executable",
+   "Enables multithreading"
+  ],
+  "answer": 0,
+  "explanation": "It lets the same file be both an importable module (for tests) and a CLI script.",
+  "level": "easy"
+ },
+ {
+  "id": "py-e-011",
+  "category": "Python",
+  "type": "mcq",
+  "question": "Which tool runs Python unit tests with plain `assert` statements?",
+  "options": [
+   "pytest",
+   "pylint",
+   "black",
+   "mypy"
+  ],
+  "answer": 0,
+  "explanation": "pytest discovers `test_*.py` files. pylint and ruff lint, black formats, and mypy type-checks — all good CI steps.",
+  "level": "easy"
+ },
+ {
+  "id": "py-e-012",
+  "category": "Python",
+  "type": "mcq",
+  "question": "Which is the safe way to load a YAML config file?",
+  "options": [
+   "yaml.safe_load(f)",
+   "yaml.load(f) without a Loader",
+   "eval(f.read())",
+   "exec(f.read())"
+  ],
+  "answer": 0,
+  "explanation": "`yaml.load` with an unsafe Loader can build arbitrary Python objects (remote code execution if the file is attacker-controlled). `safe_load` only builds plain types.",
+  "level": "easy"
+ },
+ {
+  "id": "py-e-013",
+  "category": "Python",
+  "type": "mcq",
+  "question": "Which logging call is better than `print()` for a long-running automation service?",
+  "options": [
+   "logging.getLogger(__name__).info(\"synced %d records\", n)",
+   "print(\"synced\", n, file=open(\"log\"))",
+   "sys.stdout.write(n)",
+   "os.system(\"echo synced\")"
+  ],
+  "answer": 0,
+  "explanation": "`logging` gives levels, timestamps, handlers and lazy formatting. In containers, log to stdout (often as JSON) and let the platform ship it.",
+  "level": "easy"
+ },
+ {
+  "id": "py-e-014",
+  "category": "Python",
+  "type": "mcq",
+  "question": "boto3 `list_objects_v2` returns at most 1,000 keys. How do you get all of them?",
+  "options": [
+   "Use a paginator: s3.get_paginator(\"list_objects_v2\")",
+   "Set MaxKeys=1000000",
+   "Call it in a while True loop with the same arguments",
+   "Use list_objects (v1)"
+  ],
+  "answer": 0,
+  "explanation": "Paginators follow `ContinuationToken` for you. Forgetting pagination is the most common boto3 bug: the script 'works' in dev and silently misses data in prod.",
+  "level": "easy"
+ },
+ {
+  "id": "py-e-015",
+  "category": "Python",
+  "type": "mcq",
+  "question": "Which standard-library module walks and manipulates file paths in a cross-platform way?",
+  "options": [
+   "pathlib — Path(\"logs\") / \"app.log\"",
+   "os.system",
+   "glob only",
+   "shutil.path"
+  ],
+  "answer": 0,
+  "explanation": "`pathlib.Path` handles `/` vs `\\` and gives `.glob()`, `.read_text()`, `.exists()` and more. Scripts that run on both Linux CI and Windows agents benefit most.",
+  "level": "easy"
+ }
+]

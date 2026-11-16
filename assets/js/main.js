@@ -1,0 +1,450 @@
+// DevOps Quiz 2.0 — app flow (setup → rules → quiz → result)
+import { CONFIG } from "./config.js";
+import { $, $$, el, esc, md, shuffle, fmtTime, store } from "./util.js";
+import { render, renderContext, TYPE_LABEL } from "./types.js";
+
+const LEVELS = Object.keys(CONFIG.levels);
+const S = {
+  bank: [], demo: [], meta: {},
+  mode: "exam", level: "mixed", topics: new Set(), count: CONFIG.counts[1],
+  quiz: null,
+};
+
+/* ---------------- boot ---------------- */
+async function boot() {
+  show("loading");
+  try {
+    const idx = await fetchJSON(CONFIG.banksIndex);
+    S.meta = idx;
+    const files = await Promise.all(idx.banks.map(b => fetchJSON("data/" + b.file).then(qs => qs.map(q => ({ ...q, level: q.level || b.level })))));
+    S.bank = files.flat();
+    S.demo = await fetchJSON("data/" + idx.demo);
+    $("#bankVersion").textContent = `Question bank ${idx.version}, ${S.bank.length} questions.`;
+  } catch (e) {
+    $("#loading").innerHTML = `Could not load the question bank.<br><span class="small">If you opened index.html from disk, serve the folder instead: <code>python3 -m http.server</code></span>`;
+    console.error(e);
+    return;
+  }
+  S.topics = new Set(categories());
+  buildSetup();
+  wireGlobal();
+  show("home");
+}
+const fetchJSON = u => fetch(u, { cache: "no-cache" }).then(r => { if (!r.ok) throw new Error(u + " " + r.status); return r.json(); });
+const categories = () => [...new Set(S.bank.map(q => q.category))].sort();
+
+function show(id) {
+  ["home", "rules", "quiz", "result", "history", "thanks"].forEach(s => $("#screen-" + s).classList.add("hidden"));
+  $("#loading").classList.add("hidden");
+  if (id === "loading") $("#loading").classList.remove("hidden");
+  else $("#screen-" + id).classList.remove("hidden");
+  window.scrollTo({ top: 0 });
+}
+
+/* ---------------- setup screen ---------------- */
+const sevTag = l => `SEV-${CONFIG.levels[l].sev}`;
+const TOPIC_FLAG = c => c.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+function buildSetup() {
+  $$('#modeChips input').forEach(r => r.onchange = () => { S.mode = r.value; updatePool(); });
+
+  const lv = $("#levelChips");
+  const items = [...Object.entries(CONFIG.levels), ["mixed", { label: "Mixed", tagline: "Starts easy and escalates to SEV-1" }]];
+  items.forEach(([k, v]) => {
+    const n = k === "mixed" ? S.bank.length : S.bank.filter(q => q.level === k).length;
+    const b = el("label", { class: "sev" + (k === S.level ? " on" : ""), "data-level": k },
+      `<input type="radio" name="level" value="${k}"${k === S.level ? " checked" : ""}>
+       <span class="sev-tag ${k === "mixed" ? "sev-mix" : "sev-" + v.sev}">${k === "mixed" ? "SEV-4→1" : "SEV-" + v.sev}</span>
+       <span class="sev-name">${esc(v.label)}</span>
+       <span class="sev-desc">${esc(v.tagline)}</span>
+       <span class="sev-meta">${n} questions${v.weight ? `, ${v.weight} pt, ${Math.round(v.time / 60)} min` : ""}</span>`);
+    b.querySelector("input").onchange = () => { S.level = k; $$("#levelChips .sev").forEach(x => x.classList.toggle("on", x === b)); updatePool(); };
+    lv.appendChild(b);
+  });
+
+  const tc = $("#topicChips");
+  categories().forEach(c => {
+    const b = el("button", { type: "button", class: "chip on", "data-topic": c, "aria-pressed": "true" }, `${esc(c)} <span class="n">${S.bank.filter(q => q.category === c).length}</span>`);
+    b.onclick = () => { S.topics.has(c) ? S.topics.delete(c) : S.topics.add(c); b.classList.toggle("on", S.topics.has(c)); b.setAttribute("aria-pressed", S.topics.has(c)); updatePool(); };
+    tc.appendChild(b);
+  });
+  $("#topicsAll").onclick = () => {
+    const all = S.topics.size !== categories().length;
+    S.topics = new Set(all ? categories() : []);
+    $$("#topicChips .chip").forEach(b => { b.classList.toggle("on", all); b.setAttribute("aria-pressed", all); });
+    updatePool();
+  };
+
+  const cc = $("#countChips");
+  CONFIG.counts.forEach(n => {
+    const b = el("button", { type: "button", class: "chip" + (n === S.count ? " on" : "") }, String(n));
+    b.onclick = () => { S.count = n; $$("#countChips .chip").forEach(x => x.classList.toggle("on", x === b)); updatePool(); };
+    cc.appendChild(b);
+  });
+  $("#btnContinue").onclick = showRules;
+  updatePool();
+}
+
+function pool(level = S.level) {
+  return S.bank.filter(q => S.topics.has(q.category) && (level === "mixed" || q.level === level));
+}
+function updatePool() {
+  const n = pool().length;
+  const all = S.topics.size === categories().length;
+  const lvl = S.level === "mixed" ? "mixed" : "sev" + CONFIG.levels[S.level].sev;
+  const topics = all ? "all" : [...S.topics].map(TOPIC_FLAG).join(",") || '""';
+  $("#cmdLine").innerHTML =
+    `<span class="p">$</span> devops-quiz <span class="f">--mode</span> ${S.mode} <span class="f">--level</span> ${lvl} <span class="f">--count</span> ${S.count} \\\n    <span class="f">--topics</span> ${esc(topics)}`;
+  $("#poolInfo").textContent = n === 0 ? "No questions match. Pick at least one topic."
+    : n < S.count ? `Only ${n} questions match, so the test will have ${n}.` : `${n} questions match.`;
+  $("#poolInfo").classList.toggle("bad", n === 0);
+  $("#btnContinue").disabled = n === 0;
+  $("#topicsAll").textContent = all ? "Clear" : "Select all";
+}
+
+/* ---------------- question picking ---------------- */
+function pickFrom(list, n) {
+  const seen = new Set(store.get("seen", []));
+  const unseen = shuffle(list.filter(q => !seen.has(q.id)));
+  const rest = shuffle(list.filter(q => seen.has(q.id)));
+  return [...unseen, ...rest].slice(0, n);
+}
+function buildQuiz() {
+  let picked = [];
+  if (S.level === "mixed") {
+    const want = {};
+    let total = 0;
+    LEVELS.forEach(l => { want[l] = Math.round(S.count * CONFIG.mixedRatio[l]); total += want[l]; });
+    want.medium += S.count - total; // rounding fix
+    LEVELS.forEach(l => picked.push(...pickFrom(pool(l), want[l])));
+    if (picked.length < S.count) { // top up from whatever is left
+      const ids = new Set(picked.map(q => q.id));
+      picked.push(...pickFrom(pool().filter(q => !ids.has(q.id)), S.count - picked.length));
+    }
+    picked.sort((a, b) => LEVELS.indexOf(a.level) - LEVELS.indexOf(b.level));
+  } else picked = pickFrom(pool(), S.count);
+  return picked.map(fresh);
+}
+const fresh = q => { const c = structuredClone(q); delete c._order; return c; };
+
+/* ---------------- rules ---------------- */
+function attemptsToday() {
+  const today = new Date().toDateString();
+  const d = store.get("attempts", { date: today, count: 0 });
+  return d.date === today ? d.count : 0;
+}
+function showRules() {
+  const qs = buildQuiz();
+  S.pending = qs;
+  const max = qs.reduce((a, q) => a + CONFIG.levels[q.level].weight, 0);
+  const time = qs.reduce((a, q) => a + CONFIG.levels[q.level].time, 0);
+  const exam = S.mode === "exam";
+  const left = CONFIG.dailyAttempts - attemptsToday();
+  $("#rulesIntro").textContent = exam
+    ? `${qs.length} questions worth ${max} points. At most ${Math.ceil(time / 60)} minutes if you use every second. You have ${left} of ${CONFIG.dailyAttempts} exam attempts left today.`
+    : `${qs.length} questions, no timer, no negative marks.`;
+  $("#rulesSummary").innerHTML = "";
+  const types = [...new Set(qs.map(q => q.type))];
+  const rows = LEVELS.filter(l => qs.some(q => q.level === l)).map(l => {
+    const c = CONFIG.levels[l];
+    return `<tr><td><span class="sev-tag sev-${c.sev}">SEV-${c.sev}</span> ${c.label}</td><td>+${c.weight}</td><td>${exam ? "−" + (c.weight * CONFIG.negativeRatio) : "0"}</td><td>${exam ? fmtTime(c.time) : "none"}</td></tr>`;
+  }).join("");
+  $("#rulesList").innerHTML = (exam ? [
+    `<table class="wtable"><tr><th>Severity</th><th>Right</th><th>Wrong</th><th>Time each</th></tr>${rows}</table>`,
+    "A skipped question scores 0. Select-all, spot-the-bug and ordering questions only score when fully right.",
+    "Terminal and manifest questions give credit for each task or blank you get right. Getting none of it right counts as wrong.",
+    `In the terminal you get ${CONFIG.maxAttemptsPerStep} tries per task. Typing <code>hint</code> halves that task's points. Stuck? <code>skip</code> (or the Skip this task button) gives up just that task: it scores 0, never negative, and you go on to the next one. Output is pre-recorded, so type commands the way you would on a real jump host.`,
+    "When time runs out the question locks and only Skip question works. Terminal tasks and blanks you already solved still count.",
+    "You see your score and the explanations after the last question.",
+    "Leaving the tab once gives a warning. Leaving it a second time ends the test. Pasting into the terminal is turned off.",
+  ] : [
+    "Press Check to see the right answer and why.",
+    "Stuck in the terminal? Type <code>solution</code>.",
+    `This set has: ${types.map(t => TYPE_LABEL[t].toLowerCase()).join(", ")}.`,
+  ]).map(x => `<li>${x}</li>`).join("");
+  $("#btnStart").disabled = exam && left <= 0;
+  if (exam && left <= 0) $("#rulesList").insertAdjacentHTML("beforeend", `<li class="bad">You've used today's ${CONFIG.dailyAttempts} exam attempts. Practice mode has no limit, or come back tomorrow.</li>`);
+  show("rules");
+}
+
+/* ---------------- quiz engine ---------------- */
+function startQuiz(qs, mode) {
+  if (mode === "exam") {
+    const today = new Date().toDateString();
+    store.set("attempts", { date: today, count: attemptsToday() + 1 });
+  }
+  S.quiz = { qs, mode, i: 0, results: [], started: Date.now(), strikes: 0, timer: null, left: 0, locked: false, checked: false, handler: null, timedOut: null };
+  document.body.classList.toggle("exam", mode === "exam");
+  show("quiz");
+  loadQuestion();
+}
+
+function loadQuestion() {
+  const Z = S.quiz, q = Z.qs[Z.i], lv = CONFIG.levels[q.level];
+  clearInterval(Z.timer);
+  Z.locked = false; Z.checked = false; Z.timedOut = null; Z.warned = false;
+  $("#qCounter").textContent = `${Z.i + 1} / ${Z.qs.length}`;
+  $("#qLevel").className = "sev-tag sev-" + lv.sev; $("#qLevel").textContent = "SEV-" + lv.sev;
+  $("#qType").className = "qtype"; $("#qType").textContent = TYPE_LABEL[q.type];
+  $("#qCat").textContent = q.category;
+  $("#qPoints").textContent = Z.mode === "exam" ? `${lv.weight} pt, wrong −${lv.weight * CONFIG.negativeRatio}` : "";
+  $("#progressFill").style.width = (Z.i / Z.qs.length) * 100 + "%";
+  $("#banner").classList.add("hidden");
+  $("#qFeedback").classList.add("hidden");
+
+  $("#qTitle").textContent = q.title || "";
+  $("#qScenario").innerHTML = q.scenario ? md(q.scenario) : "";
+  const ctxBox = $("#qContext"); ctxBox.innerHTML = "";
+  if (q.coach && Z.mode === "demo") ctxBox.appendChild(el("div", { class: "coach" }, md(q.coach)));
+  ctxBox.appendChild(renderContext(q.context));
+  $("#qQuestion").innerHTML = md(q.question || "");
+  const body = $("#qBody"); body.innerHTML = ""; body.classList.remove("locked");
+  Z.handler = render(q, body, { mode: Z.mode, isLocked: () => Z.locked, onChange: refreshButtons });
+
+  $("#btnSkip").disabled = false;
+  const nOpt = (q.options || []).length;
+  const act = Z.mode === "exam" ? "go to the next question" : "check your answer";
+  $("#kbdHint").innerHTML = (q.type === "mcq" || q.type === "multi")
+    ? `Press <kbd>1</kbd> to <kbd>${nOpt}</kbd> to pick an option and <kbd>Enter</kbd> to ${act}.`
+    : q.type === "terminal" ? "<kbd>Enter</kbd> runs the command you typed. Use the buttons below to move on."
+    : `<kbd>Enter</kbd> outside a text box to ${act}.`;
+  refreshButtons();
+
+  const t = $("#timer");
+  t.classList.remove("warning", "danger", "idle");
+  if (Z.mode === "exam") {
+    Z.left = lv.time; t.textContent = fmtTime(Z.left);
+    Z.timer = setInterval(tick, 1000);
+  } else {
+    Z.left = 0; t.classList.add("idle"); t.textContent = Z.mode === "demo" ? "Tour, not scored" : "No timer";
+  }
+}
+
+function tick() {
+  const Z = S.quiz, t = $("#timer");
+  Z.left--;
+  t.textContent = fmtTime(Z.left);
+  t.classList.toggle("danger", Z.left <= CONFIG.warningAt);
+  t.classList.toggle("warning", Z.left > CONFIG.warningAt && Z.left <= 30);
+  if (Z.left === CONFIG.warningAt && !Z.warned) { Z.warned = true; const a = $("#warningSound"); a.currentTime = 0; a.play().catch(() => {}); }
+  if (Z.left <= 0) {
+    clearInterval(Z.timer);
+    // keep solved terminal tasks / blanks, never penalise on timeout
+    const g = Z.handler.grade();
+    const keep = (Z.handler.terminal || Z.qs[Z.i].type === "fill") && g.fraction > 0;
+    Z.timedOut = keep ? { fraction: g.fraction, status: "partial" } : { fraction: 0, status: "timeout" };
+    lockCurrent();
+    const b = $("#banner"); b.className = "banner"; b.textContent = keep ? "Time's up. The tasks you finished still count. Press Skip question to go on." : "Time's up. Press Skip question to go on.";
+    refreshButtons();
+  }
+}
+
+function lockCurrent() { S.quiz.locked = true; S.quiz.handler.lock(); }
+
+function refreshButtons() {
+  const Z = S.quiz; if (!Z) return;
+  const next = $("#btnNext");
+  const last = Z.i === Z.qs.length - 1;
+  if (Z.mode === "exam") {
+    next.textContent = last ? "Finish" : "Next";
+    next.disabled = !!Z.timedOut;
+  } else {
+    next.textContent = Z.checked ? (last ? "See results" : "Next") : "Check";
+    next.disabled = !Z.checked && !Z.handler.answered();
+  }
+  $("#btnSkip").textContent = "Skip question";
+  $("#btnSkip").disabled = Z.mode !== "exam" && Z.checked;
+}
+
+function points(q, fraction, answered, mode) {
+  const w = CONFIG.levels[q.level].weight;
+  if (fraction > 0) return +(w * fraction).toFixed(2);
+  if (answered && mode === "exam") return -w * CONFIG.negativeRatio;
+  return 0;
+}
+
+function record(kind) {
+  const Z = S.quiz, q = Z.qs[Z.i], h = Z.handler;
+  let fraction = 0, status = "skip", answered = false;
+  if (kind === "skip") {
+    if (Z.timedOut) { fraction = Z.timedOut.fraction; status = Z.timedOut.status; }
+  } else {
+    answered = h.answered();
+    fraction = answered ? h.grade().fraction : 0;
+    status = !answered ? "skip" : fraction === 1 ? "correct" : fraction > 0 ? "partial" : "wrong";
+  }
+  const res = { q, status, fraction, pts: points(q, fraction, answered && status === "wrong", Z.mode), summary: h.summary() };
+  Z.results[Z.i] = res;
+  return res;
+}
+
+function onNext() {
+  const Z = S.quiz;
+  if (Z.mode === "exam") {
+    if (Z.timedOut) return;
+    record("next");
+    return advance();
+  }
+  if (!Z.checked) {
+    const r = record("next");
+    lockCurrent(); Z.handler.reveal(); Z.checked = true;
+    showFeedback(r);
+    return refreshButtons();
+  }
+  advance();
+}
+function onSkip() {
+  const Z = S.quiz;
+  record("skip");
+  if (Z.mode !== "exam" && !Z.checked) { lockCurrent(); Z.handler.reveal(); Z.checked = true; showFeedback(Z.results[Z.i]); return refreshButtons(); }
+  advance();
+}
+function advance() {
+  const Z = S.quiz;
+  clearInterval(Z.timer);
+  if (Z.mode === "exam") { const seen = new Set(store.get("seen", [])); seen.add(Z.qs[Z.i].id); store.set("seen", [...seen].slice(-2000)); }
+  Z.i++;
+  if (Z.i < Z.qs.length) loadQuestion(); else finish();
+}
+
+function showFeedback(r) {
+  const f = $("#qFeedback");
+  const cls = r.status === "correct" ? "ok" : r.status === "partial" ? "part" : "bad";
+  const head = r.status === "correct" ? "Right" : r.status === "partial" ? `Partly right, ${Math.round(r.fraction * 100)}% of the points` : r.status === "skip" ? "Skipped" : "Wrong";
+  f.className = "feedback " + cls;
+  f.innerHTML = `<h4>${head}</h4>${r.q.type === "terminal" || r.q.type === "fill" ? r.summary : ""}<div>${md(r.q.explanation || "")}</div>`;
+  f.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+/* ---------------- exit / anti-cheat ---------------- */
+let exitArmed = null;
+function onExit() {
+  const b = $("#btnExit");
+  if (!exitArmed) {
+    b.textContent = "Exit and lose progress?";
+    exitArmed = setTimeout(() => { b.textContent = "Exit"; exitArmed = null; }, 3000);
+    return;
+  }
+  clearTimeout(exitArmed); exitArmed = null; b.textContent = "Exit";
+  quit("You left the test. Nothing was scored.");
+}
+function quit(msg) {
+  const Z = S.quiz; if (Z) clearInterval(Z.timer);
+  S.quiz = null;
+  document.body.classList.remove("exam");
+  $("#thanksMsg").textContent = msg;
+  show("thanks");
+}
+document.addEventListener("visibilitychange", () => {
+  const Z = S.quiz;
+  if (!Z || Z.mode !== "exam" || !document.hidden) return;
+  Z.strikes++;
+  if (Z.strikes >= CONFIG.tabSwitchStrikes) return quit("The test ended because you left the tab twice. Nothing was scored.");
+  const b = $("#banner"); b.className = "banner bad";
+  b.textContent = "You left the test tab. If you leave again, the test ends.";
+});
+document.addEventListener("contextmenu", e => { if (S.quiz && S.quiz.mode === "exam") e.preventDefault(); });
+
+/* ---------------- result ---------------- */
+function finish() {
+  const Z = S.quiz;
+  clearInterval(Z.timer);
+  document.body.classList.remove("exam");
+  const R = Z.results;
+  const max = R.reduce((a, r) => a + CONFIG.levels[r.q.level].weight, 0);
+  const score = +R.reduce((a, r) => a + r.pts, 0).toFixed(2);
+  const pct = Math.max(0, Math.round((score / max) * 1000) / 10);
+  const cnt = k => R.filter(r => r.status === k).length;
+  const secs = Math.round((Date.now() - Z.started) / 1000);
+  const pass = pct >= CONFIG.passPercent;
+  const group = key => {
+    const m = {};
+    R.forEach(r => { const k = r.q[key]; m[k] = m[k] || { got: 0, max: 0, n: 0 }; m[k].got += Math.max(0, r.pts); m[k].max += CONFIG.levels[r.q.level].weight; m[k].n++; });
+    return Object.entries(m).map(([k, v]) => ({ k, pct: Math.round((v.got / v.max) * 100), n: v.n }));
+  };
+  const byCat = group("category").sort((a, b) => b.pct - a.pct);
+  const byLvl = group("level").sort((a, b) => LEVELS.indexOf(a.k) - LEVELS.indexOf(b.k));
+  const lvlName = Z.mode === "demo" ? "Tour" : S.level === "mixed" ? "Mixed" : CONFIG.levels[S.level]?.label;
+
+  if (Z.mode !== "demo") {
+    const hist = store.get("history", []);
+    hist.unshift({ at: Date.now(), mode: Z.mode, level: lvlName, n: R.length, pct, score, max });
+    store.set("history", hist.slice(0, 30));
+  }
+  const row = (label, p, n) => `<tr><td>${label}</td><td class="num">${n}</td><td class="num">${p}%</td><td class="barcell"><span class="bar"><i style="width:${p}%" class="${p >= 70 ? "ok" : p >= 40 ? "mid" : "low"}"></i></span></td></tr>`;
+  const share = `I scored ${pct}% on DevOps Quiz 2.0 (${lvlName}, ${R.length} questions, ${Z.mode} mode): live terminal labs, manifests and real incident scenarios. Strongest topic: ${byCat[0]?.k || "-"}. Try it: ${CONFIG.shareUrl}`;
+  const mark = r => ({ correct: ["ok", "+" + r.pts], partial: ["part", "+" + r.pts], wrong: ["bad", String(r.pts)], skip: ["skip", "0"], timeout: ["skip", "0, timed out"] }[r.status]);
+  const mistakes = R.filter(r => r.status !== "correct").map(r => r.q);
+  const verdict = Z.mode === "demo" ? "That's the tour." : pass ? "Passed." : `Below the ${CONFIG.passPercent}% pass mark.`;
+  const weakest = [...byCat].sort((a, b) => a.pct - b.pct)[0];
+
+  $("#resultBody").innerHTML = `
+  <article class="report">
+    <p class="report-kicker">${Z.mode === "demo" ? `Tour, ${R.length} questions, ${fmtTime(secs)}` : `${esc(lvlName)}, ${R.length} questions, ${Z.mode} mode, ${fmtTime(secs)}`}</p>
+    <h1 class="report-score"><span class="${pass ? "ok" : "bad"}">${pct}%</span> ${score} of ${max} points. ${verdict}</h1>
+    <ul class="tally">
+      <li><b>${cnt("correct")}</b> right</li>
+      <li><b>${cnt("partial")}</b> partly right</li>
+      <li><b>${cnt("wrong")}</b> wrong</li>
+      <li><b>${cnt("skip") + cnt("timeout")}</b> skipped</li>
+    </ul>
+    ${weakest && weakest.pct < 70 && Z.mode !== "demo" ? `<p class="advice">Your weakest topic was <b>${esc(weakest.k)}</b> at ${weakest.pct}%. Start there.</p>` : ""}
+    <div class="cta-row">
+      ${mistakes.length ? `<button class="btn primary" id="btnMistakes">Practise the ${mistakes.length} you missed</button>` : ""}
+      <button class="btn" id="btnAgain">Start a new test</button>
+      ${Z.mode !== "demo" ? `<button class="btn ghost" id="btnCopy">Copy result</button>
+      <a class="btn ghost" target="_blank" rel="noopener" href="https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(CONFIG.shareUrl)}">Share on LinkedIn</a>` : ""}
+    </div>
+
+    <div class="report-grid">
+      <section><h2>By topic</h2><table class="rtable"><tr><th>Topic</th><th class="num">Qs</th><th class="num">Score</th><th></th></tr>${byCat.map(x => row(esc(x.k), x.pct, x.n)).join("")}</table></section>
+      <section><h2>By severity</h2><table class="rtable"><tr><th>Level</th><th class="num">Qs</th><th class="num">Score</th><th></th></tr>${byLvl.map(x => row(`<span class="sev-tag sev-${CONFIG.levels[x.k].sev}">SEV-${CONFIG.levels[x.k].sev}</span> ${CONFIG.levels[x.k].label}`, x.pct, x.n)).join("")}</table></section>
+    </div>
+
+    <section class="review"><h2>Every question, with the explanation</h2>
+    ${R.map((r, i) => { const [c, t] = mark(r); return `<details class="ritem"><summary><span class="rnum">${i + 1}</span><span class="rq">${esc(r.q.title || stripMd(r.q.question || r.q.scenario))}</span><span class="rmeta">SEV-${CONFIG.levels[r.q.level].sev}, ${TYPE_LABEL[r.q.type].toLowerCase()}</span><span class="rpts ${c}">${t}</span></summary>
+      <div class="rbody">${r.q.scenario ? `<p class="scenario">${md(r.q.scenario)}</p>` : ""}${r.q.question ? `<p><b>${md(r.q.question)}</b></p>` : ""}${r.summary}<div class="why"><h4>Why</h4>${md(r.q.explanation || "")}</div></div></details>`; }).join("")}
+    </section>
+  </article>`;
+  $("#btnAgain").onclick = () => show("home");
+  const bm = $("#btnMistakes"); if (bm) bm.onclick = () => startQuiz(mistakes.map(fresh), "practice");
+  const bc = $("#btnCopy"); if (bc) bc.onclick = () => navigator.clipboard?.writeText(share).then(() => bc.textContent = "Copied");
+  S.quiz = null;
+  show("result");
+}
+const stripMd = s => String(s || "").replace(/[`*]/g, "").slice(0, 120);
+
+/* ---------------- history ---------------- */
+function showHistory() {
+  const h = store.get("history", []);
+  $("#historyBody").innerHTML = h.length ? `<table class="rtable"><tr><th>When</th><th>Test</th><th class="num">Points</th><th class="num">Score</th></tr>${h.map(x => `<tr><td>${new Date(x.at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</td><td>${esc(x.level)}, ${x.n} questions, ${x.mode}</td><td class="num">${x.score} / ${x.max}</td><td class="num ${x.pct >= CONFIG.passPercent ? "ok" : "bad"}">${x.pct}%</td></tr>`).join("")}</table>`
+    : `<p>Your finished tests show up here. <button class="link inline" data-go="home">Start one</button></p>`;
+  show("history");
+}
+
+/* ---------------- wiring ---------------- */
+function wireGlobal() {
+  $("#btnStart").onclick = () => startQuiz(S.pending, S.mode);
+  $("#btnNext").onclick = onNext;
+  $("#btnSkip").onclick = onSkip;
+  $("#btnExit").onclick = onExit;
+  $("#btnClearHistory").onclick = () => { store.del("history"); showHistory(); };
+  $("#brandHome").onclick = e => { e.preventDefault(); if (!S.quiz) show("home"); };
+  document.addEventListener("click", e => {
+    const g = e.target.closest("[data-go]"); if (!g) return;
+    if (S.quiz && g.dataset.go !== "home") return; // no navigation mid-test
+    if (g.dataset.go === "home") show("home");
+    if (g.dataset.go === "history") showHistory();
+    if (g.dataset.go === "demo") startQuiz(S.demo.map(q => ({ ...fresh(q), level: q.level || "easy" })), "demo");
+  });
+  document.addEventListener("keydown", e => {
+    if (!S.quiz || $("#screen-quiz").classList.contains("hidden")) return;
+    if (e.target.tagName === "INPUT") return;
+    if ((e.ctrlKey || e.metaKey) && ["+", "-", "0", "="].includes(e.key) && S.quiz.mode === "exam") { e.preventDefault(); return; }
+    if (/^[1-9]$/.test(e.key) && S.quiz.handler.key) S.quiz.handler.key(+e.key - 1);
+    if (e.key === "Enter" && !$("#btnNext").disabled) { e.preventDefault(); onNext(); }
+  });
+  document.addEventListener("wheel", e => { if (e.ctrlKey && S.quiz && S.quiz.mode === "exam") e.preventDefault(); }, { passive: false });
+}
+
+boot();

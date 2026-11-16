@@ -1,0 +1,347 @@
+# Bash — shell scripting and one-liners for Linux engineers.
+level: easy
+questions:
+
+- id: sh-e-001
+  category: Bash
+  type: mcq
+  question: "What does `set -euo pipefail` do at the top of a script?"
+  options:
+    - "Exit on errors, treat unset variables as errors, and fail a pipeline if any command in it fails"
+    - "Enable debug tracing"
+    - "Run the script as root"
+    - "Disable globbing"
+  answer: 0
+  explanation: "Without `pipefail`, `false | true` succeeds. Without `-u`, `$TYPO` silently expands to an empty string. Together they make scripts fail fast instead of half-running."
+
+- id: sh-e-002
+  category: Bash
+  type: mcq
+  question: "Which variable holds the exit status of the last command?"
+  options: ["$?", "$!", "$$", "$#"]
+  answer: 0
+  explanation: "`$?` is the last exit code (0 = success). `$!` is the last background PID, `$$` the current shell's PID, and `$#` the number of arguments."
+
+- id: sh-e-003
+  category: Bash
+  type: mcq
+  question: "Why quote variables, as in `rm -- \"$file\"`?"
+  options: ["Unquoted values are word-split and glob-expanded, so spaces or * break things", "Quotes make it faster", "Bash requires quotes for all strings", "To prevent tab completion"]
+  answer: 0
+  explanation: "A file named `my report.txt` becomes two arguments unquoted, and `*` would expand to every file. Quote every expansion unless you deliberately want splitting."
+
+- id: sh-e-004
+  category: Bash
+  type: mcq
+  question: "Which redirection sends both stdout and stderr to a file?"
+  options: ["cmd > out.log 2>&1", "cmd 2> out.log 1>&2", "cmd | out.log", "cmd < out.log"]
+  answer: 0
+  explanation: "Order matters: redirect stdout first, then point stderr (2) at where stdout (1) now goes. Bash shorthand: `&> out.log`."
+
+- id: sh-e-005
+  category: Bash
+  type: mcq
+  question: "Which runs a cleanup function whenever the script exits, even on error?"
+  options: ["trap cleanup EXIT", "on_exit cleanup", "finally cleanup", "atexit cleanup"]
+  answer: 0
+  explanation: "`trap cleanup EXIT` is the shell's `finally`, used for temp dirs (`mktemp -d`), lock files and port-forwards. Add `INT TERM` if you need to handle signals specifically."
+
+- id: sh-e-006
+  category: Bash
+  type: mcq
+  question: "Which makes a temporary directory safely?"
+  options: ["tmp=$(mktemp -d)", "mkdir /tmp/mydir", "tmp=/tmp/$RANDOM", "touch /tmp/tmp"]
+  answer: 0
+  explanation: "`mktemp` creates a unique path with safe permissions, avoiding races and symlink attacks on shared /tmp. Pair it with `trap 'rm -rf \"$tmp\"' EXIT`."
+
+- id: sh-e-007
+  category: Bash
+  type: mcq
+  question: "Which reads a file line by line correctly, keeping spaces and backslashes?"
+  options: ["while IFS= read -r line; do ...; done < file", "for line in $(cat file); do ...; done", "cat file | for line; do ...; done", "read file"]
+  answer: 0
+  explanation: "`for x in $(cat file)` splits on every space, not on lines. `IFS=` keeps leading whitespace, and `-r` keeps backslashes."
+
+- id: sh-e-008
+  category: Bash
+  type: mcq
+  question: "Which tool is the standard linter for shell scripts?"
+  options: ["shellcheck", "bashlint (builtin)", "shfmt", "pylint"]
+  answer: 0
+  explanation: "ShellCheck catches unquoted variables, useless cat, broken conditionals and more. `shfmt` formats. Run both in CI or pre-commit."
+
+- id: sh-e-009
+  category: Bash
+  type: mcq
+  question: "What is the difference between `[[ ... ]]` and `[ ... ]` in Bash?"
+  options: ["[[ ]] is a Bash keyword: no word splitting inside, supports && || and =~ regex", "They are identical", "[ ] is faster and safer", "[[ ]] only works with numbers"]
+  answer: 0
+  explanation: "`[ ]` is the POSIX `test` command, so unquoted empty variables break it. In Bash scripts prefer `[[ ]]`; in `/bin/sh` scripts you must use `[ ]`."
+
+- id: sh-e-010
+  category: Bash
+  type: mcq
+  question: "Which extracts the 3rd field of a CSV line?"
+  options: ["cut -d, -f3", "cut -f3", "awk -F: '{print $3}'", "sed -n 3p"]
+  answer: 0
+  explanation: "`cut -d, -f3` (or `awk -F, '{print $3}'`). Real CSV with quoted commas needs a proper parser — `mlr`, `csvkit`, or Python."
+
+- id: sh-e-011
+  category: Bash
+  type: mcq
+  question: "Which command pretty-prints and queries JSON in shell scripts?"
+  options: ["jq", "sed", "awk", "json_pp only"]
+  answer: 0
+  explanation: "`kubectl get pods -o json | jq -r '.items[].metadata.name'`. `yq` does the same for YAML. Don't parse JSON with grep."
+
+- id: sh-e-012
+  category: Bash
+  type: mcq
+  question: "Which runs a command on many inputs in parallel, 8 at a time?"
+  options: ["xargs -P 8 -n 1 cmd", "for x in ...; do cmd & done (unbounded)", "parallel is the only way", "cmd --parallel"]
+  answer: 0
+  explanation: "`xargs -P` bounds the concurrency, and `-0` with `find -print0` is safe for odd filenames. GNU `parallel` is more powerful but isn't always installed."
+
+- id: sh-e-013
+  category: Bash
+  type: mcq
+  question: "What does `${VAR:-default}` expand to?"
+  options: ["$VAR if it's set and non-empty, otherwise 'default'", "Always 'default'", "An error if VAR is set", "The length of VAR"]
+  answer: 0
+  explanation: "`${VAR:-x}` gives a default, `${VAR:=x}` also assigns it, and `${VAR:?msg}` aborts with msg if VAR is unset or empty. Use `${#VAR}` for the length."
+
+- id: sh-e-014
+  category: Bash
+  type: mcq
+  question: "Which shebang makes a script use Bash from the PATH (portable across distros and macOS)?"
+  options: ["#!/usr/bin/env bash", "#!/bin/sh", "#!bash", "#!/usr/local/bash"]
+  answer: 0
+  explanation: "`/bin/sh` may be dash on Debian and Ubuntu, so Bash-isms like `[[ ]]` and arrays break. Use `env bash` for Bash scripts, or write pure POSIX for `sh`."
+
+- id: sh-m-001
+  level: medium
+  category: Bash
+  type: mcq
+  title: "Pipeline lies about success"
+  context:
+    - kind: bash
+      title: backup.sh
+      content: |
+        #!/usr/bin/env bash
+        set -e
+        pg_dump payments | gzip > /backups/payments.sql.gz
+        aws s3 cp /backups/payments.sql.gz s3://acme-backups/
+        echo "backup OK"
+  question: "`pg_dump` failed with an auth error, but the job printed `backup OK` and uploaded a 20-byte file. Why?"
+  options:
+    - "Without `pipefail`, a pipeline's status is the last command's (`gzip`), which succeeded"
+    - "`set -e` doesn't work in scripts"
+    - "`aws s3 cp` ignores errors"
+    - "gzip retried pg_dump"
+  answer: 0
+  explanation: "Add `set -o pipefail`, and verify backups: check the size, run `gzip -t`, and do a periodic restore test. An untested backup is a wish, not a backup."
+
+- id: sh-m-002
+  level: medium
+  category: Bash
+  type: mcq
+  title: "Cron job works by hand"
+  scenario: "`/opt/scripts/rotate.sh` works in your shell, but from cron it fails with `kubectl: command not found`."
+  question: "Most likely cause and fix?"
+  options:
+    - "cron runs with a minimal PATH and no profile — set PATH at the top of the crontab/script or use absolute paths"
+    - "cron can't run Bash"
+    - "kubectl is blocked for root"
+    - "The script needs a .sh extension"
+  answer: 0
+  explanation: "cron's environment is tiny (`PATH=/usr/bin:/bin`). Set PATH explicitly, use absolute paths, and redirect output (`>> /var/log/rotate.log 2>&1`) so failures are visible. A systemd timer gives you journald logs for free."
+
+- id: sh-m-003
+  level: medium
+  category: Bash
+  type: mcq
+  title: "Variable lost after the loop"
+  context:
+    - kind: bash
+      title: count.sh
+      content: |
+        count=0
+        kubectl get pods -A --no-headers | while read -r ns name rest; do
+          count=$((count+1))
+        done
+        echo "pods: $count"   # always prints 0
+  question: "Why is the count 0?"
+  options:
+    - "The pipe runs the while loop in a subshell; its variables die with it — use `done < <(kubectl ...)` (process substitution)"
+    - "`$(( ))` doesn't work in loops"
+    - "`read` resets variables"
+    - "kubectl returns no pods"
+  answer: 0
+  explanation: "Every part of a pipeline runs in a subshell. Process substitution (or `shopt -s lastpipe`) keeps the loop in the current shell. For counting, `kubectl get pods -A --no-headers | wc -l` is simpler anyway."
+
+- id: sh-m-004
+  level: medium
+  category: Bash
+  type: mcq
+  title: "Two cron runs at once"
+  scenario: "A sync script runs every minute but sometimes takes 3 minutes. Overlapping runs corrupt the target."
+  question: "Simplest robust fix?"
+  options:
+    - "Wrap it with `flock -n /var/lock/sync.lock /opt/scripts/sync.sh`"
+    - "Check `ps aux | grep sync` at the start"
+    - "Run it every 5 minutes and hope"
+    - "Add `sleep 120` at the end"
+  answer: 0
+  explanation: "`flock` takes a kernel lock that is released automatically when the process dies — no stale PID files. Grepping ps is racy and matches itself."
+
+- id: sh-m-005
+  level: medium
+  category: Bash
+  type: mcq
+  title: "Retry with backoff"
+  scenario: "A deploy step calls a flaky internal API. You want up to 5 tries with increasing waits."
+  question: "Which loop is correct?"
+  options:
+    - "`for i in 1 2 3 4 5; do curl -fsS \"$URL\" && break; sleep $((i*2)); done`"
+    - "`while true; do curl \"$URL\"; done`"
+    - "`curl --retry-forever \"$URL\"`"
+    - "`for i in 1..5; do curl \"$URL\"; done`"
+  answer: 0
+  explanation: "`-f` makes curl fail on HTTP errors (without it, a 500 counts as success), and `break` stops on success. `curl --retry 5 --retry-all-errors` is an alternative. Make sure the script fails if every try failed."
+
+- id: sh-m-006
+  level: medium
+  category: Bash
+  type: multi
+  title: "Safe file cleanup one-liner"
+  scenario: "You must delete `*.tmp` files older than 7 days under `/data/uploads`, where filenames contain spaces and some start with `-`."
+  question: "Which are safe ways? (select all)"
+  options:
+    - "`find /data/uploads -name '*.tmp' -mtime +7 -delete`"
+    - "`find /data/uploads -name '*.tmp' -mtime +7 -print0 | xargs -0 rm --`"
+    - "`rm $(find /data/uploads -name *.tmp -mtime +7)`"
+    - "`find /data/uploads -name '*.tmp' -mtime +7 -exec rm -- {} +`"
+  answer: [0, 1, 3]
+  explanation: "`-delete`, `-print0 | xargs -0` and `-exec ... {} +` all handle spaces. `--` protects against names starting with `-`. `$(find ...)` word-splits, and the unquoted `*.tmp` can glob in the current directory first."
+
+- id: sh-m-007
+  level: medium
+  category: Bash
+  type: mcq
+  title: "Heredoc to a remote host"
+  scenario: "You want to run several commands on `web1` and expand `$RELEASE` **remotely**, not locally."
+  question: "Which form?"
+  options:
+    - "`ssh web1 'bash -s' <<'EOF' ... $RELEASE ... EOF` (quoted delimiter = no local expansion)"
+    - "`ssh web1 <<EOF ... $RELEASE ... EOF` (unquoted)"
+    - "`ssh web1 \"$RELEASE\"`"
+    - "`scp` the variable first"
+  answer: 0
+  explanation: "Quoting the heredoc delimiter (`<<'EOF'`) passes the text literally. Unquoted, your local shell expands `$RELEASE` (often to empty) before ssh sends it."
+
+- id: sh-m-008
+  level: medium
+  category: Bash
+  type: mcq
+  title: "Exit codes in CI"
+  scenario: "Your CI step runs `./run-tests.sh || true` because 'it was flaky'. Last week broken code shipped."
+  question: "What's the right approach?"
+  options:
+    - "Remove `|| true`, fix or quarantine flaky tests explicitly, and let a non-zero exit fail the job"
+    - "Keep `|| true` and add `echo PASS`"
+    - "Run the tests twice with `|| true`"
+    - "Redirect stderr to /dev/null"
+  answer: 0
+  explanation: "`|| true` throws away the only signal CI has. Quarantine flaky tests with a tracked ticket, and retry only specific known-flaky cases."
+
+- id: sh-m-009
+  level: medium
+  category: Bash
+  type: mcq
+  title: "Arrays for arguments"
+  context:
+    - kind: bash
+      title: deploy.sh
+      content: |
+        HELM_ARGS="--namespace prod --set image.tag=$TAG --set 'ingress.hosts[0]=api.acme.io'"
+        helm upgrade api ./chart $HELM_ARGS
+  question: "The quoting inside `HELM_ARGS` breaks. What's the robust pattern?"
+  options:
+    - "Use an array: `args=(--namespace prod --set \"image.tag=$TAG\")` then `helm upgrade api ./chart \"${args[@]}\"`"
+    - "Use `eval helm upgrade api ./chart $HELM_ARGS`"
+    - "Add more quotes"
+    - "Put everything on one line"
+  answer: 0
+  explanation: "Quotes stored inside a string are not re-parsed, and `eval` re-parses everything, which opens an injection hole. `\"${arr[@]}\"` expands each element as exactly one argument."
+
+- id: sh-m-010
+  level: medium
+  category: Bash
+  type: mcq
+  title: "Which process holds the port?"
+  scenario: "`bind: address already in use` on :8443 on a Linux host."
+  question: "Fastest one-liner to see who owns it?"
+  options: ["`ss -ltnp 'sport = :8443'`", "`netstat -r`", "`ps aux | grep 8443`", "`ip addr`"]
+  answer: 0
+  explanation: "`ss -ltnp` shows listening TCP sockets with PID and program name, and the filter narrows it to the port. `lsof -i :8443` works too."
+
+- id: sh-h-001
+  level: hard
+  category: Bash
+  type: spot
+  title: "Review: two bugs in a deploy script"
+  scenario: "Pick the **two** lines that can cause real damage."
+  lang: bash
+  code: |
+    #!/usr/bin/env bash
+    set -uo pipefail
+    RELEASE_DIR=/srv/app/releases
+    KEEP=5
+    cd $RELEASE_DIR
+    ls -t | tail -n +$((KEEP+1)) | xargs rm -rf
+    ln -sfn "$RELEASE_DIR/$1" /srv/app/current
+    systemctl reload app
+  answer: [5, 6]
+  explanation: "Line 5: the script has no `-e`, so if `cd` fails (typo, unmounted disk) it carries on in the current directory, and line 6 deletes files there. Use `cd \"$RELEASE_DIR\" || exit 1`. Line 6: parsing `ls` output breaks on spaces and newlines, and unquoted input to `xargs rm -rf` makes that dangerous. Use `find ... -print0 | xargs -0`, or keep release names timestamped and sorted in an array."
+
+- id: sh-h-002
+  level: hard
+  category: Bash
+  type: fill
+  title: "A safe script skeleton"
+  scenario: "Fill in the strict-mode line and the cleanup trap."
+  lang: bash
+  template: |
+    #!/usr/bin/env bash
+    set {{flags}}
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' {{sig}}
+    curl -fsSL "$URL" -o "$tmp/pkg.tgz"
+    tar -xzf "$tmp/pkg.tgz" -C /opt/app
+  blanks:
+    flags: { accept: ["^-euo pipefail$", "^-eu -o pipefail$", "^-o errexit -o nounset -o pipefail$"], solution: "-euo pipefail", width: 14 }
+    sig:   { accept: ["^EXIT$"], solution: EXIT, width: 5 }
+  explanation: "Strict mode plus an EXIT trap means a failed download stops the script and always cleans up. `curl -f` turns HTTP errors into a non-zero exit."
+
+- id: sh-e-015
+  category: Bash
+  type: mcq
+  question: "Which command shows what a script actually executes, line by line after expansion?"
+  options: ["bash -x script.sh", "bash -n script.sh", "bash --version", "sh -v only"]
+  answer: 0
+  explanation: "`-x` traces each command after expansion — the fastest way to see an empty variable. `-n` only checks syntax without running anything."
+
+- id: sh-m-011
+  level: medium
+  category: Bash
+  type: mcq
+  title: "Grab a value from kubectl"
+  scenario: "In a script you need just the image of container `api` in Deployment `api`, without parsing columns."
+  question: "Best command?"
+  options:
+    - "`kubectl get deploy api -o jsonpath='{.spec.template.spec.containers[?(@.name==\"api\")].image}'`"
+    - "`kubectl describe deploy api | grep Image | awk '{print $2}'`"
+    - "`kubectl get deploy api | cut -c50-80`"
+    - "`kubectl logs deploy/api | grep image`"
+  answer: 0
+  explanation: "Structured output (`-o jsonpath`, or `-o json | jq`) doesn't break when column widths or describe formats change. Never scrape `describe` in automation."

@@ -1,0 +1,768 @@
+[
+ {
+  "id": "x-term-k8s-001",
+  "category": "Kubernetes",
+  "type": "terminal",
+  "title": "Incident: Black Friday node meltdown",
+  "host": "oncall@eks-prod",
+  "prompt": "oncall@eks-prod:~$",
+  "scenario": "Checkout latency is spiking and some Pods show `Evicted`. Find the sick node, isolate it safely **without breaking PDBs**, and clean up.",
+  "motd": "kubectl context: prod-eu (all namespaces visible)",
+  "explore": [
+   {
+    "match": "^kubectl get (no|node|nodes)\\b",
+    "output": "NAME                                           STATUS   ROLES    AGE   VERSION\nip-10-0-1-21.eu-central-1.compute.internal     Ready    <none>   6d    v1.33.4-eks\nip-10-0-2-44.eu-central-1.compute.internal     Ready    <none>   6d    v1.33.4-eks\nip-10-0-3-17.eu-central-1.compute.internal     Ready    <none>   6d    v1.33.4-eks\n"
+   },
+   {
+    "match": "^(?=.*?(?:^kubectl describe (no|node|nodes)))(?=.*?(?:ip-10-0-3-17))",
+    "output": "Conditions:\n  Type             Status  Reason\n  MemoryPressure   True    KubeletHasInsufficientMemory\n  DiskPressure     False   KubeletHasNoDiskPressure\nTaints:            node.kubernetes.io/memory-pressure:NoSchedule\nEvents:\n  Warning  EvictionThresholdMet  3m  kubelet  Attempting to reclaim memory\n"
+   },
+   {
+    "match": "^kubectl get pdb",
+    "output": "NAMESPACE  NAME         MIN AVAILABLE   ALLOWED DISRUPTIONS\nshop       checkout     2               1\npayments   payments     2               1\n"
+   }
+  ],
+  "steps": [
+   {
+    "task": "Find which node is running hot on memory (live usage).",
+    "accept": [
+     "^(?=.*?(?:^kubectl top (no|node|nodes)))"
+    ],
+    "solution": "kubectl top nodes",
+    "hint": "metrics-server exposes `kubectl top`.",
+    "output": "NAME                                           CPU(cores)   CPU%   MEMORY(bytes)   MEMORY%\nip-10-0-1-21.eu-central-1.compute.internal     1210m        30%    9120Mi          58%\nip-10-0-2-44.eu-central-1.compute.internal     980m         24%    8730Mi          55%\nip-10-0-3-17.eu-central-1.compute.internal     2890m        72%    15402Mi         97%\n",
+    "wrong": []
+   },
+   {
+    "task": "List every Pod in the cluster whose phase is `Failed` (evicted Pods end up there).",
+    "accept": [
+     "^(?=.*?(?:^kubectl get (po|pod|pods)))(?=.*?(?:(-A|--all-namespaces)))(?=.*?(?:--field-selector[ =]status\\.phase(=|==)Failed))",
+     "^(?=.*?(?:^kubectl get (po|pod|pods)))(?=.*?(?:(-A|--all-namespaces)))(?=.*?(?:grep .*Evicted))"
+    ],
+    "solution": "kubectl get pods -A --field-selector=status.phase=Failed",
+    "hint": "Use a field selector on `status.phase` across all namespaces.",
+    "output": "NAMESPACE   NAME                         READY   STATUS    RESTARTS   AGE\nshop        checkout-7d9c5f-8kq2l        0/1     Evicted   0          4m\nshop        recs-5f8d7c-2mzpq            0/1     Evicted   0          4m\nreporting   pdf-render-6b7c8d-x9w1k      0/1     Evicted   0          3m\n",
+    "wrong": []
+   },
+   {
+    "task": "Stop new Pods from landing on `ip-10-0-3-17.eu-central-1.compute.internal`.",
+    "accept": [
+     "^kubectl cordon (node/)?ip-10-0-3-17\\.eu-central-1\\.compute\\.internal$"
+    ],
+    "solution": "kubectl cordon ip-10-0-3-17.eu-central-1.compute.internal",
+    "output": "node/ip-10-0-3-17.eu-central-1.compute.internal cordoned",
+    "wrong": []
+   },
+   {
+    "task": "Drain it so Pods move via the Eviction API (PDBs respected). DaemonSets stay; emptyDir data may be deleted.",
+    "accept": [
+     "^(?=.*?(?:^kubectl drain (node/)?ip-10-0-3-17\\.eu-central-1\\.compute\\.internal))(?=.*?(?:--ignore-daemonsets))(?=.*?(?:--delete-emptydir-data))(?!.*?(?:--disable-eviction))"
+    ],
+    "solution": "kubectl drain ip-10-0-3-17.eu-central-1.compute.internal --ignore-daemonsets --delete-emptydir-data",
+    "hint": "Two flags are needed: one for DaemonSet Pods, one for Pods using emptyDir.",
+    "wrong": [
+     {
+      "match": "--disable-eviction",
+      "output": "# --disable-eviction deletes Pods directly and bypasses every PDB — checkout would drop below minAvailable"
+     },
+     {
+      "match": "^(?=.*?(?:^kubectl drain))(?!.*?(?:--ignore-daemonsets))",
+      "output": "error: unable to drain node: cannot delete DaemonSet-managed Pods (use --ignore-daemonsets to ignore): kube-system/aws-node-7x2kq, kube-system/kube-proxy-p9l2s"
+     }
+    ],
+    "output": "node/ip-10-0-3-17.eu-central-1.compute.internal already cordoned\nevicting pod shop/checkout-7d9c5f-4hj7n\nerror when evicting pods/\"checkout-7d9c5f-4hj7n\" -n \"shop\" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.\nevicting pod shop/checkout-7d9c5f-4hj7n\npod/checkout-7d9c5f-4hj7n evicted\npod/pdf-render-6b7c8d-r2t5y evicted\nnode/ip-10-0-3-17.eu-central-1.compute.internal drained\n"
+   },
+   {
+    "task": "Delete the leftover Failed/Evicted Pod objects across all namespaces in one command.",
+    "accept": [
+     "^(?=.*?(?:^kubectl delete (po|pod|pods)))(?=.*?(?:(-A|--all-namespaces)))(?=.*?(?:--field-selector[ =]status\\.phase(=|==)Failed))"
+    ],
+    "solution": "kubectl delete pods -A --field-selector=status.phase=Failed",
+    "output": "pod \"checkout-7d9c5f-8kq2l\" deleted\npod \"recs-5f8d7c-2mzpq\" deleted\npod \"pdf-render-6b7c8d-x9w1k\" deleted\n",
+    "wrong": []
+   }
+  ],
+  "explanation": "`top` finds the hot node, the field selector finds the evictions, and cordon then drain moves the work through the Eviction API, so PDBs throttle it (note the retry). Evicted Pods are just records. Root cause next: a workload without memory limits (`pdf-render`?) or requests far below real usage. Fix the requests, add LimitRanges, and let Karpenter replace the node.",
+  "level": "expert"
+ },
+ {
+  "id": "x-term-gitops-001",
+  "category": "GitOps",
+  "type": "terminal",
+  "title": "Incident: Argo CD won't let you roll back",
+  "host": "oncall@ops-box",
+  "prompt": "oncall@ops-box:~/gitops$",
+  "scenario": "Argo CD app `payments` auto-synced a bad commit (`9f3c2e1`) and is Degraded. Roll back **now**, then make Git the source of truth again and restore automation.",
+  "explore": [
+   {
+    "match": "^git log",
+    "output": "9f3c2e1 (HEAD -> main, origin/main) payments: bump to 3.1.0\na77d0b4 payments: tune HPA\n"
+   },
+   {
+    "match": "^argocd app set payments --sync-policy (none|manual)$",
+    "sets": "autosync_off",
+    "output": "# automated sync disabled for payments (exploration — no attempt used)"
+   }
+  ],
+  "steps": [
+   {
+    "task": "Show the app's current health and sync status.",
+    "accept": [
+     "^argocd app get payments\\b"
+    ],
+    "solution": "argocd app get payments",
+    "output": "Name:               argocd/payments\nSync Policy:        Automated (Prune)\nSync Status:        Synced to main (9f3c2e1)\nHealth Status:      Degraded\n",
+    "wrong": []
+   },
+   {
+    "task": "List the app's deployment history to find the last good ID.",
+    "accept": [
+     "^argocd app history payments\\b"
+    ],
+    "solution": "argocd app history payments",
+    "output": "ID  DATE                           REVISION\n11  2026-11-15 18:02:11 +0400 GST  main (a77d0b4)\n12  2026-11-16 09:58:40 +0400 GST  main (9f3c2e1)\n",
+    "wrong": []
+   },
+   {
+    "task": "Roll back to history ID **11**. (Argo CD has a rule about automated apps…)",
+    "accept": [
+     "^argocd app rollback payments 11\\b"
+    ],
+    "requires": "autosync_off",
+    "blocked": "FATA[0000] rpc error: code = FailedPrecondition desc = rollback cannot be initiated when auto-sync is enabled",
+    "solution": "argocd app set payments --sync-policy none, then: argocd app rollback payments 11",
+    "check": [
+     "argocd app rollback payments 11"
+    ],
+    "tool": "argocd app rollback",
+    "hint": "Rollback is refused while automated sync is on. Set the sync policy to `none` first (that command is free), then roll back.",
+    "output": "TIMESTAMP                  GROUP  KIND        NAMESPACE  NAME      STATUS  HEALTH\n2026-11-16T10:21:04+04:00  apps   Deployment  payments   payments  Synced  Healthy\n",
+    "wrong": []
+   },
+   {
+    "task": "Fix Git: create a commit that reverts `9f3c2e1` on main.",
+    "accept": [
+     "^git revert (--no-edit )?9f3c2e1( --no-edit)?$"
+    ],
+    "solution": "git revert --no-edit 9f3c2e1",
+    "wrong": [
+     {
+      "match": "^git reset",
+      "output": "# rewriting shared main history breaks everyone's clones and the audit trail — revert instead"
+     }
+    ],
+    "output": "[main 5be81aa] Revert \"payments: bump to 3.1.0\"\n 1 file changed, 1 insertion(+), 1 deletion(-)\n"
+   },
+   {
+    "task": "Push it, then re-enable automated sync for `payments` (one line, `&&` is fine).",
+    "accept": [
+     "^(?=.*?(?:git push))(?=.*?(?:argocd app set payments --sync-policy (automated|auto)\\b))"
+    ],
+    "solution": "git push && argocd app set payments --sync-policy automated --auto-prune --self-heal",
+    "tool": "git push",
+    "output": "To github.com:acme/gitops.git\n   9f3c2e1..5be81aa  main -> main\n",
+    "wrong": []
+   }
+  ],
+  "explanation": "Argo CD refuses `rollback` on automated apps, because the next sync would undo it. Disable automation, roll back for fast relief, revert in Git so desired state equals the running state, then re-enable sync.",
+  "level": "expert"
+ },
+ {
+  "id": "x-term-aws-001",
+  "category": "AWS",
+  "type": "terminal",
+  "title": "Incident: Pods lost the database",
+  "host": "oncall@eks-prod",
+  "prompt": "oncall@eks-prod:~$",
+  "scenario": "After a Karpenter EC2NodeClass change this morning, `orders` Pods time out connecting to Aurora (`orders-db.cluster-c9x.eu-central-1.rds.amazonaws.com:5432`). New nodes use security group **sg-0nodes789**. The DB uses **sg-0db123**.",
+  "explore": [
+   {
+    "match": "^kubectl get (po|pod|pods)",
+    "output": "NAME                      READY   STATUS    RESTARTS   AGE\norders-6f7d8c9b5-k2x8p    0/1     Running   3          14m\n"
+   }
+  ],
+  "steps": [
+   {
+    "task": "From inside the `orders` Deployment, test TCP 5432 to the DB endpoint.",
+    "accept": [
+     "^(?=.*?(?:^kubectl exec))(?=.*?(?:(deploy/orders|orders-6f7d8c9b5-k2x8p)))(?=.*?(?:(nc|ncat|telnet|curl|pg_isready|timeout)))(?=.*?(?:(5432|orders-db)))"
+    ],
+    "solution": "kubectl exec deploy/orders -- nc -zv -w 3 orders-db.cluster-c9x.eu-central-1.rds.amazonaws.com 5432",
+    "tool": "kubectl exec",
+    "hint": "`kubectl exec deploy/orders -- nc -zv -w 3 <host> 5432`",
+    "output": "nc: connect to orders-db.cluster-c9x.eu-central-1.rds.amazonaws.com port 5432 (tcp) failed: Connection timed out",
+    "wrong": []
+   },
+   {
+    "task": "Inspect the DB security group `sg-0db123`.",
+    "accept": [
+     "^(?=.*?(?:^aws ec2 describe-security-groups))(?=.*?(?:sg-0db123))",
+     "^(?=.*?(?:^aws ec2 describe-security-group-rules))(?=.*?(?:sg-0db123))"
+    ],
+    "solution": "aws ec2 describe-security-groups --group-ids sg-0db123",
+    "tool": "aws ec2",
+    "output": "\"IpPermissions\": [{\n    \"IpProtocol\": \"tcp\", \"FromPort\": 5432, \"ToPort\": 5432,\n    \"UserIdGroupPairs\": [{ \"GroupId\": \"sg-0oldnodes456\", \"Description\": \"eks managed nodegroup (legacy)\" }]\n}]\n",
+    "wrong": []
+   },
+   {
+    "task": "Allow TCP 5432 into `sg-0db123` **from the node security group** `sg-0nodes789` (no CIDRs).",
+    "accept": [
+     "^(?=.*?(?:^aws ec2 authorize-security-group-ingress))(?=.*?(?:--group-id[ =]sg-0db123))(?=.*?(?:--protocol[ =]tcp))(?=.*?(?:--port[ =]5432))(?=.*?(?:--source-group[ =]sg-0nodes789))(?!.*?(?:--cidr))",
+     "^(?=.*?(?:^aws ec2 authorize-security-group-ingress))(?=.*?(?:--group-id[ =]sg-0db123))(?=.*?(?:--ip-permissions))(?=.*?(?:5432))(?=.*?(?:sg-0nodes789))(?!.*?(?:0\\.0\\.0\\.0/0))"
+    ],
+    "solution": "aws ec2 authorize-security-group-ingress --group-id sg-0db123 --protocol tcp --port 5432 --source-group sg-0nodes789",
+    "tool": "aws ec2 authorize-security-group-ingress",
+    "hint": "`authorize-security-group-ingress --group-id ... --protocol tcp --port 5432 --source-group ...`",
+    "wrong": [
+     {
+      "match": "0\\.0\\.0\\.0/0",
+      "output": "# opening a card-data database to the internet = instant PCI finding (and GuardDuty alert)"
+     },
+     {
+      "match": "--cidr",
+      "output": "# node IPs change all the time — reference the security group, not CIDRs"
+     }
+    ],
+    "output": "{ \"Return\": true, \"SecurityGroupRules\": [{ \"SecurityGroupRuleId\": \"sgr-0a1b2c3d\", \"GroupId\": \"sg-0db123\", \"IpProtocol\": \"tcp\", \"FromPort\": 5432, \"ToPort\": 5432, \"ReferencedGroupInfo\": { \"GroupId\": \"sg-0nodes789\" } }] }\n"
+   },
+   {
+    "task": "Re-test the connection from the Pod.",
+    "accept": [
+     "^(?=.*?(?:^kubectl exec))(?=.*?(?:(nc|ncat|telnet|curl|pg_isready|timeout)))(?=.*?(?:(5432|orders-db)))"
+    ],
+    "solution": "kubectl exec deploy/orders -- nc -zv -w 3 orders-db.cluster-c9x.eu-central-1.rds.amazonaws.com 5432",
+    "tool": "kubectl exec",
+    "output": "Connection to orders-db.cluster-c9x.eu-central-1.rds.amazonaws.com (10.0.21.8) 5432 port [tcp/postgresql] succeeded!",
+    "wrong": []
+   }
+  ],
+  "explanation": "Group-to-group references survive node churn, and CIDRs don't. The real fix belongs in IaC: add the rule in Terraform (or make the EC2NodeClass `securityGroupSelectorTerms` include the SG the DB trusts), so the console hotfix doesn't drift. Your first test re-runs freely, because earlier commands replay at no cost.",
+  "level": "expert"
+ },
+ {
+  "id": "x-term-linux-001",
+  "category": "Linux",
+  "type": "terminal",
+  "title": "Incident: the OOM killer took out nginx",
+  "host": "root@pay-gw-01",
+  "prompt": "root@pay-gw-01:~#",
+  "scenario": "The payment gateway host's nginx was killed overnight. A batch service `report-worker` runs on the same box. Find out what happened and cap the noisy neighbour **without editing unit files**.",
+  "steps": [
+   {
+    "task": "Search the kernel log for OOM-killer activity.",
+    "accept": [
+     "^(?=.*?(?:^(dmesg|journalctl)))(?=.*?(?:(grep|-g|--grep).*(oom|OOM|Out of memory|killed process|Killed process)))",
+     "^(?=.*?(?:^journalctl))(?=.*?(?:-k))(?=.*?(?:(oom|OOM)))"
+    ],
+    "solution": "journalctl -k | grep -i oom",
+    "tool": "journalctl",
+    "hint": "The kernel ring buffer (`dmesg -T` or `journalctl -k`), grepped for `oom`.",
+    "output": "Nov 16 02:13:44 pay-gw-01 kernel: report-worker invoked oom-killer: gfp_mask=0x140cca, order=0, oom_score_adj=0\nNov 16 02:13:44 pay-gw-01 kernel: Out of memory: Killed process 1193 (nginx) total-vm:812344kB, anon-rss:61220kB, oom_score_adj=0\nNov 16 02:13:44 pay-gw-01 kernel: oom_reaper: reaped process 1193 (nginx)\n",
+    "wrong": []
+   },
+   {
+    "task": "Show the top processes by memory right now.",
+    "accept": [
+     "^(?=.*?(?:^ps ))(?=.*?(?:--sort[ =]-(%mem|rss|pmem)))",
+     "^top -o %?MEM"
+    ],
+    "solution": "ps aux --sort=-%mem | head",
+    "tool": "ps",
+    "output": "USER   PID   %CPU %MEM    VSZ     RSS   COMMAND\nbatch  2290  88.1 71.4 9812332 5833112 /usr/bin/python3 /opt/report/worker.py\nwww    3311   0.4  0.8  81234   61220 nginx: worker process\n",
+    "wrong": []
+   },
+   {
+    "task": "Cap `report-worker.service` at **2G** of memory at runtime (persisted drop-in, no manual unit edits).",
+    "accept": [
+     "^systemctl set-property (--runtime )?report-worker(\\.service)? MemoryMax=(2G|2048M|2147483648)$"
+    ],
+    "solution": "systemctl set-property report-worker.service MemoryMax=2G",
+    "tool": "systemctl set-property",
+    "hint": "`systemctl set-property <unit> MemoryMax=...` writes a drop-in and applies it to the live cgroup.",
+    "wrong": [
+     {
+      "match": "MemoryLimit=",
+      "output": "# MemoryLimit= is the deprecated cgroup-v1 name — use MemoryMax= on cgroup v2"
+     }
+    ],
+    "output": ""
+   },
+   {
+    "task": "Verify the limit is active.",
+    "accept": [
+     "^systemctl show report-worker(\\.service)? .*(-p|--property)[ =]?MemoryMax",
+     "^systemctl show report-worker(\\.service)? \\| ?grep MemoryMax"
+    ],
+    "solution": "systemctl show report-worker -p MemoryMax",
+    "output": "MemoryMax=2147483648",
+    "wrong": []
+   }
+  ],
+  "explanation": "The batch job triggered the OOM, but the kernel picked nginx. cgroup v2 `MemoryMax` makes the worker OOM inside its own cgroup instead, and `MemoryHigh` throttles it before that. Better still: give critical daemons `OOMScoreAdjust=-500`, or isolate batch work on separate nodes.",
+  "level": "expert",
+  "explore": []
+ },
+ {
+  "id": "x-term-git-001",
+  "category": "Security",
+  "type": "terminal",
+  "title": "Incident: a secret got merged to main",
+  "host": "you@laptop",
+  "prompt": "you@laptop:~/api$",
+  "scenario": "PR #482 (merge commit `c0ffee1`) added `config/prod.env` with a live Stripe key, and it's on `main`. Undo the merge safely on a shared branch, then decide what else is required.",
+  "explore": [
+   {
+    "match": "^git show --stat c0ffee1",
+    "output": "commit c0ffee1 (Merge: 8a1d2e0 41bc9f7)\n    Merge pull request #482 from acme/feat/billing\n config/prod.env          |  3 +++\n src/billing/client.ts    | 41 +++++++++++++++++++++++++\n"
+   }
+  ],
+  "steps": [
+   {
+    "task": "Show the last 3 merge commits on main in one-line form.",
+    "accept": [
+     "^(?=.*?(?:^git log))(?=.*?(?:--merges))(?=.*?(?:(--oneline|--pretty)))"
+    ],
+    "solution": "git log --merges --oneline -3",
+    "output": "c0ffee1 Merge pull request #482 from acme/feat/billing\n7d2a9b3 Merge pull request #479 from acme/fix/retries\n1e4f0aa Merge pull request #475 from acme/chore/deps\n",
+    "wrong": []
+   },
+   {
+    "task": "Revert merge commit `c0ffee1`, keeping main's side (the first parent).",
+    "accept": [
+     "^git revert (-m ?1|--mainline[ =]1) (--no-edit )?c0ffee1( --no-edit)?$",
+     "^git revert c0ffee1 (-m ?1|--mainline[ =]1)( --no-edit)?$"
+    ],
+    "solution": "git revert -m 1 c0ffee1",
+    "tool": "git revert",
+    "hint": "Merge commits have two parents — tell revert which one is the mainline.",
+    "wrong": [
+     {
+      "match": "^git revert c0ffee1$",
+      "output": "error: commit c0ffee1 is a merge but no -m option was given.\nfatal: revert failed"
+     }
+    ],
+    "output": "[main 3fa91c2] Revert \"Merge pull request #482 from acme/feat/billing\"\n 2 files changed, 44 deletions(-)\n"
+   },
+   {
+    "task": "The file is gone from main. What else is **mandatory**? Type `answer A`, `answer B` or `answer C` — A) nothing, the revert removed it · B) rotate/revoke the Stripe key now; it's still in Git history and any clone/fork · C) delete and recreate the repository",
+    "accept": [
+     "^answer [Bb]\\)?$"
+    ],
+    "solution": "answer B",
+    "tool": "answer",
+    "output": "Correct — revoke in Stripe, review its usage logs, then (optionally) purge history with git filter-repo + force-push and ask GitHub to purge cached views.",
+    "wrong": []
+   }
+  ],
+  "explanation": "`git revert -m 1` undoes a merge without rewriting shared history. A revert does **not** un-leak a credential, though — the value lives on in history, forks and CI caches. Revoking it is the only real fix. Prevent repeats with push protection, a gitleaks pre-commit hook, and secrets loaded from a manager at runtime.",
+  "level": "expert"
+ },
+ {
+  "id": "x-term-k8s-002",
+  "category": "Kubernetes",
+  "type": "terminal",
+  "title": "Incident: TLS cert won't renew",
+  "host": "oncall@eks-prod",
+  "prompt": "oncall@eks-prod:~$",
+  "scenario": "Synthetic checks warn: `api.acme.io` certificate expires in 2 days. cert-manager should have renewed it 28 days ago. The team migrated from ingress-nginx to the AWS Load Balancer Controller last month.",
+  "explore": [
+   {
+    "match": "^(?=.*?(?:^kubectl get (ingress|ing)))(?=.*?(?:shop))",
+    "output": "NAME   CLASS   HOSTS         ADDRESS                                        PORTS     AGE\napi    alb     api.acme.io   k8s-shop-api-1a2b3c.eu-central-1.elb.amazonaws.com   80, 443   210d\n"
+   },
+   {
+    "match": "^(?=.*?(?:^kubectl get clusterissuers?))",
+    "output": "NAME               READY   AGE\nletsencrypt-prod   True    400d\n"
+   }
+  ],
+  "steps": [
+   {
+    "task": "List Certificates in all namespaces and spot the one that isn't Ready.",
+    "accept": [
+     "^(?=.*?(?:^kubectl get (certificates?|certs?|certificates\\.cert-manager\\.io)))(?=.*?(?:(-A|--all-namespaces)))"
+    ],
+    "solution": "kubectl get certificates -A",
+    "output": "NAMESPACE  NAME       READY   SECRET     AGE\nshop       api-tls    False   api-tls    210d\ninternal   grafana    True    grafana    90d\n",
+    "wrong": []
+   },
+   {
+    "task": "List ACME challenges in namespace `shop`.",
+    "accept": [
+     "^(?=.*?(?:^kubectl get (challenges?|challenges\\.acme\\.cert-manager\\.io)))(?=.*?(?:(-n|--namespace)[ =]?shop))"
+    ],
+    "solution": "kubectl get challenges -n shop",
+    "output": "NAME                          STATE     DOMAIN        AGE\napi-tls-1-2981837726-0        pending   api.acme.io   28d\n",
+    "wrong": []
+   },
+   {
+    "task": "Describe that challenge to see why it's stuck.",
+    "accept": [
+     "^(?=.*?(?:^kubectl describe (challenges?|challenges\\.acme\\.cert-manager\\.io)))(?=.*?(?:api-tls-1-2981837726-0))(?=.*?(?:(-n|--namespace)[ =]?shop))"
+    ],
+    "solution": "kubectl describe challenge api-tls-1-2981837726-0 -n shop",
+    "tool": "kubectl describe",
+    "output": "Spec:\n  Solver:\n    http01:\n      Ingress:\n        Ingress Class Name:  nginx\nStatus:\n  Presented:  true\n  Reason:     Waiting for HTTP-01 challenge propagation: wrong status code '404', expected '200'\n  State:      pending\n",
+    "wrong": []
+   },
+   {
+    "task": "Root cause? Type `answer A|B|C` — A) Let's Encrypt rate limit · B) the ClusterIssuer's HTTP-01 solver still uses `ingressClassName: nginx`, but traffic now enters via the `alb` class, so the challenge path is never routed · C) the DNS record for api.acme.io is wrong",
+    "accept": [
+     "^answer [Bb]\\)?$"
+    ],
+    "solution": "answer B",
+    "tool": "answer",
+    "output": "Correct — update the solver (ingressClassName: alb, or switch to DNS-01 with Route 53), then delete the stuck challenge/order so cert-manager retries.",
+    "wrong": []
+   }
+  ],
+  "explanation": "The solver created a temporary Ingress with class `nginx`, which nobody serves any more, so Let's Encrypt gets a 404. A DNS-01 solver (Route 53 + IRSA or Pod Identity) avoids depending on ingress routing at all. Alert on `certmanager_certificate_expiration_timestamp_seconds` well before 30 days.",
+  "level": "expert"
+ },
+ {
+  "id": "x-net-001",
+  "category": "Networking",
+  "type": "mcq",
+  "title": "NAT Gateway drops under load",
+  "scenario": "During peak, Pods calling one partner API (single IP) get sporadic `connection reset`/timeouts. CloudWatch shows `ErrorPortAllocation > 0` on the NAT Gateway.",
+  "question": "What's the most accurate explanation and fix?",
+  "options": [
+   "NAT GW supports ~55,000 simultaneous connections per unique destination (IP+port+protocol) per NAT IP — add secondary EIPs to the NAT GW and use keep-alive/connection pooling",
+   "The NAT Gateway is out of bandwidth; upgrade to a larger instance type",
+   "Security group connection tracking is full; switch to NACLs",
+   "DNS throttling on Route 53 Resolver"
+  ],
+  "answer": 0,
+  "explanation": "Port exhaustion toward one destination is the classic case. Each NAT IP gives ~55k concurrent connections per destination, and a NAT gateway can have multiple (secondary) IPs. Pool HTTP connections — new TLS connections per request burn ports and CPU.",
+  "level": "expert"
+ },
+ {
+  "id": "x-k8s-001",
+  "category": "Kubernetes",
+  "type": "multi",
+  "title": "DNS latency with ndots:5",
+  "scenario": "A service calls `api.stripe.com` thousands of times per second. CoreDNS CPU is high and many lookups take 5s.",
+  "question": "Which statements are TRUE? (select all)",
+  "options": [
+   "With the default `ndots:5`, `api.stripe.com` (2 dots) is first tried with every search domain (`.ns.svc.cluster.local`, `.svc.cluster.local`, …) → several NXDOMAIN round-trips per lookup",
+   "Using a trailing dot (`api.stripe.com.`) or `dnsConfig.options: ndots: 2` avoids the search-path expansion",
+   "NodeLocal DNSCache reduces CoreDNS load and conntrack race issues for UDP DNS",
+   "Raising CPU limits on the application Pod fixes it"
+  ],
+  "answer": [
+   0,
+   1,
+   2
+  ],
+  "explanation": "ndots:5 turns one external lookup into several, and the 5s delays are typical of a conntrack UDP race or dropped packets with A+AAAA queries in parallel. Trailing dots, lower ndots, NodeLocal DNSCache and client-side caching all help. App CPU limits are unrelated.",
+  "level": "expert"
+ },
+ {
+  "id": "x-k8s-002",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "title": "etcd quorum",
+  "question": "A self-managed control plane runs a **4-member** etcd cluster. How many members can fail while it keeps quorum, and is 4 better than 3?",
+  "options": [
+   "1 — same tolerance as 3 members, with more write latency; use odd sizes (3 or 5)",
+   "2 — quorum is 50%",
+   "3 — any one member can serve",
+   "0 — even-sized clusters never reach quorum"
+  ],
+  "answer": 0,
+  "explanation": "Quorum = ⌊n/2⌋+1. For n=4 that's 3, so you tolerate 1 failure — exactly like n=3, but with an extra vote to wait for on every write. 5 members tolerate 2.",
+  "level": "expert"
+ },
+ {
+  "id": "x-k8s-003",
+  "category": "Kubernetes",
+  "type": "multi",
+  "title": "Karpenter keeps killing my batch jobs",
+  "scenario": "Long-running (2h) report Jobs get interrupted when Karpenter consolidates under-utilised nodes.",
+  "question": "Which are valid ways to protect them? (select all)",
+  "options": [
+   "Annotate the Pods with `karpenter.sh/do-not-disrupt: \"true\"`",
+   "Use a dedicated NodePool for batch with `consolidationPolicy: WhenEmpty` and/or disruption `budgets`",
+   "Make the Jobs checkpoint and be idempotent so interruptions (including Spot reclaims) are survivable",
+   "Set `terminationGracePeriodSeconds: 0` so Pods stop faster"
+  ],
+  "answer": [
+   0,
+   1,
+   2
+  ],
+  "explanation": "do-not-disrupt blocks voluntary disruption of nodes running those Pods. A separate pool with gentler consolidation and budgets limits churn, and checkpointing covers involuntary events such as Spot interruptions. A zero grace period only makes things worse.",
+  "level": "expert"
+ },
+ {
+  "id": "x-fill-k8s-001",
+  "category": "Kubernetes",
+  "type": "fill",
+  "title": "Karpenter v1 NodePool",
+  "scenario": "Allow Spot **and** On-Demand capacity and consolidate empty or under-utilised nodes after 1 minute, using the `default` EC2NodeClass.",
+  "lang": "yaml",
+  "template": "apiVersion: {{api}}\nkind: NodePool\nmetadata:\n  name: general\nspec:\n  template:\n    spec:\n      nodeClassRef:\n        group: karpenter.k8s.aws\n        kind: {{nck}}\n        name: default\n      requirements:\n        - key: {{key}}\n          operator: In\n          values: [\"spot\", \"on-demand\"]\n        - key: kubernetes.io/arch\n          operator: In\n          values: [\"amd64\", \"arm64\"]\n  disruption:\n    consolidationPolicy: {{policy}}\n    consolidateAfter: 1m\n  limits:\n    cpu: \"200\"\n",
+  "blanks": {
+   "api": {
+    "accept": [
+     "^karpenter\\.sh/v1$"
+    ],
+    "solution": "karpenter.sh/v1",
+    "width": 16
+   },
+   "nck": {
+    "accept": [
+     "^EC2NodeClass$"
+    ],
+    "solution": "EC2NodeClass",
+    "width": 13
+   },
+   "key": {
+    "accept": [
+     "^karpenter\\.sh/capacity-type$"
+    ],
+    "solution": "karpenter.sh/capacity-type",
+    "width": 27
+   },
+   "policy": {
+    "accept": [
+     "^WhenEmptyOrUnderutilized$"
+    ],
+    "solution": "WhenEmptyOrUnderutilized",
+    "width": 25
+   }
+  },
+  "explanation": "Karpenter v1 (`karpenter.sh/v1`) uses `nodeClassRef` with group, kind and name. The capacity-type key selects Spot or On-Demand (Karpenter favours Spot when both are allowed), and `WhenEmptyOrUnderutilized` replaced v1beta1's `WhenUnderutilized`. Mixing arm64 and amd64 needs multi-arch images.",
+  "level": "expert"
+ },
+ {
+  "id": "x-spot-aws-001",
+  "category": "AWS",
+  "type": "spot",
+  "title": "IRSA: AccessDenied on AssumeRoleWithWebIdentity",
+  "scenario": "Pod `api` uses ServiceAccount `api` in namespace **payments**. Its AWS SDK fails with `Not authorized to perform sts:AssumeRoleWithWebIdentity`. Which line is wrong?",
+  "lang": "json",
+  "code": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [{\n    \"Effect\": \"Allow\",\n    \"Principal\": {\n      \"Federated\": \"arn:aws:iam::111122223333:oidc-provider/oidc.eks.eu-central-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE\"\n    },\n    \"Action\": \"sts:AssumeRoleWithWebIdentity\",\n    \"Condition\": {\n      \"StringEquals\": {\n        \"oidc.eks.eu-central-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:aud\": \"sts.amazonaws.com\",\n        \"oidc.eks.eu-central-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:sub\": \"system:serviceaccount:payment:api\"\n      }\n    }\n  }]\n}\n",
+  "answer": [
+   12
+  ],
+  "explanation": "The `sub` must be exactly `system:serviceaccount:<namespace>:<sa>`, and the namespace is `payments`, not `payment`. EKS Pod Identity avoids hand-written trust conditions entirely: its trust principal is `pods.eks.amazonaws.com`, with associations managed by the EKS API.",
+  "level": "expert"
+ },
+ {
+  "id": "x-order-aws-001",
+  "category": "AWS",
+  "type": "order",
+  "title": "Postgres major upgrade with minimal downtime",
+  "question": "Order the steps for a PostgreSQL 15 → 17 upgrade on RDS using Blue/Green Deployments.",
+  "items": [
+   "Check extension/parameter-group compatibility and take a manual snapshot",
+   "Create a Blue/Green deployment with the green environment on PostgreSQL 17 (new parameter group)",
+   "Wait for replication to catch up; run read-only validation and performance tests against green",
+   "Switch over (writes pause briefly; endpoints are renamed to green)",
+   "Monitor, keep blue for a rollback window, then delete the old blue environment"
+  ],
+  "explanation": "Blue/Green keeps green in sync through logical replication. The switchover renames endpoints, so apps keep their DNS names, and it typically takes under a minute. Test against green before switching, and keep blue until you're confident.",
+  "level": "expert"
+ },
+ {
+  "id": "x-sec-001",
+  "category": "Security",
+  "type": "multi",
+  "title": "Supply-chain gate for prod",
+  "scenario": "Design an admission gate so only artifacts built by your pipeline can run in the `prod` cluster.",
+  "question": "Which controls together achieve that? (select all)",
+  "options": [
+   "Sign images keylessly with cosign in CI (OIDC identity of the workflow)",
+   "Admission policy (Kyverno verifyImages / Sigstore policy-controller) that verifies the signature **and** the expected signer identity/issuer",
+   "Require images by digest and attach SLSA provenance/SBOM attestations, verified at admission",
+   "Allow `:latest` tags so rollouts pick up fixes automatically"
+  ],
+  "answer": [
+   0,
+   1,
+   2
+  ],
+  "explanation": "A signature alone isn't enough — you also verify *who* signed (e.g. `https://github.com/acme/app/.github/workflows/release.yml@refs/heads/main`). Digests bind the policy to the exact bytes, and attestations prove how the image was built. Mutable tags defeat all of it.",
+  "level": "expert"
+ },
+ {
+  "id": "x-aiops-001",
+  "category": "AI/MLOps",
+  "type": "multi",
+  "title": "Self-hosted AI SRE agent on EKS",
+  "scenario": "You deploy an LLM-powered SRE agent in the cluster. It reads Prometheus/Loki and can run read-only kubectl to investigate payment failures.",
+  "question": "Which design choices are sound? (select all)",
+  "options": [
+   "Bind its ServiceAccount to a read-only ClusterRole that excludes `secrets` (no `get/list secrets`)",
+   "Treat log lines and alert annotations as untrusted input — never let them expand the agent's tool permissions",
+   "Log every tool call (command, args, result size) for audit, and require human approval for any mutating action",
+   "Give it cluster-admin so investigations are never blocked"
+  ],
+  "answer": [
+   0,
+   1,
+   2
+  ],
+  "explanation": "Logs can contain attacker-controlled strings (prompt injection through user agents, headers or error messages). Least-privilege RBAC without Secrets, a full audit trail, and human-in-the-loop for writes keep an AI agent from becoming a new privileged attack path.",
+  "level": "expert"
+ },
+ {
+  "id": "x-term-tf-001",
+  "category": "Terraform",
+  "type": "terminal",
+  "title": "Incident: refactor wants to destroy the audit bucket",
+  "host": "ci@runner",
+  "prompt": "ci@runner:~/infra/prod$",
+  "scenario": "A teammate moved `aws_s3_bucket.logs` into a new `module \"logging\"` (resource `aws_s3_bucket.this`). The PR's plan wants to destroy and recreate the bucket holding 3 years of PCI audit logs. Fix the state so the plan is clean — **without** destroying anything.",
+  "explore": [
+   {
+    "match": "^cat (main|logging)\\.tf",
+    "output": "module \"logging\" {\n  source      = \"./modules/logging\"\n  bucket_name = \"acme-audit-logs-prod\"\n}\n"
+   }
+  ],
+  "steps": [
+   {
+    "task": "Run the plan and read it carefully.",
+    "accept": [
+     "^terraform plan\\b"
+    ],
+    "solution": "terraform plan",
+    "output": "# aws_s3_bucket.logs will be destroyed\n# (because aws_s3_bucket.logs is not in configuration)\n- resource \"aws_s3_bucket\" \"logs\" { bucket = \"acme-audit-logs-prod\" }\n# module.logging.aws_s3_bucket.this will be created\n+ resource \"aws_s3_bucket\" \"this\" { bucket = \"acme-audit-logs-prod\" }\nPlan: 1 to add, 0 to change, 1 to destroy.\n",
+    "wrong": []
+   },
+   {
+    "task": "List the addresses currently in state.",
+    "accept": [
+     "^terraform state list\\b"
+    ],
+    "solution": "terraform state list",
+    "output": "aws_iam_role.app\naws_s3_bucket.logs\naws_s3_bucket_versioning.logs\n",
+    "wrong": []
+   },
+   {
+    "task": "Move the bucket's state entry to its new address (CLI).",
+    "accept": [
+     "^terraform state mv '?aws_s3_bucket\\.logs'? '?module\\.logging\\.aws_s3_bucket\\.this'?$"
+    ],
+    "solution": "terraform state mv aws_s3_bucket.logs module.logging.aws_s3_bucket.this",
+    "tool": [
+     "terraform state",
+     "terraform apply",
+     "terraform import"
+    ],
+    "hint": "`terraform state mv <old address> <new address>`",
+    "wrong": [
+     {
+      "match": "^terraform apply",
+      "output": "# that would DESTROY the audit bucket (and fail anyway: BucketNotEmpty) — never apply a plan with an unexpected destroy"
+     },
+     {
+      "match": "^terraform import",
+      "output": "Error: Resource already managed by Terraform — aws_s3_bucket.logs still owns it in state"
+     }
+    ],
+    "output": "Move \"aws_s3_bucket.logs\" to \"module.logging.aws_s3_bucket.this\"\nSuccessfully moved 1 object(s).\n"
+   },
+   {
+    "task": "The versioning resource moved too (`module.logging.aws_s3_bucket_versioning.this`). Move it as well.",
+    "accept": [
+     "^terraform state mv '?aws_s3_bucket_versioning\\.logs'? '?module\\.logging\\.aws_s3_bucket_versioning\\.this'?$"
+    ],
+    "solution": "terraform state mv aws_s3_bucket_versioning.logs module.logging.aws_s3_bucket_versioning.this",
+    "tool": [
+     "terraform state",
+     "terraform apply"
+    ],
+    "output": "Move \"aws_s3_bucket_versioning.logs\" to \"module.logging.aws_s3_bucket_versioning.this\"\nSuccessfully moved 1 object(s).\n",
+    "wrong": []
+   },
+   {
+    "task": "Prove the plan is clean.",
+    "accept": [
+     "^terraform plan\\b"
+    ],
+    "solution": "terraform plan",
+    "output": "No changes. Your infrastructure matches the configuration.",
+    "wrong": []
+   },
+   {
+    "task": "For staging and dev, which approach is better? Type `answer A|B|C` — A) run the same `state mv` by hand in each environment · B) commit `moved { from = aws_s3_bucket.logs  to = module.logging.aws_s3_bucket.this }` blocks so every workspace migrates on its next plan/apply, reviewed in the PR · C) `terraform taint` the bucket",
+    "accept": [
+     "^answer [Bb]$"
+    ],
+    "solution": "answer B",
+    "tool": "answer",
+    "output": "Correct — moved blocks are declarative, reviewable and idempotent. Also add lifecycle { prevent_destroy = true } to the audit bucket.",
+    "wrong": []
+   }
+  ],
+  "explanation": "When you refactor addresses, Terraform sees a delete plus an add. `state mv` fixes one state by hand, while `moved` blocks (Terraform ≥1.1) fix every state through code review. On critical data stores, `prevent_destroy` turns this whole class of mistake into a plan error.",
+  "level": "expert"
+ },
+ {
+  "id": "x-term-bash-001",
+  "category": "Bash",
+  "type": "terminal",
+  "title": "Incident: deploy.sh wiped /opt on staging",
+  "host": "oncall@stg-app-02",
+  "prompt": "oncall@stg-app-02:~/deploy$",
+  "scenario": "Last night's CI deploy ran `deploy.sh` on staging and every directory under `/opt` vanished, not just the app's. The script \"worked fine for months\". Find out why and pick the guardrail.",
+  "explore": [
+   {
+    "match": "^cat deploy\\.sh",
+    "output": "#!/usr/bin/env bash\nAPP=${1:-payments}\nTARGET=$BASE_DIR/$APP\ncd $TARGET/.. \nrm -rf $TARGET/*\ntar -xzf \"/tmp/$APP.tgz\" -C \"$TARGET\"\n"
+   },
+   {
+    "match": "^env\\b|^printenv\\b",
+    "output": "CI=true\nAPP_ENV=staging\n"
+   }
+  ],
+  "steps": [
+   {
+    "task": "Lint the script with ShellCheck.",
+    "accept": [
+     "^shellcheck( -\\S+)* deploy\\.sh$"
+    ],
+    "solution": "shellcheck deploy.sh",
+    "output": "In deploy.sh line 3:\nTARGET=$BASE_DIR/$APP\n       ^-------^ SC2154 (warning): BASE_DIR is referenced but not assigned.\n\nIn deploy.sh line 4:\ncd $TARGET/..\n^-----------^ SC2164 (warning): Use 'cd ... || exit' in case cd fails.\n\nIn deploy.sh line 5:\nrm -rf $TARGET/*\n       ^------^ SC2115 (warning): Use \"${var:?}\" to ensure this never expands to /* .\n",
+    "wrong": []
+   },
+   {
+    "task": "Trace a run with `BASE_DIR` unset (as in CI) to see what `rm` really received. (The trace is safe here — this lab's shell is a sandbox.)",
+    "accept": [
+     "^(?=.*?(?:^(env -u BASE_DIR )?bash -\\w*x\\w*( -\\w+)* deploy\\.sh))"
+    ],
+    "solution": "bash -x deploy.sh opt",
+    "tool": [
+     "bash",
+     "sh"
+    ],
+    "hint": "`bash -x script args` prints every command after expansion.",
+    "output": "+ APP=opt\n+ TARGET=/opt\n+ cd /opt/..\n+ rm -rf /opt/adot /opt/aws /opt/payments /opt/containerd /opt/jumpserver\n",
+    "wrong": []
+   },
+   {
+    "task": "Root cause? Type `answer A|B|C` — A) `BASE_DIR` was never exported in the new CI job, so `$BASE_DIR/$APP` collapsed to `/$APP`, and the job passed `opt` · B) a ShellCheck bug · C) `rm` is aliased to `rm -rf /`",
+    "accept": [
+     "^answer [Aa]$"
+    ],
+    "solution": "answer A",
+    "tool": "answer",
+    "output": "Correct — an unset variable silently expanded to an empty string.",
+    "wrong": []
+   },
+   {
+    "task": "Which one line at the top makes the script **fail fast** on unset variables and errors? Type `answer A|B|C` — A) `set -euo pipefail` · B) `set -x` · C) `ulimit -n 4096`",
+    "accept": [
+     "^answer [Aa]$"
+    ],
+    "solution": "answer A",
+    "tool": "answer",
+    "output": "Correct — with set -u, line 3 dies with 'BASE_DIR: unbound variable' before rm runs. Also use \"${TARGET:?}\" and quote every expansion.",
+    "wrong": []
+   }
+  ],
+  "explanation": "Unquoted, unset variables plus `rm -rf` is how a script 'that worked for months' deletes a server. Use `set -euo pipefail`, `${VAR:?}` on anything destructive, `cd ... || exit`, quote every expansion, and run ShellCheck in CI — it flagged all three bugs before anything ran.",
+  "level": "expert"
+ }
+]

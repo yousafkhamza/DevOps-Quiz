@@ -1,0 +1,350 @@
+# Git and CI/CD — day-to-day version control and pipelines.
+level: easy
+questions:
+
+# ---------------- Git ----------------
+- id: git-e-101
+  category: Git
+  type: mcq
+  question: "Which command shows what changed in files you haven't staged yet?"
+  options: ["git diff", "git diff --staged", "git log -p", "git show"]
+  answer: 0
+  explanation: "`git diff` compares the working tree with the index. `--staged` (or `--cached`) compares the index with HEAD — what your next commit will contain."
+
+- id: git-e-102
+  category: Git
+  type: mcq
+  question: "Which command applies one specific commit from another branch onto yours?"
+  options: ["git cherry-pick <sha>", "git merge <sha> --one", "git rebase --pick <sha>", "git apply <sha>"]
+  answer: 0
+  explanation: "Cherry-pick copies a commit's changes as a new commit, which is common for backporting hotfixes to release branches. Use `-x` to record the original SHA in the message."
+
+- id: git-e-103
+  category: Git
+  type: mcq
+  question: "Which push is safer than `--force` when you must rewrite a branch you pushed?"
+  options: ["git push --force-with-lease", "git push --all", "git push --mirror", "git push -u"]
+  answer: 0
+  explanation: "`--force-with-lease` refuses to overwrite remote commits you haven't seen, so you don't wipe a teammate's push."
+
+- id: git-e-104
+  category: Git
+  type: mcq
+  question: "Which command finds the commit that introduced a bug by binary search?"
+  options: ["git bisect", "git blame", "git grep", "git reflog"]
+  answer: 0
+  explanation: "`git bisect start`, mark `good` and `bad`, and Git halves the range each step. `git bisect run ./test.sh` automates it."
+
+- id: git-e-105
+  category: Git
+  type: mcq
+  question: "Which command shows who last changed each line of a file?"
+  options: ["git blame file", "git log --who file", "git show file", "git annotate --all"]
+  answer: 0
+  explanation: "`git blame -w -C` ignores whitespace changes and follows moved lines. It's for context, not for blaming people."
+
+- id: git-e-106
+  category: Git
+  type: mcq
+  question: "What does a `.gitignore` entry do for a file that is already tracked?"
+  options: ["Nothing — you must `git rm --cached file` to stop tracking it", "Deletes it from history", "Stops tracking it automatically", "Encrypts it"]
+  answer: 0
+  explanation: "`.gitignore` only affects untracked files. If it's a leaked secret, also rotate it — removing it from the index doesn't remove it from history."
+
+- id: git-e-107
+  category: Git
+  type: mcq
+  question: "Which branching model keeps one main branch with short-lived feature branches merged frequently?"
+  options: ["Trunk-based development", "Git Flow with long-lived develop/release branches", "Fork-per-developer forever", "Branch per environment"]
+  answer: 0
+  explanation: "Trunk-based development, with feature flags for unfinished work, keeps merges small and CI meaningful. It's what high-performing teams in the DORA research tend to use."
+
+- id: git-e-108
+  category: Git
+  type: mcq
+  question: "Which file auto-assigns reviewers for paths like `/terraform/` on GitHub?"
+  options: ["CODEOWNERS", ".github/reviewers.yml", "OWNERS.md", "MAINTAINERS"]
+  answer: 0
+  explanation: "Combined with branch protection that requires code-owner review, CODEOWNERS ensures the platform team approves infra changes."
+
+- id: git-e-109
+  category: Git
+  type: mcq
+  question: "Which tool runs checks like formatting and secret scanning before each commit?"
+  options: ["pre-commit (git hooks)", "git stash", "git notes", "git worktree"]
+  answer: 0
+  explanation: "The `pre-commit` framework manages hooks: gitleaks, terraform fmt, shellcheck, ruff. Hooks are bypassable (`--no-verify`), so CI must run the same checks."
+
+- id: git-e-110
+  category: Git
+  type: mcq
+  question: "Which command lets you work on two branches at once in separate directories without cloning twice?"
+  options: ["git worktree add ../hotfix hotfix/1.2", "git clone --branch", "git switch --both", "git stash branch"]
+  answer: 0
+  explanation: "Worktrees share one object store, which makes reviewing a PR or building a hotfix possible without stashing your current work."
+
+- id: git-m-101
+  level: medium
+  category: Git
+  type: mcq
+  title: "Merge conflict in a lockfile"
+  scenario: "Rebasing your branch on main gives a conflict in `package-lock.json` (thousands of lines)."
+  question: "What's the sane resolution?"
+  options:
+    - "Take main's version, re-run `npm install` to regenerate the lockfile with your changes, then `git add` and continue"
+    - "Hand-merge the JSON line by line"
+    - "Delete the lockfile and commit"
+    - "Abort and never rebase"
+  answer: 0
+  explanation: "Generated files should be regenerated, not hand-merged. `git checkout --theirs` or `--ours` picks a side quickly — and during a rebase, the sides are swapped from what you'd expect."
+
+- id: git-m-102
+  level: medium
+  category: Git
+  type: mcq
+  title: "Huge repo, slow CI clones"
+  scenario: "CI clones a 6 GB monorepo with full history on every job, taking 4 minutes."
+  question: "Best fix for CI?"
+  options:
+    - "Shallow and/or partial clones (`fetch-depth: 1`, `--filter=blob:none`), sparse checkout of needed paths, and runner caching"
+    - "Delete history from the repo"
+    - "Split every file into its own repo"
+    - "Zip the repo nightly"
+  answer: 0
+  explanation: "Most jobs don't need history. Fetch more depth only where you need it, e.g. for `git describe` or changed-files detection. Large binaries belong in Git LFS or an artifact store."
+
+- id: git-m-103
+  level: medium
+  category: Git
+  type: mcq
+  title: "Unverified commits"
+  scenario: "Compliance wants proof that commits on main really came from your engineers."
+  question: "What do you enable?"
+  options:
+    - "Commit signing (SSH or GPG keys, or Sigstore gitsign) plus a branch rule requiring signed commits"
+    - "A longer commit message template"
+    - "Disabling force pushes only"
+    - "Renaming the default branch"
+  answer: 0
+  explanation: "Anyone can set `user.email` to anything. Signatures prove which key made the commit. Pair this with required reviews and no direct pushes to main."
+
+- id: git-m-104
+  level: medium
+  category: Git
+  type: mcq
+  title: "Undo a pushed merge"
+  scenario: "A merge commit `a1b2c3d` on main broke production. Others have pulled main since."
+  question: "What's the right command?"
+  options: ["git revert -m 1 a1b2c3d", "git reset --hard a1b2c3d~1 && git push -f", "git revert a1b2c3d", "git checkout a1b2c3d~1"]
+  answer: 0
+  explanation: "Reverting a merge needs `-m 1` to keep main's side. Note: re-merging the same branch later won't re-apply those changes — you'd revert the revert."
+
+- id: git-m-105
+  level: medium
+  category: Git
+  type: mcq
+  title: "Messy history before review"
+  scenario: "Your branch has 14 commits like 'wip', 'fix typo', 'fix again'. Reviewers want 2 meaningful commits."
+  question: "How do you clean it up before opening the PR?"
+  options:
+    - "Interactive rebase (`git rebase -i main`) to squash/fixup and reword, then `push --force-with-lease`"
+    - "Merge main into it repeatedly"
+    - "Create a new repo"
+    - "git stash pop"
+  answer: 0
+  explanation: "Use `fixup!` commits with `git commit --fixup` and `rebase -i --autosquash` to keep this painless. Only rewrite branches nobody else builds on."
+
+- id: git-m-106
+  level: medium
+  category: Git
+  type: multi
+  title: "Protect main"
+  question: "Which branch protection settings belong on a production repo's main branch? (select all)"
+  options:
+    - "Require pull requests with at least one approval (and code-owner review)"
+    - "Require status checks (CI) to pass before merging"
+    - "Block force pushes and deletions"
+    - "Allow everyone to bypass rules to move fast"
+  answer: [0, 1, 2]
+  explanation: "These are standard SOC 2 and PCI change-management controls. GitHub rulesets let you apply them across all repos in an org."
+
+- id: git-h-101
+  level: hard
+  category: Git
+  type: order
+  title: "Hotfix with trunk-based releases"
+  question: "Production runs tag `v3.4.0` from branch `release/3.4`. Order a safe hotfix."
+  items:
+    - "Fix the bug on main with a test, and merge the PR"
+    - "Cherry-pick the fix onto `release/3.4` (`git cherry-pick -x <sha>`)"
+    - "CI builds and tests the release branch"
+    - "Tag `v3.4.1` and deploy it"
+    - "Confirm the fix in production and close the incident"
+  explanation: "Fix on trunk first so the bug can't come back in the next release, then backport. `-x` records where the commit came from."
+
+- id: git-e-111
+  category: Git
+  type: mcq
+  question: "What does `git fetch --prune` remove?"
+  options: ["Local remote-tracking refs for branches deleted on the remote", "Your local branches", "Untracked files", "Old commits"]
+  answer: 0
+  explanation: "It cleans up stale `origin/*` refs. Set `git config --global fetch.prune true` to do it on every fetch."
+
+# ---------------- CI/CD ----------------
+- id: ci-e-101
+  category: CI/CD
+  type: mcq
+  question: "What's the difference between a CI cache and an artifact?"
+  options: ["Cache speeds up future runs (dependencies); artifacts are outputs passed between jobs or kept (builds, reports)", "They are the same", "Artifacts are always public", "Caches are permanent releases"]
+  answer: 0
+  explanation: "Key caches on the lockfile hash. Never use a cache as the delivery mechanism for a release — build once and promote the artifact."
+
+- id: ci-e-102
+  category: CI/CD
+  type: mcq
+  question: "In GitHub Actions, what does a `matrix` strategy do?"
+  options: ["Runs the same job across combinations (versions, OSes) in parallel", "Encrypts secrets", "Retries failed steps", "Deploys to Kubernetes"]
+  answer: 0
+  explanation: "For example, test Python 3.11, 3.12 and 3.13 on Ubuntu and Windows. Use `fail-fast: false` to see every failing combination."
+
+- id: ci-e-103
+  category: CI/CD
+  type: mcq
+  question: "What is the purpose of GitHub Actions 'environments' with required reviewers?"
+  options: ["Gate deployments (e.g. prod) behind manual approval and scope environment-specific secrets", "Choose the runner OS", "Set Node.js version", "Enable caching"]
+  answer: 0
+  explanation: "Environment secrets are only exposed to jobs targeting that environment, after approval. Combine this with OIDC trust conditions on `environment:prod`."
+
+- id: ci-e-104
+  category: CI/CD
+  type: mcq
+  question: "Which DORA metric measures how long it takes from commit to running in production?"
+  options: ["Lead time for changes", "Deployment frequency", "Change failure rate", "Mean time to restore"]
+  answer: 0
+  explanation: "The four keys are lead time, deployment frequency, change failure rate and time to restore. Small batches and automated pipelines improve all four."
+
+- id: ci-e-105
+  category: CI/CD
+  type: mcq
+  question: "What's 'build once, deploy many'?"
+  options: ["Build one immutable artifact and promote the same one through every environment", "Rebuild for each environment", "Only deploy once a year", "Build on the production server"]
+  answer: 0
+  explanation: "Rebuilding per environment means prod runs something you never tested. Inject environment config at deploy time instead."
+
+- id: ci-e-106
+  category: CI/CD
+  type: mcq
+  question: "Which GitHub Actions setting should limit the default `GITHUB_TOKEN`?"
+  options: ["A top-level `permissions:` block (e.g. contents: read)", "runs-on", "concurrency", "timeout-minutes"]
+  answer: 0
+  explanation: "Default to read-only at the org level and grant per job (`pull-requests: write`, `id-token: write`) only what each job needs."
+
+- id: ci-e-107
+  category: CI/CD
+  type: mcq
+  question: "What does `concurrency: { group: deploy-prod, cancel-in-progress: false }` achieve?"
+  options: ["Only one prod deploy runs at a time; later ones queue instead of overlapping", "Runs all deploys in parallel", "Cancels every deploy", "Retries deploys"]
+  answer: 0
+  explanation: "Overlapping deploys race each other. For PR builds `cancel-in-progress: true` saves minutes; for prod deploys you usually want queuing."
+
+- id: ci-e-108
+  category: CI/CD
+  type: mcq
+  question: "Which is a self-hosted runner risk on public repositories?"
+  options: ["Fork PRs can run arbitrary code on your runner and reach your network", "They are slower", "They can't run Docker", "They don't support Linux"]
+  answer: 0
+  explanation: "Never attach persistent self-hosted runners to public repos. Use ephemeral, isolated runners (Actions Runner Controller, one job per pod) with minimal network access."
+
+- id: ci-e-109
+  category: CI/CD
+  type: mcq
+  question: "What are feature flags mainly used for in CD?"
+  options: ["Separating deploy from release — ship code dark and turn it on gradually or per user", "Encrypting features", "Naming branches", "Choosing CI runners"]
+  answer: 0
+  explanation: "Flags enable trunk-based development and instant kill switches. Remove stale flags, because they become tech debt and conditional bugs."
+
+- id: ci-m-101
+  level: medium
+  category: CI/CD
+  type: mcq
+  title: "Slow pipeline"
+  scenario: "A 35-minute pipeline runs lint, unit tests, a 20-minute integration suite and an image build — all sequential, on every PR."
+  question: "Which change gives the biggest win?"
+  options:
+    - "Run independent jobs in parallel, cache dependencies and Docker layers, and run the integration suite only on affected paths or merge queue"
+    - "Buy a faster laptop"
+    - "Remove all tests"
+    - "Run everything twice for confidence"
+  answer: 0
+  explanation: "Parallelism, caching and test selection are the big three. A merge queue runs the heavy suite once per batch before merging, instead of on every push."
+
+- id: ci-m-102
+  level: medium
+  category: CI/CD
+  type: mcq
+  title: "Secret printed in logs"
+  scenario: "A step runs `echo $DB_URL | base64` for debugging. GitHub masks the raw secret, but the base64 output appears in the log."
+  question: "Why, and what's the lesson?"
+  options:
+    - "Masking only matches the exact secret string — any transformation leaks it; never print secrets, and rotate this one"
+    - "GitHub's masking is disabled on Linux"
+    - "base64 is encryption, so it's fine"
+    - "Logs are private, so no action needed"
+  answer: 0
+  explanation: "Treat any secret that reached a log as leaked: rotate it. Use `::add-mask::` for derived values, but the real fix is not echoing secrets."
+
+- id: ci-m-103
+  level: medium
+  category: CI/CD
+  type: mcq
+  title: "Flaky deploy step"
+  context:
+    - kind: log
+      title: job log
+      content: |
+        Run kubectl rollout status deploy/api -n prod
+        Waiting for deployment "api" rollout to finish: 1 of 3 updated replicas are available...
+        error: timed out waiting for the condition
+        Error: Process completed with exit code 1.
+  question: "Deploys fail like this about 1 in 5 times, then succeed on retry. What's the first thing to check?"
+  options:
+    - "Why new Pods are slow to become Ready (readiness probe timings, image pull time, resource requests vs capacity) — and set a realistic `--timeout`"
+    - "Add `|| true` to the step"
+    - "Remove the rollout status check"
+    - "Increase CI runner CPU"
+  answer: 0
+  explanation: "The pipeline is reporting a real platform signal. Look at the events (`FailedScheduling`, `ImagePull` time) and the probes. Hiding the check just moves the failure to production."
+
+- id: ci-m-104
+  level: medium
+  category: CI/CD
+  type: multi
+  title: "Supply-chain hygiene in pipelines"
+  question: "Which practices reduce CI supply-chain risk? (select all)"
+  options:
+    - "Pin third-party actions/plugins to commit SHAs and update them via Dependabot/Renovate"
+    - "Use OIDC short-lived cloud credentials instead of stored keys"
+    - "Generate SBOMs and provenance (SLSA) for release artifacts"
+    - "Use `curl | bash` installers from random URLs in every job"
+  answer: [0, 1, 2]
+  explanation: "Pinning, short-lived credentials and provenance are the core. Vendor or verify installers — check a hash or signature — instead of piping the internet into a shell."
+
+- id: ci-h-101
+  level: hard
+  category: CI/CD
+  type: fill
+  title: "Reusable workflow call"
+  scenario: "Call the org's shared deploy workflow and pass the image digest and the secrets it needs."
+  lang: yaml
+  template: |
+    jobs:
+      deploy:
+        {{key}}: acme/platform/.github/workflows/deploy.yml@v3
+        with:
+          image-digest: ${{ needs.build.outputs.digest }}
+          environment: prod
+        secrets: {{sec}}
+  blanks:
+    key: { accept: ["^uses$"], solution: uses, width: 5 }
+    sec: { accept: ["^inherit$"], solution: inherit, width: 8 }
+  explanation: "A job-level `uses:` calls a reusable workflow, and `secrets: inherit` passes the caller's secrets. Many security teams prefer listing secrets explicitly, so the shared workflow only receives what it needs."

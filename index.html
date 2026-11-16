@@ -2,270 +2,162 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-
-<!-- SEO + Mobile -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description"
- content="DevOps Quiz by Yousaf Hamza. Timed DevOps, AWS, Docker, Kubernetes and Linux MCQ quiz with professional exam experience.">
+<title>DevOps Quiz 2.0 | Yousaf Hamza</title>
+<meta name="description" content="DevOps Quiz 2.0 by Yousaf Hamza. Scenario-based and live-terminal DevOps challenges: Kubernetes, AWS, Terraform, Docker, Linux, CI/CD, GitOps and DevSecOps. Four difficulty levels with negative marking.">
+<meta name="theme-color" content="#f7f8fa">
 
-<title>DevOps Quiz | Yousaf Hamza</title>
-
-<!-- Favicon -->
-<link rel="icon" type="image/png"
- href="https://cdn.jsdelivr.net/gh/yousafkhamza/devops-mcq-assets@main/public/favicon_io/favicon.ico">
-
-<!-- Icons -->
-<link rel="stylesheet"
- href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
-
-<!-- Open Graph / Social Preview -->
-<meta property="og:title" content="DevOps Quiz by Yousaf Hamza">
-<meta property="og:description"
-      content="Practice DevOps, AWS, Docker, Kubernetes and Linux MCQs with a real exam-like experience.">
+<!-- Change these two URLs if you rename the repo -->
+<meta property="og:title" content="DevOps Quiz 2.0 — scenarios, live terminal labs & manifests">
+<meta property="og:description" content="Debug broken pods in a simulated terminal, fix manifests, spot the bug. Easy → Super Hard, with negative marking.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://devopsquiz.free.nf/">
-<meta property="og:image"
-      content="https://cdn.jsdelivr.net/gh/yousafkhamza/devops-mcq-assets@main/public/preview.png">
-
-<!-- Twitter Card -->
+<meta property="og:url" content="https://yousafkhamza.github.io/devops-mcq-assets/">
+<meta property="og:image" content="https://yousafkhamza.github.io/devops-mcq-assets/assets/img/preview.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="DevOps Quiz by Yousaf Hamza">
-<meta name="twitter:description"
-      content="Timed DevOps MCQ quiz with professional exam experience.">
-<meta name="twitter:image"
-      content="https://cdn.jsdelivr.net/gh/yousafkhamza/devops-mcq-assets@main/public/preview.png">
 
-
-<style>
-:root {
-  --primary: #2563eb;
-  --primary-dark: #1e40af;
-  --danger: #dc2626;
-  --bg: #f5f7fb;
-  --card: #ffffff;
-  --text: #1f2937;
-  --border: #e5e7eb;
-}
-
-* { box-sizing: border-box; }
-
-body {
-  margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  user-select: none;
-}
-
-.container {
-  max-width: min(880px, 92vw);
-  margin: min(4vh, 32px) auto;
-  background: var(--card);
-  padding: clamp(18px, 2.5vw, 28px);
-  border-radius: 14px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-}
-
-h1 {
-  text-align: center;
-  font-size: clamp(20px, 2.6vw, 26px);
-  margin-bottom: 4px;
-}
-
-.subtitle {
-  text-align: center;
-  font-size: clamp(13px, 1.6vw, 15px);
-  color: #555;
-  margin-bottom: 22px;
-}
-
-.section { margin-top: 16px; }
-.hidden { display: none; }
-
-/* Buttons */
-button {
-  background: var(--primary);
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  padding: 10px 18px;
-  font-size: clamp(13px, 1.4vw, 15px);
-  cursor: pointer;
-}
-
-button:hover { background: var(--primary-dark); }
-button.secondary { background: #e5e7eb; color: #111; }
-button.danger { background: var(--danger); }
-button:disabled { opacity: .5; cursor: not-allowed; }
-
-/* Quiz header */
-.quiz-header {
-  display: flex;
-  justify-content: space-between;
-  font-size: 14px;
-  margin-bottom: 8px;
-}
-
-#timer.warning { color: #f59e0b; }
-#timer.danger { color: #dc2626; }
-
-/* Quiz content */
-.quiz-content {
-  max-width: 680px;
-  margin: 0 auto;
-  text-align: center;
-}
-
-#question {
-  font-size: clamp(15px, 1.8vw, 18px);
-  margin-bottom: 14px;
-}
-
-#options {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-#options button {
-  background: #f9fafb;
-  border: 1px solid var(--border);
-  color: #111;
-}
-
-#options button.selected {
-  background: var(--primary);
-  color: #fff;
-}
-
-#options button.disabled {
-  pointer-events: none;
-  opacity: .7;
-}
-
-.quiz-actions {
-  display: flex;
-  justify-content: center;
-  gap: 14px;
-  margin-top: 14px;
-}
-
-#timeoutMessage {
-  display: none;
-  color: var(--danger);
-  font-weight: 600;
-  text-align: center;
-  margin-bottom: 6px;
-}
-
-/* Result */
-#result {
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-.correct { color: #16a34a; font-weight: 600; }
-.wrong { color: #dc2626; }
-.skipped { color: #6b7280; }
-
-/* Footer */
-footer {
-  margin-top: 24px;
-  padding-top: 14px;
-  border-top: 1px solid var(--border);
-  text-align: center;
-  font-size: 13px;
-  color: #555;
-}
-
-footer a {
-  color: var(--primary);
-  margin: 0 10px;
-  font-size: 18px;
-}
-
-@media (max-width: 640px) {
-  .quiz-actions { flex-direction: column; }
-  .quiz-actions button { width: 100%; }
-}
-</style>
+<link rel="icon" href="assets/img/favicon.ico">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="assets/css/app.css">
 </head>
-
 <body>
 
-<div class="container">
+<header class="topbar">
+  <a class="brand" id="brandHome" href="#" title="Home"><span class="brand-prompt">$</span> devops-quiz <span class="ver">v2.0</span></a>
+  <nav class="topnav">
+    <button class="link" data-go="demo">How it works</button>
+    <button class="link" data-go="history">Your attempts</button>
+  </nav>
+</header>
 
-<h1>DevOps Quiz</h1>
-<div class="subtitle">by Yousaf Hamza</div>
+<main id="app">
 
-<!-- SETUP -->
-<div id="setup" class="section">
-  <p><b>Select number of questions</b></p>
-  <button onclick="showRules(10)">10</button>
-  <button onclick="showRules(30)">30</button>
-  <button onclick="showRules(50)">50</button>
-  <button onclick="showRules(100)">100</button>
-</div>
-
-<!-- RULES -->
-<div id="rules" class="section hidden">
-  <h3>Test Rules</h3>
-  <ul>
-    <li>2 minutes per question</li>
-    <li>+1 correct, -0.25 wrong</li>
-    <li>On timeout, use Skip</li>
-    <li>5 attempts per day</li>
-    <li>Score shown at the end</li>
-  </ul>
-  <button onclick="startQuiz()">I Agree & Start Test</button>
-</div>
-
-<!-- QUIZ -->
-<div id="quiz" class="section hidden">
-
-  <div class="quiz-header">
-    <div id="counter">1 / 10</div>
-    <div id="timer">02:00</div>
-  </div>
-
-  <p id="timeoutMessage">Time is up. Please use Skip to continue.</p>
-
-  <div class="quiz-content">
-    <div id="question"></div>
-    <div id="options"></div>
-
-    <div class="quiz-actions">
-      <button onclick="nextQuestion()">Next</button>
-      <button onclick="skipQuestion()" class="secondary">Skip</button>
-      <button onclick="exitQuiz()" class="danger">Exit</button>
+  <!-- HOME -->
+  <section id="screen-home" class="screen">
+    <div class="hero">
+      <h1>Practice on broken systems.</h1>
+      <p class="lead">DevOps questions that start where flashcards stop: real logs, real manifests, and on-call incidents you fix by typing commands. Built by Yousaf Hamza. It runs in your browser and sends nothing anywhere.</p>
     </div>
-  </div>
-</div>
 
-<div id="result" class="section hidden"></div>
+    <form class="setup" id="setupForm" onsubmit="return false">
+      <div class="row">
+        <div class="row-label">Mode</div>
+        <div class="row-body" id="modeChips">
+          <label class="radio"><input type="radio" name="mode" value="exam" checked><span><b>Exam</b> Timer, negative marks, score at the end.</span></label>
+          <label class="radio"><input type="radio" name="mode" value="practice"><span><b>Practice</b> See the answer and explanation after each question. No negative marks.</span></label>
+        </div>
+      </div>
+      <div class="row">
+        <div class="row-label">Severity</div>
+        <div class="row-body"><div class="sev-list" id="levelChips"></div></div>
+      </div>
+      <div class="row">
+        <div class="row-label">Topics <button type="button" class="link small" id="topicsAll">Select all</button></div>
+        <div class="row-body"><div class="chips" id="topicChips"></div></div>
+      </div>
+      <div class="row">
+        <div class="row-label">Questions</div>
+        <div class="row-body"><div class="chips" id="countChips"></div></div>
+      </div>
+    </form>
 
-<div id="thankyou" class="section hidden" style="text-align:center;">
-  <h3>Thank You!</h3>
-  <p>You have exited the quiz.</p>
-</div>
+    <div class="cmd" aria-live="polite">
+      <pre id="cmdLine"></pre>
+      <div class="cmd-foot">
+        <span id="poolInfo"></span>
+        <button class="btn primary" id="btnContinue">Run</button>
+      </div>
+    </div>
+    <p class="muted small first-time">First time here? <button class="link inline" data-go="demo">Take the six-question tour</button>. It shows how each question type works and isn't scored.</p>
+  </section>
 
-<footer>
-  <p>© 2026 DevOps Quiz by Yousaf Hamza</p>
-  <p>
-    <a href="https://www.linkedin.com/in/yousafkhamza/" target="_blank"><i class="fab fa-linkedin"></i></a>
-    <a href="https://yousafkhamza.github.io" target="_blank"><i class="fas fa-globe"></i></a>
-  </p>
+  <!-- RULES -->
+  <section id="screen-rules" class="screen hidden">
+    <div class="card narrow">
+      <h2>Before you start</h2>
+      <p class="muted" id="rulesIntro"></p>
+      <div id="rulesSummary" class="rules-summary"></div>
+      <ul class="rules" id="rulesList"></ul>
+      <div class="cta-row">
+        <button class="btn ghost" data-go="home">Back</button>
+        <button class="btn primary" id="btnStart">I agree &amp; start</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUIZ -->
+  <section id="screen-quiz" class="screen hidden">
+    <div class="qbar">
+      <div class="qbar-left">
+        <span id="qCounter" class="mono">1 / 10</span>
+        <span id="qLevel" class="badge"></span>
+        <span id="qType" class="badge"></span>
+        <span id="qCat" class="muted"></span>
+      </div>
+      <div class="qbar-right">
+        <span id="qPoints" class="muted small"></span>
+        <span id="timer" class="timer mono">0:00</span>
+      </div>
+    </div>
+    <div class="progress"><div id="progressFill"></div></div>
+
+    <div id="banner" class="banner hidden"></div>
+
+    <article class="qcard">
+      <h2 id="qTitle" class="qtitle"></h2>
+      <div id="qScenario" class="scenario"></div>
+      <div id="qContext"></div>
+      <div id="qQuestion" class="question"></div>
+      <div id="qBody"></div>
+      <div id="qFeedback" class="feedback hidden"></div>
+    </article>
+
+    <div class="actions">
+      <button class="btn danger ghost" id="btnExit">Exit</button>
+      <div class="spacer"></div>
+      <button class="btn ghost" id="btnSkip">Skip question</button>
+      <button class="btn primary" id="btnNext">Next</button>
+    </div>
+    <p class="kbd-hint muted small" id="kbdHint"></p>
+  </section>
+
+  <!-- RESULT -->
+  <section id="screen-result" class="screen hidden">
+    <div id="resultBody"></div>
+  </section>
+
+  <!-- HISTORY -->
+  <section id="screen-history" class="screen hidden">
+    <div class="card narrow">
+      <h2>Your attempts</h2>
+      <p class="muted small">Saved in this browser only.</p>
+      <div id="historyBody"></div>
+      <div class="cta-row"><button class="btn ghost" data-go="home">Back</button><button class="btn danger ghost" id="btnClearHistory">Clear history</button></div>
+    </div>
+  </section>
+
+  <!-- THANK YOU -->
+  <section id="screen-thanks" class="screen hidden">
+    <div class="card narrow center">
+      <h2>Thank you!</h2>
+      <p id="thanksMsg">You have exited the quiz. No score was recorded.</p>
+      <button class="btn primary" data-go="home">Back to home</button>
+    </div>
+  </section>
+
+  <div id="loading" class="loading hidden">Loading questions…</div>
+</main>
+
+<footer class="footer">
+  <p>DevOps Quiz 2.0, made by Yousaf Hamza in Dubai. <span class="muted" id="bankVersion"></span></p>
+  <p><a href="https://www.linkedin.com/in/yousafkhamza/" target="_blank" rel="noopener">LinkedIn</a>
+     <a href="https://yousafkhamza.github.io" target="_blank" rel="noopener">Portfolio</a>
+     <a href="https://github.com/yousafkhamza/devops-mcq-assets" target="_blank" rel="noopener">Source on GitHub</a></p>
 </footer>
 
-</div>
-
-<!-- Audio -->
-<audio id="warningSound" preload="auto">
-  <source src="https://cdn.jsdelivr.net/gh/yousafkhamza/devops-mcq-assets@main/public/beep.mp3"
-          type="audio/mpeg">
-</audio>
-
-<script src="https://cdn.jsdelivr.net/gh/yousafkhamza/devops-mcq-assets@main/public/quiz.js?v=0.0.4" defer></script>
-
+<audio id="warningSound" preload="auto" src="assets/beep.mp3"></audio>
+<script type="module" src="assets/js/main.js"></script>
 </body>
 </html>

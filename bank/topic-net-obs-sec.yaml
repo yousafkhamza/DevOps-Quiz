@@ -1,0 +1,549 @@
+# Networking, Observability and Security top-ups.
+level: easy
+questions:
+
+# ---------------- Networking ----------------
+- id: nw-e-101
+  category: Networking
+  type: mcq
+  question: "Which tool shows each network hop and its latency to a destination?"
+  options: ["traceroute / mtr", "ping only", "arp -a", "nslookup"]
+  answer: 0
+  explanation: "`mtr` combines ping and traceroute continuously and shows where loss starts. Many cloud hops drop ICMP, so `mtr -T -P 443` uses TCP probes."
+
+- id: nw-e-102
+  category: Networking
+  type: mcq
+  question: "Which command queries a specific DNS server for an A record?"
+  options: ["dig @1.1.1.1 api.acme.io A", "ping api.acme.io", "host -server", "curl dns://api.acme.io"]
+  answer: 0
+  explanation: "`dig +short` gives a terse answer and `+trace` follows the delegation from the root. Comparing your resolver with a public one quickly spots split-horizon or caching issues."
+
+- id: nw-e-103
+  category: Networking
+  type: mcq
+  question: "How many usable host addresses does an AWS /28 subnet have?"
+  options: ["11", "14", "16", "30"]
+  answer: 0
+  explanation: "A /28 has 16 addresses. AWS reserves 5 per subnet (network, router, DNS, future use, broadcast), leaving 11 — which matters with EKS VPC CNI, where each Pod takes an IP."
+
+- id: nw-e-104
+  category: Networking
+  type: mcq
+  question: "What does an L4 (Network Load Balancer) see that an L7 (Application Load Balancer) also inspects?"
+  options: ["NLB sees TCP/UDP connections only; ALB also reads HTTP (host, path, headers)", "They're identical", "NLB reads HTTP cookies", "ALB works only with UDP"]
+  answer: 0
+  explanation: "Use an ALB for path or host routing, WAF and OIDC auth. Use an NLB for static IPs, TCP or UDP, extreme throughput, or to pass TLS straight through."
+
+- id: nw-e-105
+  category: Networking
+  type: mcq
+  question: "What is a DNS TTL?"
+  options: ["How long resolvers may cache the answer", "The number of hops a packet can take", "The DNS server's uptime", "A record type"]
+  answer: 0
+  explanation: "Lower the TTL (e.g. to 60s) a day before a migration so cutovers propagate quickly, then raise it again afterwards."
+
+- id: nw-e-106
+  category: Networking
+  type: mcq
+  question: "Which tool captures packets on a Linux interface for analysis?"
+  options: ["tcpdump", "ss", "ip route", "ethtool -i"]
+  answer: 0
+  explanation: "`tcpdump -i any -nn port 443 -w cap.pcap`, then open it in Wireshark. In Kubernetes, `kubectl debug` with a netshoot image gives you tcpdump in a Pod's network namespace."
+
+- id: nw-e-107
+  category: Networking
+  type: mcq
+  question: "What is MTU?"
+  options: ["The largest packet size an interface will send without fragmenting", "A routing protocol", "The maximum number of TCP connections", "A DNS record"]
+  answer: 0
+  explanation: "Ethernet is usually 1500, AWS inside a VPC supports 9001 (jumbo frames), and tunnels or VPNs reduce it. A mismatch causes 'small requests work, large ones hang'."
+
+- id: nw-m-101
+  level: medium
+  category: Networking
+  type: mcq
+  title: "Small requests work, big ones hang"
+  scenario: "Over a new site-to-site VPN, `curl` of small API responses works, but downloads and TLS handshakes with big certificate chains hang."
+  question: "Most likely cause?"
+  options:
+    - "Path MTU problem — ICMP 'fragmentation needed' blocked; clamp MSS on the tunnel (e.g. 1360) or allow ICMP type 3 code 4"
+    - "DNS TTL too high"
+    - "The server is out of disk"
+    - "HTTP/2 is disabled"
+  answer: 0
+  explanation: "Large packets exceed the tunnel MTU, and the ICMP messages that would tell senders to shrink them are blocked. MSS clamping is the standard VPN fix."
+
+- id: nw-m-102
+  level: medium
+  category: Networking
+  type: mcq
+  title: "Private DNS for an interface endpoint"
+  scenario: "You created an interface VPC endpoint for Secrets Manager, but Pods still go through the NAT Gateway."
+  question: "What did you most likely forget?"
+  options:
+    - "Enable Private DNS on the endpoint (and VPC DNS hostnames/support) so the public service name resolves to the endpoint IPs"
+    - "An Internet Gateway"
+    - "A Route 53 public hosted zone"
+    - "IPv6"
+  answer: 0
+  explanation: "With Private DNS on, `secretsmanager.<region>.amazonaws.com` resolves to the endpoint ENIs inside the VPC. Check with `dig` from a Pod. The endpoint's security group must also allow 443 from the nodes."
+
+- id: nw-m-103
+  level: medium
+  category: Networking
+  type: mcq
+  title: "Connection reset by peer after 350 seconds"
+  scenario: "Long-running DB connections from EKS through a NAT Gateway drop with resets after about 6 minutes of idle time."
+  question: "What's happening and the fix?"
+  options:
+    - "NAT Gateway drops idle flows after 350s — enable TCP keepalives below that (e.g. 120s) in the client/pooler"
+    - "The DB is crashing"
+    - "Security groups expire"
+    - "DNS cache flush"
+  answer: 0
+  explanation: "NAT Gateway's idle timeout is 350 seconds. Keepalives — or pool settings such as max idle time — keep the flow alive or recycle the connection first. Often the better fix is to avoid NAT altogether (same VPC, or PrivateLink)."
+
+- id: nw-m-104
+  level: medium
+  category: Networking
+  type: mcq
+  title: "TGW vs peering"
+  scenario: "You have 14 VPCs across 3 accounts that must talk to each other and to on-prem."
+  question: "Which design scales best?"
+  options:
+    - "Transit Gateway hub with route tables per segment (prod/non-prod/shared)"
+    - "Full mesh of 91 VPC peering connections"
+    - "Public IPs and security groups"
+    - "One giant VPC for everything"
+  answer: 0
+  explanation: "Peering isn't transitive, so a mesh grows as n(n-1)/2. TGW centralises routing and on-prem attachments, and route-table segmentation keeps prod isolated. Mind TGW per-GB charges."
+
+- id: nw-m-105
+  level: medium
+  category: Networking
+  type: multi
+  title: "Debug a Pod that can't reach a Service"
+  question: "Which checks are useful? (select all)"
+  options:
+    - "`kubectl get endpointslices -l kubernetes.io/service-name=svc` — are there endpoints?"
+    - "DNS from the Pod: `nslookup svc.ns.svc.cluster.local`"
+    - "NetworkPolicies in source and destination namespaces"
+    - "Rebooting the control plane"
+  answer: [0, 1, 2]
+  explanation: "Work up the layers: endpoints (selector and readiness), DNS, then policy and ports. `kubectl debug` with netshoot gives you curl, dig and tcpdump inside the Pod's network namespace."
+
+- id: nw-m-106
+  level: medium
+  category: Networking
+  type: mcq
+  title: "Client IP is always the load balancer"
+  scenario: "App logs show every request from `10.0.x.x` (the ALB), but you need real client IPs for rate limiting."
+  question: "Where's the client IP?"
+  options:
+    - "In the `X-Forwarded-For` header (trust only your LB's hop); for NLB use client IP preservation or Proxy Protocol v2"
+    - "In the TCP source port"
+    - "It's impossible to get"
+    - "In the Host header"
+  answer: 0
+  explanation: "L7 proxies add `X-Forwarded-For`. Parse it from the right, trusting only known proxies, or anyone can spoof it. NLB can preserve the source IP, or pass it via Proxy Protocol."
+
+- id: nw-m-107
+  level: medium
+  category: Networking
+  type: mcq
+  title: "Certificate for many subdomains"
+  scenario: "You have 40 services under `*.internal.acme.io`, behind one ALB."
+  question: "Simplest certificate approach?"
+  options:
+    - "One ACM wildcard cert for `*.internal.acme.io` (auto-renewing) on the ALB listener"
+    - "40 self-signed certs"
+    - "Disable TLS internally"
+    - "A cert per Pod issued by hand"
+  answer: 0
+  explanation: "ACM certificates renew automatically when DNS validation stays in place. A wildcard covers one label only (`a.internal.acme.io`, not `a.b.internal.acme.io`). ALBs support up to 25 certificates via SNI by default."
+
+- id: nw-h-101
+  level: hard
+  category: Networking
+  type: order
+  title: "Zero-downtime DNS cutover"
+  question: "Order a DNS migration of `api.acme.io` from the old ALB to a new one."
+  items:
+    - "Lower the record's TTL to 60s at least one old-TTL period in advance"
+    - "Stand up the new ALB and verify it directly (curl --resolve)"
+    - "Switch the record (or use weighted records to shift 10% → 100%)"
+    - "Watch error rates and traffic on both; keep the old ALB running"
+    - "After old-TTL × 2 with no traffic on the old ALB, decommission it and raise the TTL"
+  explanation: "TTLs only work if you lower them before the change. Weighted records give you a canary, and you keep the old target until caches have drained."
+
+- id: nw-h-102
+  level: hard
+  category: Networking
+  type: fill
+  title: "Test a backend directly, bypassing DNS"
+  scenario: "Hit the new ALB at `52.28.10.4` with the real hostname and SNI before switching DNS."
+  lang: bash
+  template: |
+    curl -sv --{{flag}} api.acme.io:443:52.28.10.4 https://api.acme.io/health
+  blanks:
+    flag: { accept: ["^resolve$"], solution: resolve, width: 8 }
+  explanation: "`--resolve host:port:ip` pins the name to an IP while keeping the correct Host header and SNI, so the certificate is validated just as it will be after cutover."
+
+# ---------------- Observability ----------------
+- id: ob-e-101
+  category: Observability
+  type: mcq
+  question: "What are the 'three pillars' usually listed for observability?"
+  options: ["Metrics, logs, traces", "CPU, memory, disk", "Alerts, dashboards, runbooks", "Uptime, latency, cost"]
+  answer: 0
+  explanation: "Profiles are increasingly treated as a fourth signal. The value comes from correlating them: exemplars link metrics to traces, and trace IDs link logs."
+
+- id: ob-e-102
+  category: Observability
+  type: mcq
+  question: "Why is putting `user_id` as a Prometheus label a bad idea?"
+  options: ["High cardinality — every unique value creates a new time series, exploding memory and cost", "Labels must be numeric", "Prometheus forbids strings", "It slows down Grafana colors"]
+  answer: 0
+  explanation: "Keep labels bounded (service, route template, status code). Put high-cardinality context in logs or trace attributes."
+
+- id: ob-e-103
+  category: Observability
+  type: mcq
+  question: "In Grafana Loki, what does LogQL `{app=\"api\"} |= \"error\"` do?"
+  options: ["Selects the api log stream and keeps lines containing 'error'", "Counts errors per second", "Deletes error lines", "Searches all apps"]
+  answer: 0
+  explanation: "Label matchers pick streams, and line filters (`|=`, `!=`, `|~`) narrow them. `rate({app=\"api\"} |= \"error\" [5m])` turns logs into a metric."
+
+- id: ob-e-104
+  category: Observability
+  type: mcq
+  question: "What is an SLI?"
+  options: ["A measured indicator of service level, e.g. % of requests under 300 ms", "A contract with customers", "A logging library", "A Kubernetes object"]
+  answer: 0
+  explanation: "An SLI is what you measure, an SLO is the target (99.9% over 30 days), and an SLA is the contract with consequences. Alert on SLO burn rate."
+
+- id: ob-e-105
+  category: Observability
+  type: mcq
+  question: "What does the OpenTelemetry Collector do?"
+  options: ["Receives, processes (batch, filter, redact) and exports telemetry to one or more backends", "Stores metrics long-term", "Replaces Grafana", "Runs synthetic tests"]
+  answer: 0
+  explanation: "Apps send OTLP to the Collector, which routes to Prometheus, Tempo, Loki or vendors. That avoids vendor lock-in in app code and gives one place to drop PII."
+
+- id: ob-e-106
+  category: Observability
+  type: mcq
+  question: "What is a synthetic check?"
+  options: ["A scripted request (or browser flow) run on a schedule to test a service from the outside", "A fake metric", "A unit test", "A Prometheus recording rule"]
+  answer: 0
+  explanation: "Synthetics catch DNS, certificate and CDN problems that internal metrics miss. Examples are the Blackbox exporter, CloudWatch Synthetics, and Grafana synthetic monitoring."
+
+- id: ob-m-101
+  level: medium
+  category: Observability
+  type: mcq
+  title: "Burn-rate alert"
+  scenario: "SLO: 99.9% success over 30 days. You want to page only when the error budget is burning fast."
+  question: "Which alert is the classic fast-burn page?"
+  options:
+    - "Error ratio > 14.4 × 0.1% over 1h AND over 5m (multi-window)"
+    - "Any single 5xx"
+    - "CPU > 80% for 5m"
+    - "Error ratio > 0.1% over 30 days"
+  answer: 0
+  explanation: "A 14.4× burn exhausts about 2% of a 30-day budget in 1 hour. The short window makes the alert reset quickly once fixed. Slow burns (e.g. 6× over 6h) should create tickets."
+
+- id: ob-m-102
+  level: medium
+  category: Observability
+  type: mcq
+  title: "Prometheus memory keeps growing"
+  context:
+    - kind: terminal
+      title: promtool
+      content: |
+        $ promtool tsdb analyze /prometheus | sed -n '1,8p'
+        Highest cardinality metric names:
+        2381201 http_requests_total
+        Highest cardinality labels:
+        2210093 path
+  question: "What's the fix?"
+  options:
+    - "Replace raw `path` (with IDs) by a route template label, or drop it with `metric_relabel_configs`"
+    - "Give Prometheus more RAM forever"
+    - "Scrape less often"
+    - "Delete the TSDB nightly"
+  answer: 0
+  explanation: "`/orders/8812731` should be `/orders/{id}`. Fix the instrumentation, and relabel to drop or replace the label meanwhile."
+
+- id: ob-m-103
+  level: medium
+  category: Observability
+  type: mcq
+  title: "Sampling traces"
+  scenario: "Tracing 100% of 20k req/s is too expensive, but you must keep every error and slow trace."
+  question: "Which sampling approach fits?"
+  options:
+    - "Tail-based sampling in the OTel Collector: keep errors and traces > 1s, plus a small % of the rest"
+    - "Head sampling at 1% only"
+    - "Disable tracing"
+    - "Sample by user ID"
+  answer: 0
+  explanation: "Head sampling decides before knowing the outcome, so it drops most errors. The tail-sampling processor decides after the trace completes, but it needs all spans of a trace on the same collector, so use load-balancing by trace ID."
+
+- id: ob-m-104
+  level: medium
+  category: Observability
+  type: mcq
+  title: "Kubernetes metrics: which exporter?"
+  scenario: "You want an alert when a Deployment has fewer available replicas than desired."
+  question: "Which source exposes that?"
+  options: ["kube-state-metrics (kube_deployment_status_replicas_available vs spec_replicas)", "node-exporter", "cAdvisor", "metrics-server"]
+  answer: 0
+  explanation: "kube-state-metrics turns API object state into metrics. node-exporter covers hosts, cAdvisor covers container resource usage, and metrics-server only feeds `kubectl top` and the HPA."
+
+- id: ob-m-105
+  level: medium
+  category: Observability
+  type: multi
+  title: "A good alert"
+  question: "Which properties make an alert worth paging someone? (select all)"
+  options:
+    - "It reflects user impact or imminent impact"
+    - "It's actionable and links to a runbook and dashboard"
+    - "It has a clear owner/route"
+    - "It fires on every brief CPU spike"
+  answer: [0, 1, 2]
+  explanation: "If the on-call engineer can't act on an alert, it's noise. Review page volume regularly and delete or demote alerts nobody acted on."
+
+- id: ob-m-106
+  level: medium
+  category: Observability
+  type: mcq
+  title: "Logs cost too much"
+  scenario: "Your log bill doubled. 70% of the volume is DEBUG and health-check access logs."
+  question: "Best first move?"
+  options:
+    - "Drop or sample health-check and DEBUG logs at the agent/collector (Alloy, Fluent Bit, OTel), and set retention tiers"
+    - "Turn off all logging"
+    - "Buy a bigger plan"
+    - "Log everything to stdout twice"
+  answer: 0
+  explanation: "Filter at the edge, before ingestion. Keep ERROR and audit logs longer, and archive the rest cheaply in S3."
+
+- id: ob-h-101
+  level: hard
+  category: Observability
+  type: fill
+  title: "A Prometheus alert rule"
+  scenario: "Page when more than 5% of `checkout` requests fail for 10 minutes."
+  lang: yaml
+  template: |
+    groups:
+      - name: checkout
+        rules:
+          - alert: CheckoutHighErrorRate
+            expr: |
+              sum(rate(http_requests_total{service="checkout",code=~"5.."}[5m]))
+                / sum({{fn}}(http_requests_total{service="checkout"}[5m])) > 0.05
+            {{dur}}: 10m
+            labels:
+              severity: page
+            annotations:
+              runbook_url: https://runbooks.acme.io/checkout-errors
+  blanks:
+    fn:  { accept: ["^rate$"], solution: rate, width: 5 }
+    dur: { accept: ["^for$"], solution: for, width: 4 }
+  explanation: "Both sides of the ratio must be `rate()` over the same window. `for: 10m` requires the condition to hold continuously before firing, which suppresses blips."
+
+# ---------------- Security ----------------
+- id: sc-e-101
+  category: Security
+  type: mcq
+  question: "What does SAST do in a pipeline?"
+  options: ["Analyses source code for vulnerabilities without running it", "Attacks the running app", "Scans container images only", "Manages secrets"]
+  answer: 0
+  explanation: "SAST examples are Semgrep and CodeQL. DAST (e.g. OWASP ZAP) tests the running app, and SCA (Dependabot, Trivy) checks dependencies. A good pipeline uses all three."
+
+- id: sc-e-102
+  category: Security
+  type: mcq
+  question: "Which tool detects secrets committed to Git repositories?"
+  options: ["gitleaks / trufflehog", "nmap", "tcpdump", "terraform fmt"]
+  answer: 0
+  explanation: "Run them in pre-commit and CI, and enable GitHub secret scanning with push protection. Any detected live secret must be rotated, not just removed."
+
+- id: sc-e-103
+  category: Security
+  type: mcq
+  question: "What is CSPM?"
+  options: ["Continuous checking of cloud configuration against security best practices", "A firewall", "A password manager", "A container runtime"]
+  answer: 0
+  explanation: "Cloud Security Posture Management — AWS Security Hub with CIS and AWS Foundational benchmarks, Prowler, Wiz — flags public buckets, open SGs, missing MFA and similar."
+
+- id: sc-e-104
+  category: Security
+  type: mcq
+  question: "What does mTLS add over regular TLS?"
+  options: ["The client also presents a certificate, so both sides authenticate", "Faster encryption", "Compression", "It removes the need for certificates"]
+  answer: 0
+  explanation: "Service meshes (Istio, Linkerd) issue workload certificates automatically and enforce mTLS between services, which is a building block of zero trust."
+
+- id: sc-e-105
+  category: Security
+  type: mcq
+  question: "Which runtime security tool detects suspicious syscalls in containers (e.g. a shell spawned in a Pod)?"
+  options: ["Falco", "Trivy", "Checkov", "Kyverno"]
+  answer: 0
+  explanation: "Falco watches kernel events (via eBPF) against rules. Trivy and Checkov scan before deploy, and Kyverno enforces policy at admission."
+
+- id: sc-m-101
+  level: medium
+  category: Security
+  type: mcq
+  title: "Public bucket finding"
+  scenario: "Security Hub flags an S3 bucket with a policy allowing `Principal: \"*\"` for `s3:GetObject`. It hosts a static site behind CloudFront."
+  question: "What's the secure pattern?"
+  options:
+    - "Keep the bucket private (Block Public Access on) and grant CloudFront via Origin Access Control in the bucket policy"
+    - "Ignore the finding"
+    - "Make the bucket public-write too"
+    - "Move the site to an EC2 instance"
+  answer: 0
+  explanation: "OAC lets only your CloudFront distribution read the bucket. Account-level Block Public Access stops accidents everywhere else."
+
+- id: sc-m-102
+  level: medium
+  category: Security
+  type: mcq
+  title: "Over-privileged CI role"
+  scenario: "The CI role has `AdministratorAccess`. You need to shrink it without breaking deploys."
+  question: "Most practical method?"
+  options:
+    - "Use IAM Access Analyzer policy generation from CloudTrail activity, apply the generated policy, and iterate"
+    - "Remove all permissions and see what breaks in prod"
+    - "Rename the role"
+    - "Add a permissions boundary of AdministratorAccess"
+  answer: 0
+  explanation: "Access Analyzer drafts a policy from the actions the role actually used. Also scope by resource and tags, and split plan and apply roles."
+
+- id: sc-m-103
+  level: medium
+  category: Security
+  type: multi
+  title: "PCI scope reduction"
+  scenario: "You run card processing on EKS."
+  question: "Which choices reduce PCI DSS scope or risk? (select all)"
+  options:
+    - "Isolate the cardholder-data environment (dedicated accounts/VPCs/node groups and strict NetworkPolicies)"
+    - "Tokenise card numbers so most services never see a PAN"
+    - "Centralise audit logs (CloudTrail org trail, EKS audit logs) immutably with retention"
+    - "Let every namespace share one wide-open security group with the CDE"
+  answer: [0, 1, 2]
+  explanation: "Segmentation and tokenisation shrink what's in scope, and immutable logs satisfy Requirement 10. Flat networks pull everything into scope."
+
+- id: sc-m-104
+  level: medium
+  category: Security
+  type: mcq
+  title: "Critical CVE in a base image"
+  scenario: "A critical OpenSSL CVE is announced. You run 120 services."
+  question: "What lets you answer 'which services are affected?' in minutes?"
+  options:
+    - "SBOMs stored per image (and continuous registry scanning, e.g. Inspector/Trivy) queried for the package"
+    - "Asking every team in Slack"
+    - "Reading every Dockerfile"
+    - "Waiting for a pentest"
+  answer: 0
+  explanation: "SBOMs plus registry scanning turn it into a query. Standardised, regularly rebuilt base images mean one upstream bump fixes most services."
+
+- id: sc-m-105
+  level: medium
+  category: Security
+  type: mcq
+  title: "Bastion vs SSM"
+  scenario: "Auditors flag port 22 open from the office IP range to production instances."
+  question: "Which approach removes inbound SSH entirely while keeping audited access?"
+  options:
+    - "SSM Session Manager (IAM-authorised, logged to CloudWatch/S3) or a PAM like JumpServer with session recording"
+    - "Change SSH to port 2222"
+    - "Share one SSH key across the team"
+    - "Open 22 to 0.0.0.0/0 with a strong password"
+  answer: 0
+  explanation: "Session Manager needs no inbound ports — the agent dials out — and every session is tied to an IAM identity and recorded. A PAM adds approvals and recording for databases and Windows too."
+
+- id: sc-m-106
+  level: medium
+  category: Security
+  type: mcq
+  title: "Kubernetes API exposure"
+  scenario: "Your EKS cluster endpoint is public with `0.0.0.0/0` allowed."
+  question: "What's the best improvement?"
+  options:
+    - "Private endpoint (access via VPN/bastion/CI in the VPC), or restrict public access CIDRs, plus EKS access entries with least-privilege policies"
+    - "Rely on obscurity of the URL"
+    - "Disable RBAC"
+    - "Share one admin kubeconfig"
+  answer: 0
+  explanation: "Even with authentication, a public API server is attack surface. EKS access entries replace the old aws-auth ConfigMap with auditable, API-managed access."
+
+- id: sc-h-101
+  level: hard
+  category: Security
+  type: spot
+  title: "IAM policy review"
+  scenario: "This policy is meant to let a Lambda read one secret. Which line is the problem?"
+  lang: json
+  code: |
+    {
+      "Version": "2012-10-17",
+      "Statement": [{
+        "Effect": "Allow",
+        "Action": "secretsmanager:GetSecretValue",
+        "Resource": "*"
+      }]
+    }
+  answer: [6]
+  explanation: "`Resource: *` allows reading every secret in the account. Scope it to the secret's ARN (with a trailing `-??????` for the random suffix), and use a customer-managed KMS key with its own key policy."
+
+- id: sc-h-102
+  level: hard
+  category: Security
+  type: order
+  title: "Respond to a GuardDuty crypto-mining finding on EKS"
+  question: "Order the response to `CryptoCurrency:Runtime/BitcoinTool.B` on a Pod."
+  items:
+    - "Isolate the Pod (deny-all NetworkPolicy / cordon the node) without deleting it"
+    - "Capture evidence: Pod spec, image digest, logs, node snapshot"
+    - "Identify the entry point (vulnerable image, exposed dashboard, leaked credentials)"
+    - "Rotate any credentials the workload could reach and remove the malicious workload"
+    - "Fix the root cause (patch, admission policy, RBAC) and add detection rules"
+  explanation: "Contain, preserve evidence, find the root cause, eradicate, then prevent a recurrence. Deleting the Pod first destroys the evidence you need to find out how it got in."
+
+- id: nw-e-108
+  category: Networking
+  type: mcq
+  question: "Which port and protocol does DNS use by default?"
+  options: ["53, UDP (TCP for large responses and zone transfers)", "443 TCP only", "25 TCP", "123 UDP"]
+  answer: 0
+  explanation: "Make sure security groups and NACLs allow both UDP and TCP 53 to your resolvers. DNS-over-HTTPS uses 443, and NTP is 123."
+
+- id: ob-e-107
+  category: Observability
+  type: mcq
+  question: "What's the difference between a Prometheus histogram and a summary?"
+  options: ["Histograms expose buckets you can aggregate across instances; summaries compute quantiles client-side and can't be aggregated", "They are identical", "Summaries are always more accurate across Pods", "Histograms can't compute quantiles"]
+  answer: 0
+  explanation: "Prefer histograms for service latency so `histogram_quantile` works across Pods. Native histograms reduce the bucket-tuning pain."
+
+- id: ob-m-107
+  level: medium
+  category: Observability
+  type: mcq
+  title: "Dashboard says fine, users say slow"
+  scenario: "Average latency is 120 ms and looks healthy, but customers complain about slow checkouts."
+  question: "What should you look at instead?"
+  options: ["p95/p99 latency per route (and per region/tenant)", "The average again over 24h", "CPU only", "Number of Pods"]
+  answer: 0
+  explanation: "Averages hide the tail. If 2% of requests take 4 s, the mean stays low while real users suffer. Use percentiles and heatmaps."

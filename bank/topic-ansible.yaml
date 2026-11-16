@@ -1,0 +1,349 @@
+# Ansible — agentless configuration management (Linux and Windows hosts).
+level: easy
+questions:
+
+- id: an-e-001
+  category: Ansible
+  type: mcq
+  question: "How does Ansible usually connect to Linux managed nodes?"
+  options: ["SSH, agentless", "A resident agent on every node", "SNMP", "A VPN tunnel per host"]
+  answer: 0
+  explanation: "The control node pushes small modules over SSH and runs them with the node's Python. Windows hosts use WinRM, or SSH on newer Windows."
+
+- id: an-e-002
+  category: Ansible
+  type: mcq
+  question: "What does 'idempotent' mean for an Ansible task?"
+  options: ["Running it again changes nothing if the system is already in the desired state", "It runs only once ever", "It runs on all hosts at the same time", "It never fails"]
+  answer: 0
+  explanation: "A second run should report `changed=0`. `command` and `shell` tasks break this unless you add `creates:`, `removes:` or `changed_when:`."
+
+- id: an-e-003
+  category: Ansible
+  type: mcq
+  question: "Which file lists the hosts and groups Ansible manages?"
+  options: ["The inventory (INI/YAML or a dynamic inventory plugin)", "ansible.cfg", "site.yml", "requirements.yml"]
+  answer: 0
+  explanation: "Inventories can be static files or plugins such as `amazon.aws.aws_ec2`, which builds groups from tags. In the cloud, prefer dynamic inventory to hand-maintained IP lists."
+
+- id: an-e-004
+  category: Ansible
+  type: mcq
+  question: "Which runs a playbook without changing anything and shows what would change?"
+  options: ["ansible-playbook site.yml --check --diff", "ansible-playbook site.yml --dry", "ansible-lint site.yml", "ansible-playbook site.yml -vvvv"]
+  answer: 0
+  explanation: "Check mode simulates the run, and `--diff` shows the file changes. Tasks that can't simulate (some `command` tasks) are skipped or need `check_mode: false`."
+
+- id: an-e-005
+  category: Ansible
+  type: mcq
+  question: "What is a handler?"
+  options: ["A task that runs only when notified by a task that changed, e.g. restart nginx after its config changes", "An error handler like try/catch", "An inventory plugin", "A Jinja filter"]
+  answer: 0
+  explanation: "Handlers run once at the end of the play, however many tasks notified them. That avoids five restarts for five template changes."
+
+- id: an-e-006
+  category: Ansible
+  type: mcq
+  question: "Which feature encrypts secrets such as passwords inside your repo?"
+  options: ["ansible-vault", "ansible-galaxy", "ansible-doc", "ansible-pull"]
+  answer: 0
+  explanation: "`ansible-vault encrypt_string` or encrypted var files. Many teams instead look secrets up at runtime from AWS Secrets Manager or HashiCorp Vault with lookup plugins."
+
+- id: an-e-007
+  category: Ansible
+  type: mcq
+  question: "What is a role?"
+  options: ["A reusable, structured bundle of tasks, handlers, templates, defaults and files", "An IAM role", "A user on the managed node", "A type of inventory group"]
+  answer: 0
+  explanation: "Roles follow a standard layout (`tasks/`, `handlers/`, `templates/`, `defaults/`…). Collections package roles and modules for distribution via Galaxy or Automation Hub."
+
+- id: an-e-008
+  category: Ansible
+  type: mcq
+  question: "Which module should you prefer to install a package on RHEL and Ubuntu alike?"
+  options: ["ansible.builtin.package (or dnf/apt specifically)", "ansible.builtin.shell: yum install -y …", "ansible.builtin.raw", "ansible.builtin.script"]
+  answer: 0
+  explanation: "Modules are idempotent and report changes correctly. Shelling out loses both. Use `package` for simple cross-distro installs, or `apt` / `dnf` when you need their options."
+
+- id: an-e-009
+  category: Ansible
+  type: mcq
+  question: "Which templating engine do Ansible templates and variables use?"
+  options: ["Jinja2", "Go templates", "Mustache", "ERB"]
+  answer: 0
+  explanation: "`{{ var }}`, filters like `{{ list | join(',') }}`, and `.j2` files rendered by the `template` module."
+
+- id: an-e-010
+  category: Ansible
+  type: mcq
+  question: "Which keyword runs a play on only N hosts at a time for rolling updates?"
+  options: ["serial", "forks", "throttle_all", "batch"]
+  answer: 0
+  explanation: "`serial: 1` (or `\"25%\"`) rolls through the group, and `max_fail_percentage` stops the rollout early. `forks` only sets how many connections run in parallel."
+
+- id: an-e-011
+  category: Ansible
+  type: mcq
+  question: "Which command installs collections listed in `collections/requirements.yml`?"
+  options: ["ansible-galaxy collection install -r collections/requirements.yml", "pip install -r requirements.yml", "ansible-pull requirements.yml", "ansible-doc -r"]
+  answer: 0
+  explanation: "Pin collection versions just like Python packages. Execution environments (container images built with ansible-builder) make the whole toolchain reproducible."
+
+- id: an-e-012
+  category: Ansible
+  type: mcq
+  question: "Which module manages Windows services from Ansible?"
+  options: ["ansible.windows.win_service", "ansible.builtin.service", "community.windows.sc", "ansible.builtin.systemd"]
+  answer: 0
+  explanation: "Windows modules live in `ansible.windows` and `community.windows` and run PowerShell over WinRM or SSH: `win_service`, `win_feature`, `win_package`, `win_updates`."
+
+- id: an-e-013
+  category: Ansible
+  type: mcq
+  question: "Which flag makes tasks run with sudo on the managed node?"
+  options: ["become: true (or -b)", "sudo: yes in ansible.cfg only", "root: true", "--admin"]
+  answer: 0
+  explanation: "`become` escalates (sudo by default), and `become_user` picks the target user. Scope it per task, not globally, where you can."
+
+- id: an-e-014
+  category: Ansible
+  type: mcq
+  question: "Which tool lints playbooks for bad practices like using `command` where a module exists?"
+  options: ["ansible-lint", "yamllint only", "shellcheck", "ansible-doc"]
+  answer: 0
+  explanation: "ansible-lint (with profiles from `basic` to `production`) catches non-idempotent tasks, deprecated syntax and missing names. Run it in CI and pre-commit."
+
+- id: an-m-001
+  level: medium
+  category: Ansible
+  type: mcq
+  title: "Always 'changed'"
+  context:
+    - kind: yaml
+      title: tasks/main.yml
+      content: |
+        - name: Add app user to docker group
+          ansible.builtin.shell: usermod -aG docker app
+  question: "Every run reports `changed`. What's the idiomatic fix?"
+  options:
+    - "Use `ansible.builtin.user: { name: app, groups: docker, append: true }`"
+    - "Add `ignore_errors: true`"
+    - "Run it with `--check`"
+    - "Use `raw` instead of `shell`"
+  answer: 0
+  explanation: "The `user` module checks current state and only changes what differs. If no module exists, use `changed_when` to tell Ansible when a command really changed something."
+
+- id: an-m-002
+  level: medium
+  category: Ansible
+  type: mcq
+  title: "Restart storm"
+  scenario: "A play updates `nginx.conf` (with `notify: restart nginx`). A later task fails on one host, and that host is left with the new config on disk but nginx still running the old one."
+  question: "How do you make sure notified handlers still run after a failure?"
+  options:
+    - "Use `--force-handlers` (or `force_handlers: true` in the play)"
+    - "Add `ignore_errors: true` to every task"
+    - "Turn handlers into normal tasks"
+    - "Run the play twice"
+  answer: 0
+  explanation: "By default, handlers are skipped on hosts that failed. `force_handlers` runs the ones already notified. You can also use `meta: flush_handlers` to run them at a chosen point."
+
+- id: an-m-003
+  level: medium
+  category: Ansible
+  type: mcq
+  title: "Variable precedence"
+  scenario: "`nginx_workers` is set in `roles/nginx/defaults/main.yml` (2), in `group_vars/web.yml` (4), and passed as `-e nginx_workers=8`."
+  question: "Which value wins?"
+  options: ["8 — extra vars (-e) have the highest precedence", "2 — role defaults", "4 — group_vars", "It errors on conflict"]
+  answer: 0
+  explanation: "Role defaults are the lowest precedence, which is why they're the place for overridable values. Extra vars always win. Keep precedence boring: defaults in roles, environment values in group_vars."
+
+- id: an-m-004
+  level: medium
+  category: Ansible
+  type: mcq
+  title: "Slow on 500 hosts"
+  scenario: "A simple play takes 40 minutes across 500 Linux hosts."
+  question: "Which changes typically help most?"
+  options:
+    - "Raise `forks`, enable SSH pipelining and ControlPersist, disable unneeded fact gathering (`gather_facts: false` or fact caching)"
+    - "Add `serial: 1`"
+    - "Use `shell` instead of modules"
+    - "Run with `-vvvv`"
+  answer: 0
+  explanation: "The default is 5 forks. Pipelining cuts SSH round-trips, ControlPersist reuses connections, and fact gathering is expensive, so cache or skip it. `serial: 1` would make it slower."
+
+- id: an-m-005
+  level: medium
+  category: Ansible
+  type: mcq
+  title: "Secrets in logs"
+  scenario: "A task sets a DB password with the `mysql_user` module. The CI job's `-v` output shows the password."
+  question: "What should you add to the task?"
+  options: ["`no_log: true`", "`ignore_errors: true`", "`changed_when: false`", "`run_once: true`"]
+  answer: 0
+  explanation: "`no_log` hides a task's arguments and results from output and callbacks. Combine it with vault or a secret lookup so the value is never in plain YAML."
+
+- id: an-m-006
+  level: medium
+  category: Ansible
+  type: multi
+  title: "Ansible vs Terraform"
+  question: "Which statements are TRUE? (select all)"
+  options:
+    - "Terraform tracks infrastructure in state and plans create/update/destroy; Ansible is mostly procedural configuration of existing hosts"
+    - "A common pattern is Terraform for cloud resources, Ansible (or images/cloud-init) for OS configuration"
+    - "Ansible can't talk to cloud APIs at all"
+    - "Baking AMIs with Packer + Ansible reduces configuration drift and boot time"
+  answer: [0, 1, 3]
+  explanation: "Ansible has many cloud modules, but it has no state file to diff against. Immutable images built with Packer and Ansible, deployed with Terraform, is a solid split."
+
+- id: an-m-007
+  level: medium
+  category: Ansible
+  type: mcq
+  title: "Run once, not per host"
+  scenario: "A play over 10 web hosts must run a DB migration exactly once."
+  question: "Which task keyword?"
+  options: ["`run_once: true` (optionally with `delegate_to: db1`)", "`serial: 1`", "`throttle: 10`", "`when: inventory_hostname == 'all'`"]
+  answer: 0
+  explanation: "`run_once` executes on the first host in the batch, and `delegate_to` runs it from or on a specific host. Make the migration itself idempotent too."
+
+- id: an-m-008
+  level: medium
+  category: Ansible
+  type: mcq
+  title: "Windows host unreachable"
+  context:
+    - kind: log
+      title: output
+      content: |
+        win-app01 | UNREACHABLE! => {"changed": false, "msg": "ssl: HTTPSConnectionPool(host='10.0.8.21', port=5986): Max retries exceeded ... CERTIFICATE_VERIFY_FAILED", "unreachable": true}
+  question: "Linux hosts work fine. What's going on?"
+  options:
+    - "WinRM over HTTPS (5986) presents a self-signed cert — trust the CA or set `ansible_winrm_server_cert_validation` appropriately (prefer a real cert)"
+    - "Windows needs SSH on port 22 only"
+    - "Ansible doesn't support Windows"
+    - "The inventory needs `ansible_python_interpreter`"
+  answer: 0
+  explanation: "Windows connections use `ansible_connection: winrm` (or `psrp`, or `ssh`). Certificate validation errors are the most common first failure. Fix the trust instead of disabling validation in production."
+
+- id: an-m-009
+  level: medium
+  category: Ansible
+  type: mcq
+  title: "Facts from a different host"
+  scenario: "Your HAProxy template on lb1 needs the private IPs of every host in group `web`."
+  question: "Which expression gives them (facts gathered)?"
+  options:
+    - "`{{ groups['web'] | map('extract', hostvars, ['ansible_default_ipv4', 'address']) | list }}`"
+    - "`{{ web.ips }}`"
+    - "`{{ lookup('dns', 'web') }}` always"
+    - "`{{ ansible_hosts['web'] }}`"
+  answer: 0
+  explanation: "`hostvars` exposes every host's facts and vars, and `groups` lists group members. Facts must have been gathered for those hosts earlier in the run, or come from the fact cache."
+
+- id: an-m-010
+  level: medium
+  category: Ansible
+  type: mcq
+  title: "Pull instead of push"
+  scenario: "Autoscaled instances boot constantly. You want each to configure itself on boot without a central push."
+  question: "Which fits best?"
+  options:
+    - "Bake most config into the image, and run `ansible-pull` (or cloud-init) at boot for the remainder"
+    - "SSH into each new instance manually"
+    - "Run the full playbook from your laptop every minute"
+    - "Disable autoscaling"
+  answer: 0
+  explanation: "Pushing to ephemeral nodes doesn't scale. Bake the image, keep boot-time config small, and make `ansible-pull` fetch from Git if you need it."
+
+- id: an-h-001
+  level: hard
+  category: Ansible
+  type: fill
+  title: "Template + handler"
+  scenario: "Render `nginx.conf.j2` and reload nginx only when the file actually changed."
+  lang: yaml
+  template: |
+    - name: Render nginx config
+      ansible.builtin.{{mod}}:
+        src: nginx.conf.j2
+        dest: /etc/nginx/nginx.conf
+        validate: nginx -t -c %s
+      {{kw}}: reload nginx
+
+    # handlers/main.yml
+    - name: reload nginx
+      ansible.builtin.service:
+        name: nginx
+        state: {{state}}
+  blanks:
+    mod:   { accept: ["^template$"], solution: template, width: 9 }
+    kw:    { accept: ["^notify$"], solution: notify, width: 7 }
+    state: { accept: ["^reloaded$"], solution: reloaded, width: 9 }
+  explanation: "`template` renders Jinja2, and `validate` refuses to install a config that fails `nginx -t`. `notify` triggers the handler only on change, and `reloaded` keeps connections alive where `restarted` would drop them."
+
+- id: an-h-002
+  level: hard
+  category: Ansible
+  type: spot
+  title: "This rolling update takes the whole site down"
+  scenario: "Four web servers behind a load balancer. Which line makes this play cause downtime?"
+  lang: yaml
+  code: |
+    - hosts: web
+      become: true
+      serial: "100%"
+      tasks:
+        - name: Deploy new build
+          ansible.builtin.unarchive:
+            src: "https://artifacts.acme.io/app-{{ version }}.tgz"
+            dest: /srv/app
+            remote_src: true
+          notify: restart app
+  answer: [3]
+  explanation: "`serial: \"100%\"` updates and restarts every host at once. Use `serial: 1` or `\"25%\"` with `max_fail_percentage`, and drain each node from the load balancer in `pre_tasks` / `post_tasks`."
+
+- id: an-h-003
+  level: hard
+  category: Ansible
+  type: order
+  title: "Introduce Ansible to a legacy fleet"
+  question: "Order a sensible path from hand-configured servers to Ansible-managed ones."
+  items:
+    - "Build a dynamic inventory from cloud tags and test connectivity with `-m ping`"
+    - "Write roles for one service and run them with `--check --diff` to see the drift"
+    - "Fix differences on one canary host with `--limit`, then expand with `serial`"
+    - "Run from CI with ansible-lint, pinned collections and vault/secret lookups"
+    - "Schedule regular check-mode runs to detect drift"
+  explanation: "Inventory, observe, canary, automate, then keep watching. Check mode with diffs first shows how far reality has drifted before you change anything."
+
+- id: an-e-015
+  category: Ansible
+  type: mcq
+  question: "Which command shows a module's documentation and examples offline?"
+  options: ["ansible-doc ansible.builtin.copy", "ansible --help copy", "man ansible-copy", "ansible-galaxy info copy"]
+  answer: 0
+  explanation: "`ansible-doc -l` lists modules, and `ansible-doc <fqcn>` shows parameters and examples. Use fully-qualified names (`ansible.builtin.copy`) in playbooks."
+
+- id: an-m-011
+  level: medium
+  category: Ansible
+  type: mcq
+  title: "Fails only on the new Ubuntu hosts"
+  context:
+    - kind: log
+      title: output
+      content: |
+        fatal: [web7]: FAILED! => {"msg": "The module failed to execute correctly, you probably need to set the interpreter. See stdout/stderr for the exact error", "module_stderr": "/bin/sh: 1: /usr/bin/python: not found"}
+  question: "Older hosts work. What's the fix?"
+  options:
+    - "Set `ansible_python_interpreter=/usr/bin/python3` (or `auto_silent`) for those hosts/groups"
+    - "Install Python 2 on the new hosts"
+    - "Use the `raw` module for everything"
+    - "Disable fact gathering"
+  answer: 0
+  explanation: "Modern distros ship only `python3`. Interpreter discovery usually finds it, but pinned settings in old inventories or `ansible.cfg` can force `/usr/bin/python`. Fix it in `group_vars` rather than per task."
