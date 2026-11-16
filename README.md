@@ -1,9 +1,11 @@
 # DevOps Quiz 2.0
 
+**Live:** https://yousafkhamza.github.io/devops-quiz/
+
 **Scenario questions, live terminal labs, manifests to fill in and bugs to spot**, from quick concepts to multi-step production incidents.
 It's 100% static, so it runs on GitHub Pages with no backend and no build step at runtime. Nothing leaves the browser.
 
-by **Yousaf Hamza** · [LinkedIn](https://www.linkedin.com/in/yousafkhamza/) · [Portfolio](https://yousafkhamza.github.io)
+by **Yousaf K Hamza** · [LinkedIn](https://www.linkedin.com/in/yousafkhamza/) · [Portfolio](https://yousafkhamza.github.io)
 
 ![preview](assets/img/preview.png)
 
@@ -65,7 +67,9 @@ python3 -m http.server 8000     # then open http://localhost:8000
 2. **Settings → Pages → Source: GitHub Actions**.
 3. `.github/workflows/pages.yml` validates the bank and deploys. PRs only run validation.
 
-If you rename the repo, update the two absolute URLs in `index.html` (`og:url`, `og:image`) and `shareUrl` in `assets/js/config.js`. Everything else is relative.
+If you rename the repo again, update the absolute URLs in `index.html` (`og:url`, `og:image`, `twitter:image`) and `shareUrl` in `assets/js/config.js`. Everything else is relative.
+
+The v1 files (`public/quiz.js`, `public/questions.json`, jsDelivr hosting) were removed in 2.0. They live on in the Git history.
 
 ---
 
@@ -82,7 +86,6 @@ bank/*.yaml                ✍️  question SOURCE: easy/medium/hard/expert.yaml
 data/*.json                generated from bank/ — served by Pages (committed)
 scripts/build_bank.py      yaml → json + validation (regex compiles, every solution passes)
 scripts/validate.mjs       re-checks every solution with the browser's JS regex engine
-public/                    v1 assets, kept so the old InfinityFree site keeps working
 ```
 
 ## Writing questions

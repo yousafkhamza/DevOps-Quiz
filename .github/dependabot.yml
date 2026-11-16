@@ -4,3 +4,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:            # one PR per week for all action bumps, not five
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci"

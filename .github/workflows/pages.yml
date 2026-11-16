@@ -1,4 +1,4 @@
-name: validate-and-deploy
+name: build-and-deploy
 
 on:
   push:
@@ -10,30 +10,47 @@ permissions:
   contents: read
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  validate:
+  build:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
       - run: pip install pyyaml
-      - name: Bank is built from bank/*.yaml and up to date
-        run: python3 scripts/build_bank.py --check
-      - uses: actions/setup-node@v4
+      # bank/*.yaml is the source of truth: always rebuild data/ here, so a stale
+      # committed JSON can never break the site. A warning tells you to commit it.
+      - name: Build question bank from bank/*.yaml
+        run: |
+          python3 scripts/build_bank.py
+          if ! git diff --quiet -- data/; then
+            echo "::warning::data/ in the repo was out of date; the deployed site uses the freshly built files. Run 'python3 scripts/build_bank.py' locally and commit data/."
+          fi
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "22"
       - name: Every terminal/manifest solution passes its own matcher (JS regex engine)
         run: node scripts/validate.mjs
+      - name: Stage only the site files
+        run: |
+          mkdir _site
+          cp -r index.html 404.html sitemap.xml .nojekyll assets data _site/
+          cp google*.html _site/ 2>/dev/null || true   # Search Console verification file, if you add one
+      - if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
 
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    needs: validate
+    needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       pages: write
       id-token: write
@@ -41,14 +58,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: actions/configure-pages@v5
-      - name: Stage only the site files
-        run: |
-          mkdir _site
-          cp -r index.html .nojekyll assets data _site/
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

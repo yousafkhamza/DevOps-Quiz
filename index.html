@@ -3,20 +3,138 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DevOps Quiz 2.0 | Yousaf Hamza</title>
-<meta name="description" content="DevOps Quiz 2.0 by Yousaf Hamza. Scenario-based and live-terminal DevOps challenges: Kubernetes, AWS, Terraform, Docker, Linux, CI/CD, GitOps and DevSecOps. Four difficulty levels with negative marking.">
+<title>DevOps Quiz by Yousaf K Hamza | Kubernetes, AWS, Linux practice</title>
+<meta name="description" content="DevOps Quiz (devops-quiz) by Yousaf K Hamza: 504 free practice questions and live terminal labs for Kubernetes, AWS, Terraform, Linux, PowerShell and more.">
+<link rel="canonical" href="https://yousafkhamza.github.io/devops-quiz/">
+<meta name="author" content="Yousaf K Hamza">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="keywords" content="devops quiz, devops-quiz, yousaf k hamza, yousaf hamza, devops practice questions, kubernetes quiz, aws quiz, terraform quiz, linux quiz, powershell quiz, devops interview questions">
+<!-- Google Search Console: paste your verification tag here, e.g.
+<meta name="google-site-verification" content="YOUR-TOKEN"> -->
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "WebSite",
+   "@id": "https://yousafkhamza.github.io/devops-quiz/#website",
+   "url": "https://yousafkhamza.github.io/devops-quiz/",
+   "name": "DevOps Quiz",
+   "alternateName": [
+    "devops-quiz",
+    "DevOps Quiz by Yousaf K Hamza",
+    "DevOps Quiz by Yousaf Hamza"
+   ],
+   "inLanguage": "en",
+   "author": {
+    "@id": "https://yousafkhamza.github.io/devops-quiz/#author"
+   },
+   "publisher": {
+    "@id": "https://yousafkhamza.github.io/devops-quiz/#author"
+   }
+  },
+  {
+   "@type": [
+    "WebApplication",
+    "LearningResource"
+   ],
+   "@id": "https://yousafkhamza.github.io/devops-quiz/#app",
+   "name": "DevOps Quiz 2.0",
+   "url": "https://yousafkhamza.github.io/devops-quiz/",
+   "image": "https://yousafkhamza.github.io/devops-quiz/assets/img/preview.png",
+   "description": "Free DevOps practice: 504 questions from quick concepts to multi-step production incidents you solve by typing commands in a simulated terminal.",
+   "applicationCategory": "EducationalApplication",
+   "operatingSystem": "Any (runs in the browser)",
+   "isAccessibleForFree": true,
+   "learningResourceType": "Quiz",
+   "educationalLevel": [
+    "Beginner",
+    "Intermediate",
+    "Advanced"
+   ],
+   "teaches": [
+    "Kubernetes",
+    "AWS",
+    "Terraform",
+    "Docker",
+    "Linux",
+    "Bash",
+    "PowerShell",
+    "Python",
+    "Ansible",
+    "Git",
+    "CI/CD",
+    "GitOps",
+    "Networking",
+    "Observability",
+    "DevSecOps",
+    "MLOps"
+   ],
+   "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+   },
+   "author": {
+    "@id": "https://yousafkhamza.github.io/devops-quiz/#author"
+   },
+   "codeRepository": "https://github.com/yousafkhamza/devops-quiz"
+  },
+  {
+   "@type": "Person",
+   "@id": "https://yousafkhamza.github.io/devops-quiz/#author",
+   "name": "Yousaf K Hamza",
+   "alternateName": [
+    "Yousaf Hamza",
+    "Yousaf",
+    "yousafkhamza"
+   ],
+   "jobTitle": "Senior DevOps / Platform Engineer",
+   "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Dubai",
+    "addressCountry": "AE"
+   },
+   "url": "https://yousafkhamza.github.io/",
+   "sameAs": [
+    "https://www.linkedin.com/in/yousafkhamza/",
+    "https://github.com/yousafkhamza",
+    "https://yousafkhamza.github.io/"
+   ],
+   "knowsAbout": [
+    "DevOps",
+    "Kubernetes",
+    "AWS",
+    "Terraform",
+    "Platform Engineering",
+    "DevSecOps"
+   ]
+  }
+ ]
+}
+</script>
 <meta name="theme-color" content="#f7f8fa">
+<meta property="og:site_name" content="DevOps Quiz by Yousaf K Hamza">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:title" content="DevOps Quiz 2.0 by Yousaf K Hamza — practice on broken systems">
+<meta name="twitter:description" content="504 DevOps questions, from quick concepts to on-call incidents you fix by typing real commands.">
+<meta name="twitter:image" content="https://yousafkhamza.github.io/devops-quiz/assets/img/preview.png">
 
-<!-- Change these two URLs if you rename the repo -->
-<meta property="og:title" content="DevOps Quiz 2.0 — scenarios, live terminal labs & manifests">
-<meta property="og:description" content="Debug broken pods in a simulated terminal, fix manifests, spot the bug. Easy → Super Hard, with negative marking.">
+<!-- Absolute URLs: update if the repo is renamed again -->
+<meta property="og:title" content="DevOps Quiz 2.0 by Yousaf K Hamza — practice on broken systems">
+<meta property="og:description" content="504 DevOps questions, from quick concepts to on-call incidents you fix by typing real commands. Kubernetes, AWS, Terraform, Linux, PowerShell and more.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://yousafkhamza.github.io/devops-mcq-assets/">
-<meta property="og:image" content="https://yousafkhamza.github.io/devops-mcq-assets/assets/img/preview.png">
+<meta property="og:url" content="https://yousafkhamza.github.io/devops-quiz/">
+<meta property="og:image" content="https://yousafkhamza.github.io/devops-quiz/assets/img/preview.png">
+<meta property="og:image:alt" content="DevOps Quiz 2.0: Practice on broken systems, with a live terminal rolling back a crashing Kubernetes deployment">
 <meta name="twitter:card" content="summary_large_image">
 
-<link rel="icon" href="assets/img/favicon.ico">
+<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/img/favicon-32x32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="assets/img/favicon.ico" sizes="any">
 <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="manifest" href="assets/img/site.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
@@ -25,7 +143,7 @@
 <body>
 
 <header class="topbar">
-  <a class="brand" id="brandHome" href="#" title="Home"><span class="brand-prompt">$</span> devops-quiz <span class="ver">v2.0</span></a>
+  <a class="brand" id="brandHome" href="#" title="Home"><img src="assets/img/favicon.svg" alt="" width="22" height="22"> devops-quiz <span class="ver">v2.0</span></a>
   <nav class="topnav">
     <button class="link" data-go="demo">How it works</button>
     <button class="link" data-go="history">Your attempts</button>
@@ -33,12 +151,13 @@
 </header>
 
 <main id="app">
+  <noscript><p class="loading">DevOps Quiz needs JavaScript to run the questions and the terminal. Turn it on and reload.</p></noscript>
 
   <!-- HOME -->
   <section id="screen-home" class="screen">
     <div class="hero">
       <h1>Practice on broken systems.</h1>
-      <p class="lead">DevOps questions that start where flashcards stop: real logs, real manifests, and on-call incidents you fix by typing commands. Built by Yousaf Hamza. It runs in your browser and sends nothing anywhere.</p>
+      <p class="lead">DevOps questions that start where flashcards stop: real logs, real manifests, and on-call incidents you fix by typing commands. Built by Yousaf K Hamza. It runs in your browser and sends nothing anywhere.</p>
     </div>
 
     <form class="setup" id="setupForm" onsubmit="return false">
@@ -71,6 +190,12 @@
       </div>
     </div>
     <p class="muted small first-time">First time here? <button class="link inline" data-go="demo">Take the six-question tour</button>. It shows how each question type works and isn't scored.</p>
+
+    <section class="about" aria-labelledby="aboutTitle">
+      <h2 id="aboutTitle">About DevOps Quiz</h2>
+      <p>DevOps Quiz is a free, open-source practice site by <a href="https://www.linkedin.com/in/yousafkhamza/" rel="author">Yousaf K Hamza</a> (Yousaf Hamza), a Senior DevOps and Platform Engineer based in Dubai. It has 504 questions at four severity levels, from quick concept checks to on-call incidents you work through in a simulated terminal: reading crash logs, rolling back deployments, fixing security groups, recovering Git branches and repairing Windows services.</p>
+      <p>Topics: Kubernetes, AWS, Terraform, Docker, Linux, Bash scripting, PowerShell, Python, Ansible, Git, CI/CD with GitHub Actions, GitOps with Argo CD, networking, observability with Prometheus and OpenTelemetry, DevSecOps, and AI/MLOps. Use it to prepare for DevOps interviews and certifications such as CKA, AWS Solutions Architect and Terraform Associate.</p>
+    </section>
   </section>
 
   <!-- RULES -->
@@ -151,10 +276,10 @@
 </main>
 
 <footer class="footer">
-  <p>DevOps Quiz 2.0, made by Yousaf Hamza in Dubai. <span class="muted" id="bankVersion"></span></p>
+  <p>DevOps Quiz 2.0, made by Yousaf K Hamza in Dubai. <span class="muted" id="bankVersion"></span></p>
   <p><a href="https://www.linkedin.com/in/yousafkhamza/" target="_blank" rel="noopener">LinkedIn</a>
      <a href="https://yousafkhamza.github.io" target="_blank" rel="noopener">Portfolio</a>
-     <a href="https://github.com/yousafkhamza/devops-mcq-assets" target="_blank" rel="noopener">Source on GitHub</a></p>
+     <a href="https://github.com/yousafkhamza/devops-quiz" target="_blank" rel="noopener">Source on GitHub</a></p>
 </footer>
 
 <audio id="warningSound" preload="auto" src="assets/beep.mp3"></audio>

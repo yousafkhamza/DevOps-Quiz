@@ -21,5 +21,5 @@ export const CONFIG = {
   tabSwitchStrikes: 2,      // 1st = warning, 2nd = quiz exits (exam mode)
   blockPasteInExam: true,   // type it, don't paste it
   warningAt: 10,            // seconds left when the beep plays
-  shareUrl: "https://yousafkhamza.github.io/devops-mcq-assets/",
+  shareUrl: "https://yousafkhamza.github.io/devops-quiz/",
 };
