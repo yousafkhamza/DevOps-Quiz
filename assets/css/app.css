@@ -118,6 +118,8 @@ button { font: inherit; color: inherit; }
 .cmd .btn.primary { background: var(--pager); color: #1d232b; border-color: var(--pager); padding: 9px 22px; }
 .cmd .btn.primary:hover { background: #ffd23f; }
 .first-time { margin-top: 14px; }
+.topup { margin-top: 10px; font-size: 14px; }
+.topup input { accent-color: var(--ink); }
 
 /* ---------- buttons ---------- */
 .btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--rule-2); background: var(--sheet); color: var(--ink); border-radius: 5px; padding: 9px 16px; cursor: pointer; font-weight: 500; font-size: 15px; text-decoration: none; }

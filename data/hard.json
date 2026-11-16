@@ -1602,6 +1602,628 @@
   "explanation": "Strict mode plus an EXIT trap means a failed download stops the script and always cleans up. `curl -f` turns HTTP errors into a non-zero exit."
  },
  {
+  "id": "ha-aws-101",
+  "level": "hard",
+  "category": "AWS",
+  "type": "fill",
+  "title": "S3 bucket policy: deny unencrypted transport",
+  "lang": "json",
+  "template": "{\n  \"Effect\": \"Deny\",\n  \"Principal\": \"*\",\n  \"Action\": \"s3:*\",\n  \"Resource\": [\"arn:aws:s3:::acme-data\", \"arn:aws:s3:::acme-data/*\"],\n  \"Condition\": { \"Bool\": { \"{{key}}\": \"{{val}}\" } }\n}\n",
+  "blanks": {
+   "key": {
+    "accept": [
+     "^aws:SecureTransport$"
+    ],
+    "solution": "aws:SecureTransport",
+    "width": 19
+   },
+   "val": {
+    "accept": [
+     "^false$"
+    ],
+    "solution": "false",
+    "width": 6
+   }
+  },
+  "explanation": "Deny any request where `aws:SecureTransport` is false, which enforces TLS. It's a common CIS and PCI control. Include both the bucket ARN and the object ARNs."
+ },
+ {
+  "id": "ha-aws-102",
+  "level": "hard",
+  "category": "AWS",
+  "type": "spot",
+  "title": "This SCP locks out the whole org",
+  "lang": "json",
+  "code": "{\n  \"Effect\": \"Deny\",\n  \"Action\": \"*\",\n  \"Resource\": \"*\",\n  \"Condition\": {\n    \"StringNotEquals\": { \"aws:RequestedRegion\": [\"eu-central-1\", \"me-central-1\"] }\n  }\n}\n",
+  "answer": [
+   3
+  ],
+  "explanation": "Denying `*` outside two regions also blocks global services whose calls go to us-east-1 (IAM, CloudFront, Route 53, Organizations, Support…). Use `NotAction` to exempt global services, as in AWS's region-deny example."
+ },
+ {
+  "id": "ha-ci-101",
+  "level": "hard",
+  "category": "CI/CD",
+  "type": "fill",
+  "title": "Only one prod deploy at a time",
+  "lang": "yaml",
+  "template": "jobs:\n  deploy:\n    runs-on: ubuntu-latest\n    environment: prod\n    {{key}}:\n      group: deploy-prod\n      cancel-in-progress: {{val}}\n",
+  "blanks": {
+   "key": {
+    "accept": [
+     "^concurrency$"
+    ],
+    "solution": "concurrency",
+    "width": 12
+   },
+   "val": {
+    "accept": [
+     "^false$"
+    ],
+    "solution": "false",
+    "width": 6
+   }
+  },
+  "explanation": "A concurrency group with `cancel-in-progress: false` queues prod deploys instead of overlapping or killing one mid-rollout."
+ },
+ {
+  "id": "ha-ci-102",
+  "level": "hard",
+  "category": "CI/CD",
+  "type": "order",
+  "title": "Debug a red pipeline",
+  "question": "A pipeline that was green yesterday fails today with no code change. Order the investigation.",
+  "items": [
+   "Read the first error in the failing step's log (not the last line)",
+   "Diff the environment: runner image version, tool versions, dependency resolution, action versions",
+   "Re-run once to separate flaky from deterministic",
+   "Reproduce locally or in a debug run with the same inputs",
+   "Pin or fix the drifting input, and add a check so it can't drift silently again"
+  ],
+  "explanation": "'No code change' usually means an input changed: unpinned dependencies, a runner image update or a moved action tag. Pinning and lock files make pipelines deterministic."
+ },
+ {
+  "id": "ha-dk-101",
+  "level": "hard",
+  "category": "Docker",
+  "type": "fill",
+  "title": "Compose healthcheck dependency",
+  "scenario": "Start `api` only after Postgres is actually accepting connections.",
+  "lang": "yaml",
+  "template": "services:\n  db:\n    image: postgres:17\n    healthcheck:\n      test: [\"CMD-SHELL\", \"pg_isready -U postgres\"]\n      interval: 5s\n      retries: 10\n  api:\n    image: acme/api:2.1\n    depends_on:\n      db:\n        condition: {{cond}}\n",
+  "blanks": {
+   "cond": {
+    "accept": [
+     "^service_healthy$"
+    ],
+    "solution": "service_healthy",
+    "width": 16
+   }
+  },
+  "explanation": "`depends_on` alone only waits for the container to start. `condition: service_healthy` waits for the healthcheck. Apps should still retry connections."
+ },
+ {
+  "id": "ha-dk-102",
+  "level": "hard",
+  "category": "Docker",
+  "type": "spot",
+  "title": "Why is every build a cache miss?",
+  "lang": "dockerfile",
+  "code": "FROM python:3.12-slim\nARG BUILD_DATE\nLABEL build_date=$BUILD_DATE\nWORKDIR /app\nRUN echo \"built at $BUILD_DATE\" > /build.txt\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\nCOPY . .\n",
+  "answer": [
+   5
+  ],
+  "explanation": "A `RUN` that uses an ARG which changes every build (a timestamp) invalidates that layer and everything after it, including the pip install. Move build metadata to the end, or into labels only."
+ },
+ {
+  "id": "ha-git-101",
+  "level": "hard",
+  "category": "Git",
+  "type": "fill",
+  "title": "Enforce LF for shell scripts",
+  "lang": "bash",
+  "template": "# .gitattributes\n*.sh   text eol={{eol}}\n*.ps1  text eol={{crlf}}\n*.png  {{bin}}\n",
+  "blanks": {
+   "eol": {
+    "accept": [
+     "^lf$"
+    ],
+    "solution": "lf",
+    "width": 3
+   },
+   "crlf": {
+    "accept": [
+     "^crlf$"
+    ],
+    "solution": "crlf",
+    "width": 5
+   },
+   "bin": {
+    "accept": [
+     "^binary$",
+     "^-text$"
+    ],
+    "solution": "binary",
+    "width": 7
+   }
+  },
+  "explanation": "Per-path line endings stop the `bash\\r` bug on Linux and keep PowerShell scripts in CRLF for Windows tooling. `binary` stops Git from diffing or converting images."
+ },
+ {
+  "id": "ha-git-102",
+  "level": "hard",
+  "category": "Git",
+  "type": "order",
+  "title": "Bisect a regression",
+  "question": "Order a bisect to find which of 300 commits broke checkout.",
+  "items": [
+   "`git bisect start`",
+   "`git bisect bad` (current HEAD is broken)",
+   "`git bisect good v3.3.0` (last known good)",
+   "`git bisect run ./scripts/test-checkout.sh` (exit 0 = good, non-zero = bad)",
+   "Note the first bad commit, then `git bisect reset`"
+  ],
+  "explanation": "About 8–9 automated steps find one commit among 300. `exit 125` in the script tells bisect to skip untestable commits."
+ },
+ {
+  "id": "ha-git-103",
+  "level": "hard",
+  "category": "Git",
+  "type": "spot",
+  "title": "This pre-commit config doesn't stop secrets",
+  "lang": "yaml",
+  "code": "repos:\n  - repo: https://github.com/gitleaks/gitleaks\n    rev: v8.21.2\n    hooks:\n      - id: gitleaks\n        stages: [manual]\n  - repo: https://github.com/pre-commit/pre-commit-hooks\n    rev: v5.0.0\n    hooks:\n      - id: trailing-whitespace\n",
+  "answer": [
+   6
+  ],
+  "explanation": "`stages: [manual]` means gitleaks only runs when someone invokes it explicitly. Remove it, so it runs at pre-commit, and run gitleaks in CI too, since hooks can be skipped."
+ },
+ {
+  "id": "ha-go-101",
+  "level": "hard",
+  "category": "GitOps",
+  "type": "fill",
+  "title": "Don't fight the HPA",
+  "lang": "yaml",
+  "template": "spec:\n  ignoreDifferences:\n    - group: apps\n      kind: {{kind}}\n      {{ptr}}:\n        - /spec/replicas\n",
+  "blanks": {
+   "kind": {
+    "accept": [
+     "^Deployment$"
+    ],
+    "solution": "Deployment",
+    "width": 11
+   },
+   "ptr": {
+    "accept": [
+     "^jsonPointers$"
+    ],
+    "solution": "jsonPointers",
+    "width": 13
+   }
+  },
+  "explanation": "`ignoreDifferences` with jsonPointers stops Argo CD from reporting or reverting the replica count the HPA manages. Add `RespectIgnoreDifferences=true` to syncOptions so syncs don't overwrite it either."
+ },
+ {
+  "id": "ha-go-102",
+  "level": "hard",
+  "category": "GitOps",
+  "type": "order",
+  "title": "Bootstrap a new cluster with GitOps",
+  "question": "Order the bootstrap of a brand-new EKS cluster managed by Argo CD.",
+  "items": [
+   "Terraform creates the cluster, node pools and IAM (IRSA/Pod Identity) for add-ons",
+   "Install Argo CD (Helm/Terraform) with SSO config",
+   "Register the cluster and apply one root 'app of apps' / ApplicationSet",
+   "Argo syncs platform add-ons first (sync waves: CRDs, cert-manager, ESO, ingress)",
+   "Then team applications sync onto the ready platform"
+  ],
+  "explanation": "Terraform builds the infrastructure, then one root object hands over to GitOps. Sync waves keep CRDs and platform services ahead of the workloads that need them."
+ },
+ {
+  "id": "ha-sec-101",
+  "level": "hard",
+  "category": "Security",
+  "type": "fill",
+  "title": "Pod Security Admission: enforce restricted",
+  "lang": "yaml",
+  "template": "apiVersion: v1\nkind: Namespace\nmetadata:\n  name: payments\n  labels:\n    pod-security.kubernetes.io/{{mode}}: {{level}}\n    pod-security.kubernetes.io/warn: restricted\n",
+  "blanks": {
+   "mode": {
+    "accept": [
+     "^enforce$"
+    ],
+    "solution": "enforce",
+    "width": 8
+   },
+   "level": {
+    "accept": [
+     "^restricted$"
+    ],
+    "solution": "restricted",
+    "width": 11
+   }
+  },
+  "explanation": "Namespace labels configure the built-in Pod Security Admission. `enforce` rejects non-compliant Pods, while `warn` and `audit` only report. Roll out with warn or audit first."
+ },
+ {
+  "id": "ha-tf-101",
+  "level": "hard",
+  "category": "Terraform",
+  "type": "fill",
+  "title": "Protect the audit bucket",
+  "lang": "hcl",
+  "template": "resource \"aws_s3_bucket\" \"audit\" {\n  bucket = \"acme-audit-logs-prod\"\n  lifecycle {\n    {{guard}} = true\n  }\n}\n",
+  "blanks": {
+   "guard": {
+    "accept": [
+     "^prevent_destroy$"
+    ],
+    "solution": "prevent_destroy",
+    "width": 16
+   }
+  },
+  "explanation": "With `prevent_destroy`, any plan that would destroy the resource becomes an error. Add S3 Object Lock or a versioning MFA delete for protection outside Terraform too."
+ },
+ {
+  "id": "hb-ai-101",
+  "level": "hard",
+  "category": "AI/MLOps",
+  "type": "spot",
+  "title": "This inference Deployment wastes GPUs",
+  "lang": "yaml",
+  "code": "spec:\n  replicas: 4\n  template:\n    spec:\n      containers:\n        - name: embed\n          image: acme/embedder:1.3\n          resources:\n            limits:\n              nvidia.com/gpu: 1\n              memory: 4Gi\n      nodeSelector:\n        node.kubernetes.io/instance-type: p4d.24xlarge\n",
+  "answer": [
+   13
+  ],
+  "explanation": "A small embedding model pinned to `p4d.24xlarge` (8× A100) claims whole nodes for one GPU each. Use a right-sized GPU family (g6, inf2 or L4-class) via Karpenter requirements, or share GPUs with MIG or time-slicing."
+ },
+ {
+  "id": "hb-ai-102",
+  "level": "hard",
+  "category": "AI/MLOps",
+  "type": "fill",
+  "title": "KEDA: scale inference on queue depth",
+  "lang": "yaml",
+  "template": "apiVersion: keda.sh/v1alpha1\nkind: {{kind}}\nmetadata: { name: summarizer }\nspec:\n  scaleTargetRef: { name: summarizer }\n  minReplicaCount: 0\n  maxReplicaCount: 20\n  triggers:\n    - type: {{trig}}\n      metadata:\n        queueURL: https://sqs.eu-central-1.amazonaws.com/111122223333/summaries\n        queueLength: \"5\"\n        awsRegion: eu-central-1\n",
+  "blanks": {
+   "kind": {
+    "accept": [
+     "^ScaledObject$"
+    ],
+    "solution": "ScaledObject",
+    "width": 13
+   },
+   "trig": {
+    "accept": [
+     "^aws-sqs-queue$"
+    ],
+    "solution": "aws-sqs-queue",
+    "width": 14
+   }
+  },
+  "explanation": "A KEDA `ScaledObject` scales the Deployment on SQS backlog — about 5 messages per replica here — and down to zero when idle. Give KEDA's operator IAM access via Pod Identity or IRSA."
+ },
+ {
+  "id": "hb-ai-103",
+  "level": "hard",
+  "category": "AI/MLOps",
+  "type": "order",
+  "title": "Debug a slow LLM endpoint",
+  "question": "p95 time-to-first-token jumped from 400 ms to 3 s. Order the investigation.",
+  "items": [
+   "Check the queue depth / waiting requests metric (are requests queuing?)",
+   "Check GPU utilisation and KV-cache usage (saturated or evicting?)",
+   "Check prompt token counts — did a change add huge context?",
+   "Scale replicas or cap concurrency/context length as mitigation",
+   "Fix the root cause (prompt size, routing to a smaller model, capacity plan)"
+  ],
+  "explanation": "TTFT is mostly queueing plus prefill time, and prefill scales with prompt length. Rule out queueing and saturation first, then look for prompt bloat."
+ },
+ {
+  "id": "hb-an-101",
+  "level": "hard",
+  "category": "Ansible",
+  "type": "fill",
+  "title": "Wait until the service is healthy",
+  "lang": "yaml",
+  "template": "- name: Wait for /health\n  ansible.builtin.uri:\n    url: \"http://{{ inventory_hostname }}:8080/health\"\n    status_code: 200\n  register: health\n  {{loop}}: health.status == 200\n  retries: 20\n  {{d}}: 3\n",
+  "blanks": {
+   "loop": {
+    "accept": [
+     "^until$"
+    ],
+    "solution": "until",
+    "width": 6
+   },
+   "d": {
+    "accept": [
+     "^delay$"
+    ],
+    "solution": "delay",
+    "width": 6
+   }
+  },
+  "explanation": "`until`, `retries` and `delay` poll until the condition holds, then fail the host if it never does. Combined with `max_fail_percentage`, that's a safe rollout gate."
+ },
+ {
+  "id": "hb-sh-101",
+  "level": "hard",
+  "category": "Bash",
+  "type": "fill",
+  "title": "Wait for every background job",
+  "lang": "bash",
+  "template": "pids=()\nfor r in eu-central-1 me-central-1; do ./deploy.sh \"$r\" & pids+=({{p}}); done\nfail=0\nfor pid in \"${pids[@]}\"; do {{w}} \"$pid\" || fail=1; done\nexit \"$fail\"\n",
+  "blanks": {
+   "p": {
+    "accept": [
+     "^\\$!$"
+    ],
+    "solution": "$!",
+    "width": 3
+   },
+   "w": {
+    "accept": [
+     "^wait$"
+    ],
+    "solution": "wait",
+    "width": 5
+   }
+  },
+  "explanation": "`$!` is the PID of the last background job, and `wait <pid>` returns its exit status. Collecting them makes one failed region fail the whole script."
+ },
+ {
+  "id": "hb-sh-102",
+  "level": "hard",
+  "category": "Bash",
+  "type": "order",
+  "title": "Write a production-safe script",
+  "question": "Order the skeleton of a safe ops script.",
+  "items": [
+   "`#!/usr/bin/env bash` and `set -euo pipefail`",
+   "Parse and validate arguments (usage on error, `${1:?}`)",
+   "Create temp resources with `mktemp` and set `trap cleanup EXIT`",
+   "Do the work with quoted expansions and explicit error handling",
+   "Exit with a meaningful status and log what happened"
+  ],
+  "explanation": "Strict mode first, inputs validated before anything runs, cleanup guaranteed, then the real work. Run ShellCheck in CI."
+ },
+ {
+  "id": "hb-lx-101",
+  "level": "hard",
+  "category": "Linux",
+  "type": "fill",
+  "title": "systemd unit hardening",
+  "lang": "bash",
+  "template": "[Service]\nUser=app\nExecStart=/opt/app/bin/app\nRestart=on-failure\n{{a}}=true\nProtectSystem={{b}}\nPrivateTmp=true\nLimitNOFILE=65535\n",
+  "blanks": {
+   "a": {
+    "accept": [
+     "^NoNewPrivileges$"
+    ],
+    "solution": "NoNewPrivileges",
+    "width": 16
+   },
+   "b": {
+    "accept": [
+     "^strict$",
+     "^full$"
+    ],
+    "solution": "strict",
+    "width": 7
+   }
+  },
+  "explanation": "`NoNewPrivileges` blocks setuid escalation, and `ProtectSystem=strict` makes the filesystem read-only except paths in `ReadWritePaths=`. `systemd-analyze security app` scores a unit's hardening."
+ },
+ {
+  "id": "hb-lx-102",
+  "level": "hard",
+  "category": "Linux",
+  "type": "spot",
+  "title": "This logrotate config loses logs",
+  "lang": "bash",
+  "code": "/var/log/app/*.log {\n    daily\n    rotate 7\n    compress\n    missingok\n    create 0640 app app\n}\n",
+  "answer": [
+   6
+  ],
+  "explanation": "`create` renames the file and makes a new one, but the app keeps writing to the old, renamed file descriptor. Add a `postrotate` that signals the app to reopen its logs, or use `copytruncate` (which can lose a few lines)."
+ },
+ {
+  "id": "hb-lx-103",
+  "level": "hard",
+  "category": "Linux",
+  "type": "order",
+  "title": "Grow a full EBS-backed filesystem online",
+  "question": "Order growing an XFS root filesystem on EC2 without downtime.",
+  "items": [
+   "Modify the EBS volume size (console/CLI) and wait for 'optimizing'",
+   "`lsblk` to confirm the new disk size",
+   "`growpart /dev/nvme0n1 1` to extend the partition",
+   "`xfs_growfs /` (ext4 would be `resize2fs`)",
+   "`df -h` to confirm"
+  ],
+  "explanation": "EBS resizes are online. The partition and then the filesystem need growing. Snapshot first if the data matters."
+ },
+ {
+  "id": "hb-nw-101",
+  "level": "hard",
+  "category": "Networking",
+  "type": "spot",
+  "title": "Why is SSH from the bastion blocked?",
+  "lang": "bash",
+  "code": "# NACL inbound (private subnet)\n100  ALLOW  TCP  22           10.0.1.0/24\n*    DENY   ALL  ALL          0.0.0.0/0\n# NACL outbound (private subnet)\n100  ALLOW  TCP  443          0.0.0.0/0\n*    DENY   ALL  ALL          0.0.0.0/0\n",
+  "answer": [
+   5
+  ],
+  "explanation": "NACLs are stateless: replies to the bastion go out to ephemeral ports (1024–65535), which the outbound rules don't allow. Add an outbound ALLOW for TCP 1024-65535 to 10.0.1.0/24. Security groups are stateful, which is why this only bites with NACLs."
+ },
+ {
+  "id": "hb-nw-102",
+  "level": "hard",
+  "category": "Networking",
+  "type": "fill",
+  "title": "CIDR planning",
+  "scenario": "Split `10.20.0.0/16` into four equal subnets.",
+  "lang": "bash",
+  "template": "subnet-a  10.20.0.0/{{p}}\nsubnet-b  10.20.64.0/18\nsubnet-c  10.20.{{c}}.0/18\nsubnet-d  10.20.192.0/18\n",
+  "blanks": {
+   "p": {
+    "accept": [
+     "^18$"
+    ],
+    "solution": "18",
+    "width": 3
+   },
+   "c": {
+    "accept": [
+     "^128$"
+    ],
+    "solution": "128",
+    "width": 4
+   }
+  },
+  "explanation": "Four equal parts of a /16 are /18s, each 16,384 addresses, starting at .0, .64, .128 and .192 in the third octet."
+ },
+ {
+  "id": "hb-nw-103",
+  "level": "hard",
+  "category": "Networking",
+  "type": "order",
+  "title": "Move a domain's DNS to Route 53 safely",
+  "question": "Order migrating `acme.io` DNS from the old provider to Route 53.",
+  "items": [
+   "Export all records from the old provider and create them in a Route 53 hosted zone",
+   "Verify every record by querying the Route 53 name servers directly (`dig @ns-xxx.awsdns-xx.com`)",
+   "Lower the NS TTL at the registrar/parent where possible, and wait",
+   "Update the domain's name servers at the registrar to the Route 53 set",
+   "Monitor resolution and keep the old zone intact until the old NS TTL has fully expired"
+  ],
+  "explanation": "Copy, verify against the new name servers, then switch delegation. Keep the old provider serving identical records until caches everywhere have moved — often 48 hours for NS records."
+ },
+ {
+  "id": "hb-ob-101",
+  "level": "hard",
+  "category": "Observability",
+  "type": "fill",
+  "title": "OTel Collector pipeline",
+  "lang": "yaml",
+  "template": "receivers:\n  otlp:\n    protocols: { grpc: {}, http: {} }\nprocessors:\n  batch: {}\nexporters:\n  otlphttp/tempo: { endpoint: http://tempo:4318 }\nservice:\n  pipelines:\n    {{sig}}:\n      receivers: [otlp]\n      processors: [{{proc}}]\n      exporters: [otlphttp/tempo]\n",
+  "blanks": {
+   "sig": {
+    "accept": [
+     "^traces$"
+    ],
+    "solution": "traces",
+    "width": 7
+   },
+   "proc": {
+    "accept": [
+     "^batch$"
+    ],
+    "solution": "batch",
+    "width": 6
+   }
+  },
+  "explanation": "Pipelines are defined per signal (traces, metrics, logs). The batch processor groups data for efficient export. Add `memory_limiter` first in production."
+ },
+ {
+  "id": "hb-ob-102",
+  "level": "hard",
+  "category": "Observability",
+  "type": "spot",
+  "title": "This recording rule explodes cardinality",
+  "lang": "yaml",
+  "code": "groups:\n  - name: api\n    rules:\n      - record: api:request_rate:5m\n        expr: sum by (service, route, pod, request_id) (rate(http_requests_total[5m]))\n",
+  "answer": [
+   5
+  ],
+  "explanation": "Grouping by `request_id` (and `pod`) keeps a series per request, which defeats the point of aggregating. Record by bounded labels only, such as `sum by (service, route, code)`."
+ },
+ {
+  "id": "hb-ob-103",
+  "level": "hard",
+  "category": "Observability",
+  "type": "order",
+  "title": "Introduce SLOs to a team",
+  "question": "Order adopting SLOs for the payments API.",
+  "items": [
+   "Pick user-centric SLIs (successful requests, latency under a threshold)",
+   "Measure the current baseline for a few weeks",
+   "Set SLO targets a bit below the baseline, agreed with product",
+   "Create multi-window burn-rate alerts and an error-budget dashboard",
+   "Agree an error-budget policy (e.g. freeze risky releases when exhausted)"
+  ],
+  "explanation": "Measure before you promise. SLOs only change behaviour once an error-budget policy ties them to release decisions."
+ },
+ {
+  "id": "hb-ps-101",
+  "level": "hard",
+  "category": "PowerShell",
+  "type": "fill",
+  "title": "Advanced function with -WhatIf",
+  "lang": "bash",
+  "template": "function Remove-OldLogs {\n    [CmdletBinding({{sp}})]\n    param([Parameter(Mandatory)][string]$Path, [int]$Days = 14)\n    Get-ChildItem $Path -Filter *.log | Where-Object LastWriteTime -lt (Get-Date).AddDays(-$Days) |\n        ForEach-Object { if ($PSCmdlet.{{m}}($_.FullName, 'Delete')) { Remove-Item $_.FullName } }\n}\n",
+  "blanks": {
+   "sp": {
+    "accept": [
+     "^SupportsShouldProcess$"
+    ],
+    "solution": "SupportsShouldProcess",
+    "width": 22
+   },
+   "m": {
+    "accept": [
+     "^ShouldProcess$"
+    ],
+    "solution": "ShouldProcess",
+    "width": 14
+   }
+  },
+  "explanation": "`SupportsShouldProcess` gives your function `-WhatIf` and `-Confirm`, and `$PSCmdlet.ShouldProcess()` honours them — the same safety net built-in cmdlets have."
+ },
+ {
+  "id": "hb-py-101",
+  "level": "hard",
+  "category": "Python",
+  "type": "fill",
+  "title": "Retry with backoff and jitter",
+  "lang": "bash",
+  "template": "import random, time\ndef retry(fn, attempts=5, base=0.5, cap=8):\n    for i in range(attempts):\n        try:\n            return fn()\n        except TransientError:\n            if i == attempts - 1:\n                {{kw}}\n            time.sleep(random.uniform(0, min(cap, base * 2 ** {{e}})))\n",
+  "blanks": {
+   "kw": {
+    "accept": [
+     "^raise$"
+    ],
+    "solution": "raise",
+    "width": 6
+   },
+   "e": {
+    "accept": [
+     "^i$"
+    ],
+    "solution": "i",
+    "width": 2
+   }
+  },
+  "explanation": "Full-jitter exponential backoff (random between 0 and base·2ⁱ, capped) spreads retries out and avoids thundering herds. Re-raise on the final attempt so failures stay visible."
+ },
+ {
+  "id": "hb-tf-102",
+  "level": "hard",
+  "category": "Terraform",
+  "type": "order",
+  "title": "Upgrade the AWS provider across a major version",
+  "question": "Order upgrading from AWS provider 5.x to 6.x across 30 stacks.",
+  "items": [
+   "Read the upgrade guide and search code for removed/renamed arguments",
+   "Bump the constraint in one non-prod stack, `terraform init -upgrade`, and review the plan",
+   "Fix deprecations until the plan shows only expected changes",
+   "Roll the same change stack by stack, prod last, applying reviewed plans",
+   "Commit the updated `.terraform.lock.hcl` files"
+  ],
+  "explanation": "Major provider versions change resource behaviour. Canary the upgrade in non-prod and require plans with no surprise replacements before you touch prod."
+ },
+ {
   "id": "git-h-101",
   "level": "hard",
   "category": "Git",

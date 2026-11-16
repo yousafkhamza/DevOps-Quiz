@@ -1,5 +1,5 @@
 {
- "version": "2.1f6cdf3",
+ "version": "2.fb79cf3",
  "banks": [
   {
    "level": "easy",
@@ -14,31 +14,31 @@
   {
    "level": "hard",
    "file": "hard.json",
-   "count": 55
+   "count": 86
   },
   {
    "level": "expert",
    "file": "expert.json",
-   "count": 17
+   "count": 86
   }
  ],
  "demo": "demo.json",
  "categories": {
-  "AI/MLOps": 30,
-  "AWS": 37,
-  "Ansible": 30,
-  "Bash": 30,
-  "CI/CD": 30,
-  "Docker": 31,
-  "Git": 30,
-  "GitOps": 31,
-  "Kubernetes": 44,
-  "Linux": 30,
-  "Networking": 30,
-  "Observability": 30,
-  "PowerShell": 31,
-  "Python": 30,
-  "Security": 30,
-  "Terraform": 30
+  "AI/MLOps": 37,
+  "AWS": 42,
+  "Ansible": 36,
+  "Bash": 36,
+  "CI/CD": 37,
+  "Docker": 38,
+  "Git": 38,
+  "GitOps": 37,
+  "Kubernetes": 48,
+  "Linux": 37,
+  "Networking": 37,
+  "Observability": 38,
+  "PowerShell": 37,
+  "Python": 36,
+  "Security": 34,
+  "Terraform": 36
  }
 }

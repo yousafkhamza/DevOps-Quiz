@@ -20,7 +20,7 @@ by **Yousaf K Hamza** · [LinkedIn](https://www.linkedin.com/in/yousafkhamza/) �
 | Difficulty | one level | **Easy → Medium → Hard → Super Hard**, plus a *Mixed ramp* |
 | Modes | exam | **Exam** (timer, negative marks) · **Practice** (instant feedback) · **Demo tour** |
 | Results | % and answer list | score ring, per-topic and per-level bars, explanations, "practise my mistakes", share to LinkedIn, local history |
-| Topics | 10 | 16, each with at least 30 questions: AWS, Kubernetes, Docker, Linux, Bash, PowerShell, Python, Ansible, Terraform, Git, CI/CD, GitOps, Networking, Observability, Security, AI/MLOps |
+| Topics | 10 | 16, each with at least 30 questions (and at least 5 Hard and 5 Super hard): AWS, Kubernetes, Docker, Linux, Bash, PowerShell, Python, Ansible, Terraform, Git, CI/CD, GitOps, Networking, Observability, Security, AI/MLOps |
 | Hosting | InfinityFree + jsDelivr | **GitHub Pages** (relative paths, so any repo name works) |
 
 ### The levels
@@ -29,8 +29,12 @@ by **Yousaf K Hamza** · [LinkedIn](https://www.linkedin.com/in/yousafkhamza/) �
 |---|---|---|---|---|
 | **Easy** (289) | direct concepts, one answer (curated from v1, with fixes and explanations) | +1 | −0.25 | 1:00 |
 | **Medium** (143) | read the logs, manifest or output and pick the right move | +2 | −0.5 | 2:00 |
-| **Hard** (55) | live terminal sessions, fill the manifest, spot the bug | +3 | −0.75 | 4:00 |
-| **Super Hard** (17) | 4–6 step incidents (node meltdown, Argo CD rollback, SG drift, cert-manager, OOM, leaked secret, Terraform refactor, a deploy script that wiped /opt) | +4 | −1 | 7:00 |
+| **Hard** (86) | live terminal sessions, fill the manifest, spot the bug | +3 | −0.75 | 4:00 |
+| **Super Hard** (86) | 4–6 step incidents (node meltdown, Argo CD rollback, SG drift, cert-manager, OOM, leaked secret, Terraform refactor, a deploy script that wiped /opt) | +4 | −1 | 7:00 |
+
+### Not enough questions at one level?
+
+Pick *Super hard* + one topic + 20 questions and there may only be 5–10 of them. With **"top up from the nearest level"** (on by default) the rest come from the next level down (Super hard → Hard → Medium → Easy), and the home screen says exactly how many come from where. Turn it off to get only the chosen level.
 
 ### Rules (same spirit as v1)
 
@@ -65,13 +69,22 @@ python3 -m http.server 8000     # then open http://localhost:8000
 
 1. Push to `main`.
 2. **Settings → Pages → Source: GitHub Actions**.
-3. `.github/workflows/pages.yml` validates the bank and deploys. PRs only run validation.
+3. `.github/workflows/pages.yml` rebuilds `data/` from `bank/`, validates every question, and deploys. PRs only build and validate. Dependabot groups action updates into one weekly PR.
 
 If you rename the repo again, update the absolute URLs in `index.html` (`og:url`, `og:image`, `twitter:image`) and `shareUrl` in `assets/js/config.js`. Everything else is relative.
 
 The v1 files (`public/quiz.js`, `public/questions.json`, jsDelivr hosting) were removed in 2.0. They live on in the Git history.
 
 ---
+
+## Google Search Console
+
+1. In Search Console, add a **URL-prefix** property for `https://yousafkhamza.github.io/devops-quiz/`.
+2. Choose **HTML tag** verification and paste the tag where `index.html` has the `google-site-verification` comment (or drop the `googleXXXX.html` file in the repo root; the workflow publishes it).
+3. Submit the sitemap: `https://yousafkhamza.github.io/devops-quiz/sitemap.xml`.
+4. Use **URL inspection → Request indexing** on the home page.
+
+The page ships a canonical URL, Open Graph and Twitter cards, and JSON-LD (`WebSite`, `WebApplication`/`LearningResource`, `Person`) that ties *DevOps Quiz*, *devops-quiz*, *Yousaf K Hamza* and *Yousaf Hamza* together, linked to the LinkedIn and GitHub profiles.
 
 ## Repository layout
 

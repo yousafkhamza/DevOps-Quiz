@@ -99,7 +99,7 @@ function renderChoice(q, root, ctx) {
 /* ------------------------------------------------------------------ */
 export function normalizeCmd(raw) {
   let c = String(raw).trim().replace(/\s+/g, " ").replace(/;+$/, "");
-  c = c.replace(/^\$\s*/, "").replace(/^sudo\s+(-\S+\s+)*/, "");
+  c = c.replace(/^\$\s*/, "").replace(/^sudo\s+((-[EHnis]+|-u\s+\S+)\s+)*(?=[^-\s])/, "");
   c = c.replace(/^k\s/, "kubectl ").replace(/^tf\s/, "terraform ");
   return c;
 }

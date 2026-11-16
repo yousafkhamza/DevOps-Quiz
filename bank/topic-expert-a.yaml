@@ -1,0 +1,776 @@
+# SUPER HARD (and a few HARD) — Kubernetes, AWS, Security, Terraform, GitOps, CI/CD, Git, Docker.
+level: expert
+questions:
+
+# ======================= Kubernetes =======================
+- id: xk-001
+  category: Kubernetes
+  type: mcq
+  title: "Rolling update drops requests"
+  scenario: "During every rollout of `checkout`, about 0.3% of requests get `502` from the ingress, even though readiness probes are configured and `maxUnavailable: 0`."
+  context:
+    - kind: yaml
+      title: deployment (excerpt)
+      content: |
+        strategy: { rollingUpdate: { maxSurge: 25%, maxUnavailable: 0 } }
+        template:
+          spec:
+            terminationGracePeriodSeconds: 30
+            containers:
+              - name: app
+                readinessProbe: { httpGet: { path: /ready, port: 8080 }, periodSeconds: 5 }
+  question: "What's the most likely cause and fix?"
+  options:
+    - "Endpoint removal propagates asynchronously — kube-proxy/ingress keep sending to a Pod that already got SIGTERM; add a `preStop` sleep (e.g. 10–15s) and make the app drain in-flight requests on SIGTERM"
+    - "maxSurge is too low"
+    - "The readiness probe period should be 1s"
+    - "Use the Recreate strategy"
+  answer: 0
+  explanation: "On deletion, the kubelet sends SIGTERM while EndpointSlice updates are still on their way to kube-proxy, ingress controllers and load balancers. A short `preStop` sleep keeps the Pod serving until traffic stops arriving, then graceful shutdown handles in-flight requests. Readiness only gates new Pods."
+
+- id: xk-002
+  category: Kubernetes
+  type: multi
+  title: "Pods evicted under DiskPressure"
+  scenario: "Nodes hit `DiskPressure` every few days and evict random Pods. `df` shows `/var/lib/containerd` at 92%."
+  question: "Which are valid root causes or fixes? (select all)"
+  options:
+    - "Containers writing logs/temp files to their writable layer or emptyDir without `ephemeral-storage` requests/limits"
+    - "Unused images piling up — tune kubelet `imageGCHighThresholdPercent`/`LowThresholdPercent`, use larger root volumes"
+    - "Set `ephemeral-storage` limits so the offender is evicted instead of its neighbours"
+    - "Increase Pod CPU limits"
+  answer: [0, 1, 2]
+  explanation: "Ephemeral storage is a schedulable resource. Without requests and limits, the scheduler can't account for it and the kubelet evicts by priority and usage. Image GC thresholds and node volume sizing cover the image side. CPU has nothing to do with it."
+
+- id: xk-003
+  category: Kubernetes
+  type: mcq
+  title: "PriorityClass surprise"
+  scenario: "After adding a `PriorityClass` with value 1,000,000 for the payments API, a burst of payments Pods caused `kube-system` CoreDNS replicas to be preempted, and the cluster's DNS went down."
+  question: "What was the design mistake?"
+  options:
+    - "CoreDNS ran without a system PriorityClass, so the higher-priority payments Pods could preempt it — give critical add-ons `system-cluster-critical` and keep app priorities below them"
+    - "PriorityClasses don't affect scheduling"
+    - "CoreDNS needs a PDB only"
+    - "Preemption only happens on Fridays"
+  answer: 0
+  explanation: "Preemption evicts lower-priority Pods to make room. Make sure DNS, CNI and other critical add-ons run with `system-cluster-critical` or `system-node-critical`, and give them PDBs. Consider `preemptionPolicy: Never` for app tiers that should only queue."
+
+- id: xk-004
+  category: Kubernetes
+  type: spot
+  title: "Why does this Job never finish?"
+  scenario: "This Job's Pod completes its work (logs say `done`) but the Job stays `Running` for hours."
+  lang: yaml
+  code: |
+    apiVersion: batch/v1
+    kind: Job
+    metadata: { name: export }
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: export
+              image: ghcr.io/acme/export:1.4
+            - name: cloud-sql-proxy
+              image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14
+  answer: [12]
+  explanation: "The proxy sidecar never exits, so the Pod (and Job) never completes. Since Kubernetes 1.29, declare it as a native sidecar — an `initContainer` with `restartPolicy: Always` — and it's stopped automatically when the main container finishes."
+
+# ======================= AWS =======================
+- id: xa-001
+  category: AWS
+  type: mcq
+  title: "Cross-account S3 access still denied"
+  scenario: "Account B's role `etl` must read `s3://acme-a-data/*` in account A. The bucket policy in A allows `arn:aws:iam::B:role/etl` to `s3:GetObject`. Objects are encrypted with a customer-managed KMS key in A. Reads fail with `AccessDenied`."
+  question: "What's still missing?"
+  options:
+    - "The KMS key policy in A must allow the role `kms:Decrypt`, and the role's own IAM policy in B must allow both `s3:GetObject` and `kms:Decrypt` on those ARNs"
+    - "Nothing — bucket policies override everything"
+    - "Make the bucket public"
+    - "Enable S3 Transfer Acceleration"
+  answer: 0
+  explanation: "Cross-account access needs an allow on both sides (resource policy in A, identity policy in B), and SSE-KMS adds a third policy: the key policy. With the AWS-managed `aws/s3` key, cross-account access is impossible, which is why customer-managed keys exist."
+
+- id: xa-002
+  category: AWS
+  type: multi
+  title: "Multi-AZ isn't enough"
+  scenario: "An AZ impairment took down your EKS service even though nodes run in 3 AZs."
+  question: "Which design gaps commonly cause this? (select all)"
+  options:
+    - "A single NAT Gateway in one AZ that all private subnets route through"
+    - "Pods not spread across zones (no topologySpreadConstraints), so most replicas sat in the bad AZ"
+    - "EBS-backed StatefulSet volumes pinned to the failed AZ with no replica elsewhere"
+    - "Using three AZs instead of two"
+  answer: [0, 1, 2]
+  explanation: "Static stability means each AZ has its own NAT Gateway and route table, replicas are spread with zone topology constraints, and stateful data is replicated across AZs. Running in more AZs isn't the problem."
+
+- id: xa-003
+  category: AWS
+  type: order
+  title: "Rotate a leaked RDS master password with zero downtime"
+  question: "Apps read the DB password from Secrets Manager (cached 5 min). Order the rotation."
+  items:
+    - "Create a second DB user with the same grants (alternating-users rotation), or enable managed rotation"
+    - "Store the new user/password as the AWSPENDING version and test the login"
+    - "Promote it to AWSCURRENT; apps pick it up within their cache TTL"
+    - "Verify connections from all services moved (DB connection metrics / pg_stat_activity)"
+    - "Revoke/rotate the leaked credential and review CloudTrail/DB audit logs for its use"
+  explanation: "The alternating-users strategy avoids the moment where the old password is already invalid but apps haven't refreshed. Never just change the master password in place while apps hold cached values."
+
+# ======================= Security =======================
+- id: xs-001
+  category: Security
+  type: mcq
+  title: "SSRF to cloud credentials"
+  scenario: "A PDF-rendering microservice on EKS fetches user-supplied URLs. A pentester got it to fetch `http://169.254.169.254/latest/meta-data/iam/security-credentials/`."
+  question: "Which combination closes this properly?"
+  options:
+    - "IMDSv2 with hop limit 1 on nodes (Pods can't reach it), Pod Identity/IRSA for Pod credentials, an egress allow-list/NetworkPolicy, and URL validation that blocks link-local/private ranges after DNS resolution"
+    - "Only validate that URLs start with https://"
+    - "Rename the metadata endpoint"
+    - "Run the service as root"
+  answer: 0
+  explanation: "Use defence in depth. Hop limit 1 stops containers reaching node credentials, workload identity removes the need for them, and egress controls plus post-resolution IP checks (to beat DNS rebinding) handle the app layer."
+
+- id: xs-002
+  category: Security
+  type: multi
+  title: "Kubernetes privilege-escalation paths"
+  question: "Which RBAC grants effectively give cluster-admin-level power? (select all)"
+  options:
+    - "`create pods` in a namespace where a powerful ServiceAccount exists (mount its token)"
+    - "`escalate` or `bind` on roles/clusterroles"
+    - "`impersonate` on users/groups/serviceaccounts"
+    - "`get` on configmaps in your own namespace"
+  answer: [0, 1, 2]
+  explanation: "Pod creation lets you run as any ServiceAccount in that namespace, `bind` and `escalate` let you grant yourself permissions, and `impersonate` lets you act as anyone. Audit for these verbs, not only for `*`."
+
+- id: xs-003
+  category: Security
+  type: mcq
+  title: "Signed image, still compromised"
+  scenario: "Your admission policy verifies every image has a valid cosign signature. Attackers pushed a malicious image to your registry, signed it with **their own** keyless identity, and it was admitted."
+  question: "What was wrong with the policy?"
+  options:
+    - "It checked that a signature exists but not WHO signed it — pin the certificate identity (your workflow's OIDC subject) and issuer"
+    - "cosign keyless signatures are always unsafe"
+    - "The registry should be public"
+    - "Signatures must be RSA-4096"
+  answer: 0
+  explanation: "Keyless signing proves an identity signed the image. Policies must require your specific identity (e.g. `https://github.com/acme/app/.github/workflows/release.yml@refs/heads/main`) and issuer (`https://token.actions.githubusercontent.com`)."
+
+# ======================= Terraform =======================
+- id: xt-001
+  category: Terraform
+  type: mcq
+  title: "for_each key known only after apply"
+  context:
+    - kind: log
+      title: plan
+      content: |
+        Error: Invalid for_each argument
+          on main.tf line 12, in resource "aws_route53_record" "svc":
+          12:   for_each = toset([for lb in aws_lb.svc : lb.dns_name])
+        The "for_each" set includes values derived from resource attributes that cannot be determined until apply.
+  question: "What's the robust fix?"
+  options:
+    - "Key `for_each` on values known at plan time (e.g. the same static keys used to create the LBs), and reference the computed attributes inside the block"
+    - "Use `-target` to apply the LBs first every time"
+    - "Switch to count = length(...)"
+    - "Add depends_on"
+  answer: 0
+  explanation: "`for_each` keys must be known at plan time. Iterate over your input map (`for_each = var.services`) and use `aws_lb.svc[each.key].dns_name` for values. Two-phase `-target` applies are a workaround, not a design."
+
+- id: xt-002
+  category: Terraform
+  type: multi
+  title: "State contains secrets"
+  question: "Which statements about Terraform state and secrets are TRUE? (select all)"
+  options:
+    - "`sensitive = true` hides values in CLI output but they're still stored in state"
+    - "Anyone who can read the state bucket can read generated passwords and private keys"
+    - "Ephemeral resources/values (Terraform 1.10+) and write-only arguments can keep some secrets out of state"
+    - "Encrypting the S3 bucket makes state contents unreadable to people with s3:GetObject"
+  answer: [0, 1, 2]
+  explanation: "SSE protects data at rest, not from anyone who is allowed to read it. Restrict state read access, prefer `manage_master_user_password` or ephemeral and write-only patterns, and use OpenTofu state encryption if you need it."
+
+- id: xt-003
+  category: Terraform
+  type: mcq
+  title: "Provider in a module with for_each"
+  context:
+    - kind: hcl
+      title: modules/regional/main.tf
+      content: |
+        provider "aws" {
+          region = var.region
+        }
+  question: "The root calls `module \"regional\" { for_each = toset([\"eu-central-1\",\"me-central-1\"]) ... }` and Terraform refuses. Why and what's the pattern?"
+  options:
+    - "Modules with provider blocks inside can't use for_each/count — define aliased providers in the root and pass them in via `providers = { aws = aws.euc1 }` per module call"
+    - "for_each only works with lists"
+    - "AWS provider doesn't support two regions"
+    - "Use workspaces instead"
+  answer: 0
+  explanation: "Legacy modules that contain provider configuration can't be expanded. Keep provider blocks in the root module, declare `configuration_aliases` in the child if needed, and wire them per module call. (Terraform 1.x can't iterate providers dynamically.)"
+
+- id: xt-004
+  category: Terraform
+  type: order
+  title: "Split a monolithic state safely"
+  question: "One 2,400-resource state takes 14 minutes to plan. Order a safe split into `network` and `apps` stacks."
+  items:
+    - "Freeze changes and take a backup of the current state (versioned bucket + `terraform state pull`)"
+    - "Create the new `network` root with the same code and an empty remote backend"
+    - "Move resources with `removed { lifecycle { destroy = false } }` in the old root and `import` blocks in the new one (or `state mv -state-out`)"
+    - "Plan both roots and confirm zero changes"
+    - "Replace hard-coded references with remote state data sources or SSM outputs, then unfreeze"
+  explanation: "The goal is no infrastructure change at all — only ownership moves. Declarative `removed` and `import` blocks are reviewable and repeatable across environments, and a zero-diff plan on both sides is the exit criterion."
+
+# ======================= GitOps =======================
+- id: xg-001
+  category: GitOps
+  type: mcq
+  title: "Argo CD is slow with 900 apps"
+  scenario: "Syncs take minutes to start and the UI lags. `argocd-application-controller` is at 100% CPU, and `argocd-repo-server` is OOMKilled during big Helm renders."
+  question: "Which tuning addresses it?"
+  options:
+    - "Shard the application controller across replicas, scale repo-server horizontally with more memory and parallelism limits, and enable manifest caching/webhooks to cut polling"
+    - "Delete the UI"
+    - "Turn off auto-sync for all apps"
+    - "Run Argo CD on one bigger Pod only"
+  answer: 0
+  explanation: "The controller shards by cluster, and repo-server is stateless rendering, so scale it out and set `reposerver.parallelism.limit`. Webhooks replace frequent polling. Monitor reconcile and work-queue metrics."
+
+- id: xg-002
+  category: GitOps
+  type: multi
+  title: "GitOps and secrets rotation"
+  scenario: "DB passwords rotate in AWS Secrets Manager every 30 days. Apps read them from a Kubernetes Secret created by External Secrets Operator."
+  question: "Which details matter for zero-downtime rotation? (select all)"
+  options:
+    - "ESO `refreshInterval` shorter than the overlap window of old/new credentials"
+    - "Apps must re-read the Secret (file watch on a mounted volume) or be restarted (e.g. Reloader); env vars don't update in place"
+    - "Argo CD must not manage the generated Secret's data (ignore or let ESO own it) to avoid fights"
+    - "Commit the rotated password to Git so Argo can sync it"
+  answer: [0, 1, 2]
+  explanation: "Environment variables are fixed at container start, while mounted Secrets update eventually (except with subPath). The ExternalSecret is managed in Git; the Secret it produces belongs to ESO."
+
+- id: xg-003
+  category: GitOps
+  type: spot
+  title: "ApplicationSet deployed to every cluster, including prod"
+  scenario: "This ApplicationSet was meant for dev clusters only. Which line is the bug?"
+  lang: yaml
+  code: |
+    apiVersion: argoproj.io/v1alpha1
+    kind: ApplicationSet
+    metadata: { name: debug-tools }
+    spec:
+      generators:
+        - clusters:
+            selector:
+              matchLabels: {}
+      template:
+        metadata: { name: "debug-tools-{{name}}" }
+        spec:
+          project: platform
+          source: { repoURL: https://github.com/acme/platform.git, path: debug-tools, targetRevision: main }
+          destination: { server: "{{server}}", namespace: debug }
+  answer: [8]
+  explanation: "An empty `matchLabels: {}` selects every registered cluster. Use `matchLabels: { env: dev }`. Restrict destinations in the AppProject as a second guard."
+
+- id: xg-004
+  category: GitOps
+  type: mcq
+  title: "Rollback of a CRD-breaking release"
+  scenario: "A release upgraded an operator and its CRDs to v2 (stored version changed). Rolling the Git commit back reintroduced the v1 operator, which now crash-loops reading v2 objects."
+  question: "What's the lesson?"
+  options:
+    - "CRD/storage-version changes are one-way doors — roll forward with a fix, test downgrade paths, and keep CRDs in a separate app synced before workloads"
+    - "Always use `git revert` for everything; it's always safe"
+    - "Delete all custom resources and re-create them"
+    - "Disable Argo CD during upgrades"
+  answer: 0
+  explanation: "Git revert only undoes the manifests, not data migrations in etcd. Treat schema changes, in CRDs or databases, as expand-and-contract migrations with an explicit rollback plan."
+
+# ======================= CI/CD =======================
+- id: xc-001
+  category: CI/CD
+  type: mcq
+  title: "Cache poisoning"
+  scenario: "A workflow on `pull_request` from forks restores and saves a dependency cache with key `deps-${{ hashFiles('package-lock.json') }}`. The release workflow on main restores the same key."
+  question: "What's the risk?"
+  options:
+    - "A malicious PR could write a poisoned cache that the trusted release job later restores — isolate caches by trust level (separate keys/branches) and never let untrusted jobs save caches used by release"
+    - "Caches make builds slower"
+    - "hashFiles is non-deterministic"
+    - "Forks can't use caches at all"
+  answer: 0
+  explanation: "On GitHub, caches are scoped by branch, and PR caches are readable by the base branch only in specific ways. Always reason about who can write what a privileged job reads. Release builds should come from a clean, trusted context — ideally with SLSA provenance."
+
+- id: xc-002
+  category: CI/CD
+  type: multi
+  title: "Deploy pipeline guardrails"
+  question: "Which make an automated prod deploy safe enough to run unattended? (select all)"
+  options:
+    - "Progressive rollout with automatic rollback on SLO/error-rate regression"
+    - "Deploy freeze windows and a kill switch"
+    - "Immutable, signed artifacts promoted from staging (same digest)"
+    - "Skipping tests for hotfixes by default"
+  answer: [0, 1, 2]
+  explanation: "Automation needs automated judgement: metrics-based canaries and fast rollback. Hotfixes are exactly when skipped tests hurt most — make the pipeline fast instead."
+
+- id: xc-003
+  category: CI/CD
+  type: spot
+  title: "OIDC trust lets every branch deploy prod"
+  lang: json
+  code: |
+    {
+      "Effect": "Allow",
+      "Principal": { "Federated": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com" },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" },
+        "StringLike": { "token.actions.githubusercontent.com:sub": "repo:acme/payments:*" }
+      }
+    }
+  answer: [7]
+  explanation: "`repo:acme/payments:*` matches every branch, every PR (`pull_request`) and every environment. Pin it to `repo:acme/payments:environment:prod`, and protect that environment with required reviewers and branch rules."
+
+- id: xc-004
+  category: CI/CD
+  type: mcq
+  title: "Monorepo pipeline takes 50 minutes"
+  scenario: "A monorepo with 60 services runs every service's tests on every PR."
+  question: "Which approach scales?"
+  options:
+    - "Change-based selection (path filters or a dependency graph via Nx/Turborepo/Bazel/Pants) with remote build caching, plus a full run on main/merge queue"
+    - "Run everything, but on bigger runners"
+    - "Split into 60 repos immediately"
+    - "Skip tests on PRs"
+  answer: 0
+  explanation: "Build only what's affected (including dependents) and cache results remotely. A periodic or merge-queue full run catches anything the graph misses."
+
+- id: xc-005
+  category: CI/CD
+  type: order
+  title: "Introduce a merge queue"
+  question: "Main keeps breaking because PRs pass CI on stale bases. Order the rollout of a merge queue."
+  items:
+    - "Make CI trigger on `merge_group` events in addition to pull_request"
+    - "Enable the merge queue in the main branch ruleset with required checks"
+    - "Set batch size/concurrency to balance throughput and blast radius"
+    - "Remove 'require branches to be up to date' (the queue now tests the merged result)"
+    - "Watch queue time and failure rate; tune batching and flaky-test handling"
+  explanation: "The queue tests each PR on top of everything ahead of it, so main stays green without everyone constantly rebasing. Workflows must listen to `merge_group`, or the queue stalls waiting for checks."
+
+# ======================= Git =======================
+- id: xgit-001
+  category: Git
+  type: mcq
+  title: "Purge a secret from history"
+  scenario: "A private key was committed 40 commits ago in a repo with 30 forks inside your org. You've already revoked the key."
+  question: "What's the right cleanup?"
+  options:
+    - "Rewrite with `git filter-repo --path key.pem --invert-paths` (or BFG), force-push all branches/tags, ask collaborators to re-clone, contact GitHub Support to purge cached views/PR refs, and handle forks"
+    - "Delete the file in a new commit"
+    - "Make the repo private"
+    - "`git revert` the commit"
+  answer: 0
+  explanation: "History rewrites don't reach existing clones or forks, and GitHub keeps PR refs and cached views. That's why revocation comes first; cleanup only reduces exposure."
+
+- id: xgit-002
+  category: Git
+  type: multi
+  title: "Rebase vs merge on shared branches"
+  question: "Which statements are TRUE? (select all)"
+  options:
+    - "Rebasing a branch others have based work on forces them to rebase onto the rewritten commits"
+    - "`git pull --rebase` on your local feature branch is safe and keeps history linear"
+    - "`git rerere` can remember conflict resolutions across repeated rebases"
+    - "Merge commits make `git bisect` impossible"
+  answer: [0, 1, 2]
+  explanation: "Bisect works fine with merges (`--first-parent` helps). The real rule is: never rewrite history that others build on."
+
+- id: xgit-003
+  category: Git
+  type: mcq
+  title: "Who deleted this function?"
+  scenario: "A helper `validate_iban()` disappeared from the codebase months ago. You need the commit that removed it."
+  question: "Fastest command?"
+  options:
+    - "`git log -S 'def validate_iban' --oneline` (pickaxe)"
+    - "`git blame` on the current file"
+    - "`git reflog`"
+    - "`git grep validate_iban`"
+  answer: 0
+  explanation: "`-S` finds commits that changed how many times a string occurs, i.e. added or removed it. `-G` takes a regex. Blame can't show lines that no longer exist."
+
+- id: xgit-004
+  category: Git
+  type: order
+  title: "Split a monorepo directory into its own repo with history"
+  question: "Order extracting `services/billing` into a new repo, keeping its history."
+  items:
+    - "Fresh clone of the monorepo (filter-repo refuses non-fresh clones by default)"
+    - "`git filter-repo --subdirectory-filter services/billing`"
+    - "Add the new remote and push all branches/tags you need"
+    - "Update CI, CODEOWNERS and dependants to point at the new repo"
+    - "Remove the directory from the monorepo with a pointer README"
+  explanation: "`--subdirectory-filter` rewrites history so that directory becomes the root. Do it in a throwaway clone — it rewrites everything."
+
+- id: xgit-005
+  category: Git
+  type: mcq
+  title: "Line endings broke the deploy script"
+  scenario: "A Bash script edited on Windows fails on Linux with `/usr/bin/env: 'bash\\r': No such file or directory`."
+  question: "What's the durable fix for the repo?"
+  options:
+    - "Add `.gitattributes` with `*.sh text eol=lf` (and normalize with `git add --renormalize .`)"
+    - "Tell everyone to use Linux"
+    - "Run `dos2unix` in every pipeline forever"
+    - "Rename it to .bash"
+  answer: 0
+  explanation: "`.gitattributes` enforces line endings per path, whatever each developer's `core.autocrlf` is. That matters on mixed Windows and Linux teams — and for PowerShell scripts going the other way."
+
+# ======================= Docker =======================
+- id: xd-001
+  category: Docker
+  type: mcq
+  title: "PID 1 and zombies"
+  scenario: "A container runs a Python app that spawns `ffmpeg` subprocesses. After days, `ps` inside shows hundreds of `<defunct>` processes and new spawns fail."
+  question: "Why, and what's the fix?"
+  options:
+    - "The app is PID 1 and doesn't reap orphaned children — run with an init (`docker run --init`, tini/dumb-init as ENTRYPOINT) or reap them in code"
+    - "ffmpeg is incompatible with containers"
+    - "Increase memory limit"
+    - "Use Alpine instead of Debian"
+  answer: 0
+  explanation: "PID 1 has special duties: it inherits orphans and must `wait()` on them, and it gets no default signal handlers. Tiny init processes exist for exactly this. Kubernetes `shareProcessNamespace` changes which process is PID 1."
+
+- id: xd-002
+  category: Docker
+  type: multi
+  title: "Reproducible images"
+  question: "Which make an image rebuild produce the same contents next month? (select all)"
+  options:
+    - "Pin the base image by digest (`FROM python:3.12-slim@sha256:...`)"
+    - "Install dependencies from a lock file with hashes"
+    - "Pin OS packages or use a snapshot mirror (e.g. snapshot.debian.org)"
+    - "`RUN apt-get update && apt-get install -y curl` with no versions"
+  answer: [0, 1, 2]
+  explanation: "Tags and unpinned package installs drift every day. Digest pins plus lock files give reproducible inputs. Automate updates (Renovate) so pinning doesn't mean stale."
+
+- id: xd-003
+  category: Docker
+  type: mcq
+  title: "OOM inside Kubernetes but not locally"
+  scenario: "A JVM service runs fine with `docker run -m 2g` on a laptop but is OOMKilled in Kubernetes with `limits.memory: 2Gi`, even though the heap never exceeds 1.2 GB."
+  question: "What's the most likely explanation?"
+  options:
+    - "Non-heap memory (metaspace, thread stacks, direct buffers, code cache) plus page cache counted in the cgroup pushes total RSS over the limit — size with `MaxRAMPercentage` and leave headroom, and check `container_memory_working_set_bytes`"
+    - "Kubernetes uses a different JVM"
+    - "Docker ignores memory limits"
+    - "The node is too small"
+  answer: 0
+  explanation: "The OOM killer sees the whole cgroup, not just the heap. Measure working set, set `-XX:MaxRAMPercentage` to around 60–75%, and cap native memory sources (`-XX:MaxDirectMemorySize`, thread counts)."
+
+- id: xd-004
+  category: Docker
+  type: spot
+  title: "This image leaks a secret"
+  scenario: "Security found the npm token in the published image even though the Dockerfile deletes it. Which line is the leak?"
+  lang: dockerfile
+  code: |
+    FROM node:22-alpine AS build
+    WORKDIR /app
+    COPY package*.json .npmrc ./
+    RUN npm ci && rm -f .npmrc
+    COPY . .
+    RUN npm run build
+    FROM nginx:1.27-alpine
+    COPY --from=build /app/dist /usr/share/nginx/html
+  answer: [3]
+  explanation: "Line 3 bakes `.npmrc` (with the token) into a build-stage layer. The final image doesn't contain it, but if the build stage is pushed or cached remotely — or someone targets it — the layer is there, and `rm` in a later layer never removes earlier ones. Use `RUN --mount=type=secret,id=npmrc,target=/app/.npmrc npm ci`."
+
+- id: xd-005
+  category: Docker
+  type: terminal
+  title: "Incident: container can't resolve internal DNS"
+  host: dev@build-01
+  prompt: "dev@build-01:~$"
+  scenario: "On a host connected to the corporate VPN, containers on the default bridge can't resolve `artifacts.corp.acme.io`, but the host can."
+  explore:
+    - match: "^cat /etc/resolv\\.conf"
+      output: |
+        nameserver 127.0.0.53
+        search corp.acme.io
+  steps:
+    - task: "Show the DNS config a fresh container actually gets."
+      accept: [{ all: ["^docker run", "--rm", "cat /etc/resolv\\.conf"] }]
+      solution: docker run --rm alpine cat /etc/resolv.conf
+      tool: docker run
+      output: |
+        nameserver 8.8.8.8
+        nameserver 8.8.4.4
+    - task: "Why public DNS? Type `answer A|B|C` — A) Docker found only the host's 127.0.0.53 stub (unreachable from the container) and fell back to public resolvers · B) the image is broken · C) the VPN blocks containers"
+      accept: ["^answer [Aa]$"]
+      solution: answer A
+      tool: answer
+      output: "Correct — loopback resolvers on the host aren't reachable from a container network namespace."
+    - task: "Find the real upstream DNS servers systemd-resolved is using."
+      accept: ["^resolvectl( status| dns)?\\b", "^systemd-resolve --status", "^cat /run/systemd/resolve/resolv\\.conf"]
+      solution: resolvectl dns
+      tool: [resolvectl, systemd-resolve, cat]
+      output: |
+        Global:
+        Link 2 (eth0): 10.0.0.2
+        Link 5 (tun0): 10.80.0.10 10.80.0.11
+    - task: "Run a test container that uses the VPN resolver `10.80.0.10` and the `corp.acme.io` search domain, and resolve the host."
+      accept: [{ all: ["^docker run", "--dns[ =]10\\.80\\.0\\.10", "(nslookup|getent hosts|dig|host) artifacts"] }]
+      solution: docker run --rm --dns 10.80.0.10 --dns-search corp.acme.io alpine nslookup artifacts.corp.acme.io
+      tool: docker run
+      output: |
+        Server:    10.80.0.10
+        Name:      artifacts.corp.acme.io
+        Address:   10.80.12.40
+  explanation: "Docker copies the host's resolv.conf but drops loopback nameservers, falling back to 8.8.8.8 when nothing is left. Make it permanent with `\"dns\": [\"10.80.0.10\"]` in `/etc/docker/daemon.json`, or point Docker at `/run/systemd/resolve/resolv.conf`. In Compose, set `dns:` per service."
+
+# ======================= HARD top-ups =======================
+- id: ha-aws-101
+  level: hard
+  category: AWS
+  type: fill
+  title: "S3 bucket policy: deny unencrypted transport"
+  lang: json
+  template: |
+    {
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:*",
+      "Resource": ["arn:aws:s3:::acme-data", "arn:aws:s3:::acme-data/*"],
+      "Condition": { "Bool": { "{{key}}": "{{val}}" } }
+    }
+  blanks:
+    key: { accept: ["^aws:SecureTransport$"], solution: aws:SecureTransport, width: 19 }
+    val: { accept: ["^false$"], solution: "false", width: 6 }
+  explanation: "Deny any request where `aws:SecureTransport` is false, which enforces TLS. It's a common CIS and PCI control. Include both the bucket ARN and the object ARNs."
+
+- id: ha-aws-102
+  level: hard
+  category: AWS
+  type: spot
+  title: "This SCP locks out the whole org"
+  lang: json
+  code: |
+    {
+      "Effect": "Deny",
+      "Action": "*",
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": { "aws:RequestedRegion": ["eu-central-1", "me-central-1"] }
+      }
+    }
+  answer: [3]
+  explanation: "Denying `*` outside two regions also blocks global services whose calls go to us-east-1 (IAM, CloudFront, Route 53, Organizations, Support…). Use `NotAction` to exempt global services, as in AWS's region-deny example."
+
+- id: ha-ci-101
+  level: hard
+  category: CI/CD
+  type: fill
+  title: "Only one prod deploy at a time"
+  lang: yaml
+  template: |
+    jobs:
+      deploy:
+        runs-on: ubuntu-latest
+        environment: prod
+        {{key}}:
+          group: deploy-prod
+          cancel-in-progress: {{val}}
+  blanks:
+    key: { accept: ["^concurrency$"], solution: concurrency, width: 12 }
+    val: { accept: ["^false$"], solution: "false", width: 6 }
+  explanation: "A concurrency group with `cancel-in-progress: false` queues prod deploys instead of overlapping or killing one mid-rollout."
+
+- id: ha-ci-102
+  level: hard
+  category: CI/CD
+  type: order
+  title: "Debug a red pipeline"
+  question: "A pipeline that was green yesterday fails today with no code change. Order the investigation."
+  items:
+    - "Read the first error in the failing step's log (not the last line)"
+    - "Diff the environment: runner image version, tool versions, dependency resolution, action versions"
+    - "Re-run once to separate flaky from deterministic"
+    - "Reproduce locally or in a debug run with the same inputs"
+    - "Pin or fix the drifting input, and add a check so it can't drift silently again"
+  explanation: "'No code change' usually means an input changed: unpinned dependencies, a runner image update or a moved action tag. Pinning and lock files make pipelines deterministic."
+
+- id: ha-dk-101
+  level: hard
+  category: Docker
+  type: fill
+  title: "Compose healthcheck dependency"
+  scenario: "Start `api` only after Postgres is actually accepting connections."
+  lang: yaml
+  template: |
+    services:
+      db:
+        image: postgres:17
+        healthcheck:
+          test: ["CMD-SHELL", "pg_isready -U postgres"]
+          interval: 5s
+          retries: 10
+      api:
+        image: acme/api:2.1
+        depends_on:
+          db:
+            condition: {{cond}}
+  blanks:
+    cond: { accept: ["^service_healthy$"], solution: service_healthy, width: 16 }
+  explanation: "`depends_on` alone only waits for the container to start. `condition: service_healthy` waits for the healthcheck. Apps should still retry connections."
+
+- id: ha-dk-102
+  level: hard
+  category: Docker
+  type: spot
+  title: "Why is every build a cache miss?"
+  lang: dockerfile
+  code: |
+    FROM python:3.12-slim
+    ARG BUILD_DATE
+    LABEL build_date=$BUILD_DATE
+    WORKDIR /app
+    RUN echo "built at $BUILD_DATE" > /build.txt
+    COPY requirements.txt .
+    RUN pip install --no-cache-dir -r requirements.txt
+    COPY . .
+  answer: [5]
+  explanation: "A `RUN` that uses an ARG which changes every build (a timestamp) invalidates that layer and everything after it, including the pip install. Move build metadata to the end, or into labels only."
+
+- id: ha-git-101
+  level: hard
+  category: Git
+  type: fill
+  title: "Enforce LF for shell scripts"
+  lang: bash
+  template: |
+    # .gitattributes
+    *.sh   text eol={{eol}}
+    *.ps1  text eol={{crlf}}
+    *.png  {{bin}}
+  blanks:
+    eol:  { accept: ["^lf$"], solution: lf, width: 3 }
+    crlf: { accept: ["^crlf$"], solution: crlf, width: 5 }
+    bin:  { accept: ["^binary$", "^-text$"], solution: binary, width: 7 }
+  explanation: "Per-path line endings stop the `bash\\r` bug on Linux and keep PowerShell scripts in CRLF for Windows tooling. `binary` stops Git from diffing or converting images."
+
+- id: ha-git-102
+  level: hard
+  category: Git
+  type: order
+  title: "Bisect a regression"
+  question: "Order a bisect to find which of 300 commits broke checkout."
+  items:
+    - "`git bisect start`"
+    - "`git bisect bad` (current HEAD is broken)"
+    - "`git bisect good v3.3.0` (last known good)"
+    - "`git bisect run ./scripts/test-checkout.sh` (exit 0 = good, non-zero = bad)"
+    - "Note the first bad commit, then `git bisect reset`"
+  explanation: "About 8–9 automated steps find one commit among 300. `exit 125` in the script tells bisect to skip untestable commits."
+
+- id: ha-git-103
+  level: hard
+  category: Git
+  type: spot
+  title: "This pre-commit config doesn't stop secrets"
+  lang: yaml
+  code: |
+    repos:
+      - repo: https://github.com/gitleaks/gitleaks
+        rev: v8.21.2
+        hooks:
+          - id: gitleaks
+            stages: [manual]
+      - repo: https://github.com/pre-commit/pre-commit-hooks
+        rev: v5.0.0
+        hooks:
+          - id: trailing-whitespace
+  answer: [6]
+  explanation: "`stages: [manual]` means gitleaks only runs when someone invokes it explicitly. Remove it, so it runs at pre-commit, and run gitleaks in CI too, since hooks can be skipped."
+
+- id: ha-go-101
+  level: hard
+  category: GitOps
+  type: fill
+  title: "Don't fight the HPA"
+  lang: yaml
+  template: |
+    spec:
+      ignoreDifferences:
+        - group: apps
+          kind: {{kind}}
+          {{ptr}}:
+            - /spec/replicas
+  blanks:
+    kind: { accept: ["^Deployment$"], solution: Deployment, width: 11 }
+    ptr:  { accept: ["^jsonPointers$"], solution: jsonPointers, width: 13 }
+  explanation: "`ignoreDifferences` with jsonPointers stops Argo CD from reporting or reverting the replica count the HPA manages. Add `RespectIgnoreDifferences=true` to syncOptions so syncs don't overwrite it either."
+
+- id: ha-go-102
+  level: hard
+  category: GitOps
+  type: order
+  title: "Bootstrap a new cluster with GitOps"
+  question: "Order the bootstrap of a brand-new EKS cluster managed by Argo CD."
+  items:
+    - "Terraform creates the cluster, node pools and IAM (IRSA/Pod Identity) for add-ons"
+    - "Install Argo CD (Helm/Terraform) with SSO config"
+    - "Register the cluster and apply one root 'app of apps' / ApplicationSet"
+    - "Argo syncs platform add-ons first (sync waves: CRDs, cert-manager, ESO, ingress)"
+    - "Then team applications sync onto the ready platform"
+  explanation: "Terraform builds the infrastructure, then one root object hands over to GitOps. Sync waves keep CRDs and platform services ahead of the workloads that need them."
+
+- id: ha-sec-101
+  level: hard
+  category: Security
+  type: fill
+  title: "Pod Security Admission: enforce restricted"
+  lang: yaml
+  template: |
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: payments
+      labels:
+        pod-security.kubernetes.io/{{mode}}: {{level}}
+        pod-security.kubernetes.io/warn: restricted
+  blanks:
+    mode:  { accept: ["^enforce$"], solution: enforce, width: 8 }
+    level: { accept: ["^restricted$"], solution: restricted, width: 11 }
+  explanation: "Namespace labels configure the built-in Pod Security Admission. `enforce` rejects non-compliant Pods, while `warn` and `audit` only report. Roll out with warn or audit first."
+
+- id: ha-tf-101
+  level: hard
+  category: Terraform
+  type: fill
+  title: "Protect the audit bucket"
+  lang: hcl
+  template: |
+    resource "aws_s3_bucket" "audit" {
+      bucket = "acme-audit-logs-prod"
+      lifecycle {
+        {{guard}} = true
+      }
+    }
+  blanks:
+    guard: { accept: ["^prevent_destroy$"], solution: prevent_destroy, width: 16 }
+  explanation: "With `prevent_destroy`, any plan that would destroy the resource becomes an error. Add S3 Object Lock or a versioning MFA delete for protection outside Terraform too."

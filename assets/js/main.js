@@ -6,7 +6,7 @@ import { render, renderContext, TYPE_LABEL } from "./types.js";
 const LEVELS = Object.keys(CONFIG.levels);
 const S = {
   bank: [], demo: [], meta: {},
-  mode: "exam", level: "mixed", topics: new Set(), count: CONFIG.counts[1],
+  mode: "exam", level: "mixed", topics: new Set(), count: CONFIG.counts[1], topUp: true,
   quiz: null,
 };
 
@@ -81,25 +81,51 @@ function buildSetup() {
     b.onclick = () => { S.count = n; $$("#countChips .chip").forEach(x => x.classList.toggle("on", x === b)); updatePool(); };
     cc.appendChild(b);
   });
+  $("#topUp").onchange = e => { S.topUp = e.target.checked; updatePool(); };
   $("#btnContinue").onclick = showRules;
   updatePool();
+}
+
+// Nearest levels to borrow from when the chosen level runs short (harder first, then easier).
+const FALLBACK = { expert: ["hard", "medium", "easy"], hard: ["expert", "medium", "easy"], medium: ["hard", "easy", "expert"], easy: ["medium", "hard", "expert"] };
+function plan() {
+  if (S.level === "mixed") return { own: pool().length, borrow: [], total: pool().length };
+  const own = pool().length;
+  let need = Math.max(0, S.count - own);
+  const borrow = [];
+  if (S.topUp) for (const l of FALLBACK[S.level]) {
+    if (!need) break;
+    const n = Math.min(need, pool(l).length);
+    if (n) { borrow.push([l, n]); need -= n; }
+  }
+  return { own, borrow, total: own + borrow.reduce((a, [, n]) => a + n, 0) };
 }
 
 function pool(level = S.level) {
   return S.bank.filter(q => S.topics.has(q.category) && (level === "mixed" || q.level === level));
 }
 function updatePool() {
-  const n = pool().length;
+  const P = plan();
   const all = S.topics.size === categories().length;
   const lvl = S.level === "mixed" ? "mixed" : "sev" + CONFIG.levels[S.level].sev;
   const topics = all ? "all" : [...S.topics].map(TOPIC_FLAG).join(",") || '""';
+  const topFlag = S.level !== "mixed" && S.topUp && P.borrow.length ? ` <span class="f">--top-up</span>` : "";
   $("#cmdLine").innerHTML =
-    `<span class="p">$</span> devops-quiz <span class="f">--mode</span> ${S.mode} <span class="f">--level</span> ${lvl} <span class="f">--count</span> ${S.count} \\\n    <span class="f">--topics</span> ${esc(topics)}`;
-  $("#poolInfo").textContent = n === 0 ? "No questions match. Pick at least one topic."
-    : n < S.count ? `Only ${n} questions match, so the test will have ${n}.` : `${n} questions match.`;
-  $("#poolInfo").classList.toggle("bad", n === 0);
-  $("#btnContinue").disabled = n === 0;
+    `<span class="p">$</span> devops-quiz <span class="f">--mode</span> ${S.mode} <span class="f">--level</span> ${lvl} <span class="f">--count</span> ${S.count}${topFlag} \\\n    <span class="f">--topics</span> ${esc(topics)}`;
+  const name = S.level === "mixed" ? "" : CONFIG.levels[S.level].label + " ";
+  let msg;
+  if (P.total === 0) msg = "No questions match. Pick at least one topic.";
+  else if (P.own >= S.count) msg = `${P.own} ${name}questions match.`;
+  else if (P.borrow.length) {
+    const parts = P.borrow.map(([l, n]) => `${n} ${CONFIG.levels[l].label}`);
+    const from = parts.length > 1 ? parts.slice(0, -1).join(", ") + " and " + parts.at(-1) : parts[0];
+    msg = `${P.own} ${name}questions match; ${from} will top it up` + (P.total < S.count ? `, ${P.total} in total.` : ".");
+  } else msg = `Only ${P.own} ${name}questions match, so the test will have ${P.own}.`;
+  $("#poolInfo").textContent = msg;
+  $("#poolInfo").classList.toggle("bad", P.total === 0);
+  $("#btnContinue").disabled = P.total === 0;
   $("#topicsAll").textContent = all ? "Clear" : "Select all";
+  $(".topup").classList.toggle("hidden", S.level === "mixed");
 }
 
 /* ---------------- question picking ---------------- */
@@ -122,7 +148,13 @@ function buildQuiz() {
       picked.push(...pickFrom(pool().filter(q => !ids.has(q.id)), S.count - picked.length));
     }
     picked.sort((a, b) => LEVELS.indexOf(a.level) - LEVELS.indexOf(b.level));
-  } else picked = pickFrom(pool(), S.count);
+  } else {
+    picked = pickFrom(pool(), S.count);
+    if (S.topUp) for (const l of FALLBACK[S.level]) {
+      if (picked.length >= S.count) break;
+      picked.push(...pickFrom(pool(l), S.count - picked.length));
+    }
+  }
   return picked.map(fresh);
 }
 const fresh = q => { const c = structuredClone(q); delete c._order; return c; };

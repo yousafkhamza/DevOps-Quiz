@@ -46,7 +46,7 @@ def normalize(cmd):  # keep in sync with normalizeCmd() in assets/js/types.js
     c = re.sub(r"\s+", " ", str(cmd).strip())
     c = re.sub(r";+$", "", c)
     c = re.sub(r"^\$\s*", "", c)
-    c = re.sub(r"^sudo\s+(-\S+\s+)*", "", c)
+    c = re.sub(r"^sudo\s+((-[EHnis]+|-u\s+\S+)\s+)*(?=[^-\s])", "", c)  # keep `sudo -l ...` as is
     c = re.sub(r"^k\s", "kubectl ", c)
     c = re.sub(r"^tf\s", "terraform ", c)
     return c
