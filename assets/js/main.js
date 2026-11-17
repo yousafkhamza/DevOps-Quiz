@@ -493,6 +493,15 @@ function showHistory() {
 
 /* ---------------- wiring ---------------- */
 function wireGlobal() {
+  const applyTheme = t => {
+    const dark = t === "dark";
+    if (dark) document.documentElement.dataset.theme = "dark"; else delete document.documentElement.dataset.theme;
+    $("#themeBtn").setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+    $("#themeBtn").title = dark ? "Light mode" : "Dark mode";
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#15181c" : "#f7f8fa");
+  };
+  applyTheme(store.get("theme", "light"));
+  $("#themeBtn").onclick = () => { const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark"; store.set("theme", t); applyTheme(t); };
   $("#btnStart").onclick = () => startQuiz(S.pending, S.mode);
   $("#btnNext").onclick = onNext;
   $("#btnSkip").onclick = onSkip;
