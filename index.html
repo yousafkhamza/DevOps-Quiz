@@ -296,6 +296,21 @@
 </footer>
 
 <audio id="warningSound" preload="auto" src="assets/beep.mp3"></audio>
+<dialog class="short sharebox" id="shareDlg" aria-labelledby="shareTitle">
+  <form method="dialog">
+    <h3 id="shareTitle">Share your result</h3>
+    <img id="shareImg" alt="Your result card" width="1200" height="1200">
+    <label class="share-label" for="shareText">Post text (edit it as you like)</label>
+    <textarea id="shareText" rows="8" spellcheck="true"></textarea>
+    <div class="share-actions">
+      <button type="button" class="btn primary" id="shareNative" hidden>Share image and text</button>
+      <button type="button" class="btn primary" id="shareLinkedIn">Copy text and open LinkedIn</button>
+      <button type="button" class="btn" id="shareDownload">Download image</button>
+    </div>
+    <p class="share-note" id="shareNote">LinkedIn doesn't let other sites attach images, so the image downloads for you. In the LinkedIn post box, paste the text and add the image with the photo button.</p>
+    <button class="btn ghost" value="close">Close</button>
+  </form>
+</dialog>
 <script type="module" src="assets/js/main.js"></script>
 </body>
 </html>

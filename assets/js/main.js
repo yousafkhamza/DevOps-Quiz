@@ -1,6 +1,7 @@
 // DevOps Quiz 2.0 — app flow (setup → rules → quiz → result)
 import { CONFIG } from "./config.js";
 import { $, $$, el, esc, md, shuffle, fmtTime, store } from "./util.js";
+import { drawResultCard, postText, toBlob } from "./card.js";
 import { render, renderContext, TYPE_LABEL } from "./types.js";
 
 const LEVELS = Object.keys(CONFIG.levels);
@@ -441,7 +442,6 @@ function finish() {
     store.set("history", hist.slice(0, 30));
   }
   const row = (label, p, n) => `<tr><td>${label}</td><td class="num">${n}</td><td class="num">${p}%</td><td class="barcell"><span class="bar"><i style="width:${p}%" class="${p >= 70 ? "ok" : p >= 40 ? "mid" : "low"}"></i></span></td></tr>`;
-  const share = `I scored ${pct}% on DevOps Quiz 2.0 (${lvlName}, ${R.length} questions, ${Z.mode} mode): live terminal labs, manifests and real incident scenarios. Strongest topic: ${byCat[0]?.k || "-"}. Try it: ${CONFIG.shareUrl}`;
   const mark = r => ({ correct: ["ok", "+" + r.pts], partial: ["part", "+" + r.pts], wrong: ["bad", String(r.pts)], skip: ["skip", "0"], timeout: ["skip", "0, timed out"] }[r.status]);
   const mistakes = R.filter(r => r.status !== "correct").map(r => r.q);
   const verdict = Z.mode === "demo" ? "That's the tour." : pass ? "Passed." : `Below the ${CONFIG.passPercent}% pass mark.`;
@@ -461,8 +461,8 @@ function finish() {
     <div class="cta-row">
       ${mistakes.length ? `<button class="btn primary" id="btnMistakes">Practise the ${mistakes.length} you missed</button>` : ""}
       <button class="btn" id="btnAgain">Start a new test</button>
-      ${Z.mode !== "demo" ? `<button class="btn ghost" id="btnCopy">Copy result</button>
-      <a class="btn ghost" target="_blank" rel="noopener" href="https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(CONFIG.shareUrl)}">Share on LinkedIn</a>` : ""}
+      ${Z.mode !== "demo" ? `<button class="btn" id="btnShare">Share on LinkedIn</button>
+      <button class="btn ghost" id="btnDownload">Download result image</button>` : ""}
     </div>
 
     <div class="report-grid">
@@ -477,9 +477,57 @@ function finish() {
   </article>`;
   $("#btnAgain").onclick = () => show("home");
   const bm = $("#btnMistakes"); if (bm) bm.onclick = () => startQuiz(mistakes.map(fresh), "practice");
-  const bc = $("#btnCopy"); if (bc) bc.onclick = () => navigator.clipboard?.writeText(share).then(() => bc.textContent = "Copied");
+  if (Z.mode !== "demo") {
+    const card = {
+      pct, score, max, pass, mode: Z.mode, n: R.length, levelName: lvlName, levelKey: S.level,
+      sevTag: S.level === "mixed" ? "SEV-4→1" : `SEV-${CONFIG.levels[S.level].sev}`,
+      secs: `in ${fmtTime(secs)}`,
+      counts: { correct: cnt("correct"), partial: cnt("partial"), wrong: cnt("wrong"), skip: cnt("skip") + cnt("timeout") },
+      topics: byCat, date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+    };
+    wireShare(card);
+  }
   S.quiz = null;
   show("result");
+}
+/* ---------------- share card ---------------- */
+function wireShare(card) {
+  let blob = null, url = null;
+  const fname = `devops-quiz-${card.levelName.toLowerCase().replace(/\s+/g, "-")}-${Math.round(card.pct)}.png`;
+  const ready = (async () => { const cv = await drawResultCard(card); blob = await toBlob(cv); url = URL.createObjectURL(blob); })();
+  const download = async () => {
+    await ready;
+    const a = el("a", { href: url, download: fname }); document.body.appendChild(a); a.click(); a.remove();
+  };
+  $("#btnDownload").onclick = async e => { e.target.textContent = "Downloading…"; await download(); e.target.textContent = "Download result image"; };
+  $("#btnShare").onclick = async () => {
+    await ready;
+    const d = $("#shareDlg");
+    $("#shareImg").src = url;
+    $("#shareText").value = postText(card);
+    const note = $("#shareNote"); note.classList.remove("done");
+    note.textContent = "LinkedIn doesn't let other sites attach images, so the image downloads for you. In the LinkedIn post box, paste the text and add the image with the photo button.";
+    const file = new File([blob], fname, { type: "image/png" });
+    const canNative = !!(navigator.canShare && navigator.canShare({ files: [file] })) && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    $("#shareNative").hidden = !canNative;
+    $("#shareLinkedIn").className = canNative ? "btn" : "btn primary";
+    $("#shareNative").onclick = async () => {
+      try { await navigator.share({ files: [file], text: $("#shareText").value }); }
+      catch (err) { if (err.name !== "AbortError") { note.textContent = "Sharing didn't work here. Use Download image and Copy text instead."; } }
+    };
+    $("#shareLinkedIn").onclick = async () => {
+      const text = $("#shareText").value;
+      try { await navigator.clipboard.writeText(text); } catch { /* the text is prefilled anyway */ }
+      await download();
+      window.open(`https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(text)}`, "_blank", "noopener");
+      note.textContent = "Done: the text is copied and the image is in your downloads. In LinkedIn, add the image with the photo button, then post.";
+      note.classList.add("done");
+    };
+    $("#shareDownload").onclick = download;
+    d.showModal ? d.showModal() : d.setAttribute("open", "");
+    $("#shareText").scrollTop = 0;
+    (canNative ? $("#shareNative") : $("#shareLinkedIn")).focus();
+  };
 }
 const stripMd = s => String(s || "").replace(/[`*]/g, "").slice(0, 120);
 
