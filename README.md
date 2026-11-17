@@ -20,7 +20,7 @@ by **Yousaf K Hamza** · [LinkedIn](https://www.linkedin.com/in/yousafkhamza/) �
 | Difficulty | one level | **Easy → Medium → Hard → Super Hard**, plus a *Mixed ramp* |
 | Modes | exam | **Exam** (timer, negative marks) · **Practice** (instant feedback) · **Demo tour** |
 | Results | % and answer list | score ring, per-topic and per-level bars, explanations, "practise my mistakes", share to LinkedIn, local history |
-| Topics | 10 | 16, each with at least 30 questions (and at least 5 Hard and 5 Super hard): AWS, Kubernetes, Docker, Linux, Bash, PowerShell, Python, Ansible, Terraform, Git, CI/CD, GitOps, Networking, Observability, Security, AI/MLOps |
+| Topics | 10 | 16, each with at least 30 questions (and at least 5 Hard and 10 Super hard): AWS, Kubernetes, Docker, Linux, Bash, PowerShell, Python, Ansible, Terraform, Git, CI/CD, GitOps, Networking, Observability, Security, AI/MLOps |
 | Hosting | InfinityFree + jsDelivr | **GitHub Pages** (relative paths, so any repo name works) |
 
 ### The levels
@@ -30,11 +30,15 @@ by **Yousaf K Hamza** · [LinkedIn](https://www.linkedin.com/in/yousafkhamza/) �
 | **Easy** (289) | direct concepts, one answer (curated from v1, with fixes and explanations) | +1 | −0.25 | 1:00 |
 | **Medium** (143) | read the logs, manifest or output and pick the right move | +2 | −0.5 | 2:00 |
 | **Hard** (86) | live terminal sessions, fill the manifest, spot the bug | +3 | −0.75 | 4:00 |
-| **Super Hard** (86) | 4–6 step incidents (node meltdown, Argo CD rollback, SG drift, cert-manager, OOM, leaked secret, Terraform refactor, a deploy script that wiped /opt) | +4 | −1 | 7:00 |
+| **Super Hard** (160) | 4–6 step incidents (node meltdown, Argo CD rollback, SG drift, cert-manager, OOM, leaked secret, Terraform refactor, a deploy script that wiped /opt) | +4 | −1 | 7:00 |
 
 ### Not enough questions at one level?
 
-Pick *Super hard* + one topic + 20 questions and there may only be 5–10 of them. With **"top up from the nearest level"** (on by default) the rest come from the next level down (Super hard → Hard → Medium → Easy), and the home screen says exactly how many come from where. Turn it off to get only the chosen level.
+No topic is pre-selected: pick one or more (or *Select all*). If you ask for more questions than your picks have at that level, say *Super hard* + one topic + 50, **Run** opens a short dialog instead of silently shrinking the test:
+
+* **Top up from nearby levels**: the rest come from the nearest levels (Super hard → Hard → Medium → Easy), with the exact breakdown shown.
+* **Run only that level**: a shorter test that stays at the chosen severity.
+* **Add more topics** or **Change my picks**: back to the setup.
 
 ### Rules (same spirit as v1)
 
@@ -51,7 +55,11 @@ The terminal is a *simulator*. Each task has **matchers** (regexes) for the comm
 * Commands are normalised first: whitespace is collapsed, a leading `$`/`sudo` is stripped, `k` → `kubectl`, `tf` → `terraform`.
 * Flags can appear in any order, because matchers use `{ all: [...], none: [...] }` lookaheads.
 * Exploration is free (`kubectl get pods`, `cat`, `git log`…). Only commands that look like an attempt at the current task (same first words as the solution, or a known wrong move) use one of the **3 attempts**.
-* Built-ins: `help`, `hint` (the task is then worth 50%), `skip` (gives up just the current task: it scores 0, never negative, and you move on; there's also a **Skip this task** button), `tasks`, `history`, `clear`, and `solution` (practice only). ↑/↓ recall history.
+* It behaves like a shell: `pwd`, `cd` (the prompt follows), `whoami`, `hostname`, `id`, `date`, `echo`, `which`, `clear` work; anything unknown gets `command not found`; real tools the lab doesn't simulate say so without using an attempt.
+* **Tab** completes commands, sub-commands, flags and names seen on screen (press it twice to list options). **Ctrl+C** clears the line.
+* `man <cmd>` and `<cmd> --help` are free, like on a real box.
+* `hint` costs 25% of that task and shows a pointer; a second `hint` costs 50% and shows the command's shape (e.g. `kubectl logs payments-api-… --prev…`). There are no more hints after that.
+* Built-ins: `help`, `hint`, `skip` (gives up just the current task: it scores 0, never negative, and you move on; there's also a **Skip this task** button), `tasks`, `history`, `clear`, and `solution` (practice only). ↑/↓ recall history.
 * Labs cover kubectl, AWS CLI, Terraform, Docker, Git, Helm, Argo CD, Linux/systemd, Bash one-liners and ShellCheck, Python venv/pip, Ansible and PowerShell (case-insensitive, like the real thing).
 * Labs can hold state. For example, Argo CD refuses `rollback` until you've disabled auto-sync, exactly like the real thing.
 

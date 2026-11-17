@@ -118,8 +118,18 @@ button { font: inherit; color: inherit; }
 .cmd .btn.primary { background: var(--pager); color: #1d232b; border-color: var(--pager); padding: 9px 22px; }
 .cmd .btn.primary:hover { background: #ffd23f; }
 .first-time { margin-top: 14px; }
-.topup { margin-top: 10px; font-size: 14px; }
-.topup input { accent-color: var(--ink); }
+dialog.short { border: 1px solid var(--rule-2); border-radius: 8px; padding: 22px 24px 16px; max-width: 460px; width: calc(100% - 32px); background: var(--sheet); color: var(--ink); box-shadow: 0 18px 50px rgba(20,25,32,.25); }
+dialog.short::backdrop { background: rgba(20,25,32,.45); }
+dialog.short h3 { margin: 0 0 6px; font-size: 19px; }
+dialog.short p { margin: 0 0 14px; color: var(--ink-2); font-size: 15px; }
+.short-opts { display: grid; gap: 8px; margin-bottom: 10px; }
+.short-opt { text-align: left; display: block; width: 100%; border: 1px solid var(--rule-2); background: var(--sheet); color: var(--ink); border-radius: 6px; padding: 10px 14px; cursor: pointer; font: inherit; }
+.short-opt:hover, .short-opt:focus-visible { border-color: var(--ink); background: var(--pager-wash); }
+.short-opt b { display: block; font-size: 15px; }
+.short-opt span { display: block; font-size: 13.5px; color: var(--ink-2); margin-top: 2px; }
+.chips.nudge { animation: nudge .45s; }
+@keyframes nudge { 0%,100% { transform: none; } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+@media (prefers-reduced-motion: reduce) { .chips.nudge { animation: none; } }
 
 /* ---------- buttons ---------- */
 .btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--rule-2); background: var(--sheet); color: var(--ink); border-radius: 5px; padding: 9px 16px; cursor: pointer; font-weight: 500; font-size: 15px; text-decoration: none; }

@@ -97,6 +97,8 @@ export function highlightLine(line, lang) {
       return hlStatus(h).replace(/^(\S+T\S+Z|\d{4}-\d\d-\d\d[ T][\d:.]+)/, '<span class="h-com">$1</span>');
     case "bash":
     case "sh":
+    case "python":
+    case "powershell":
       if (/^\s*#/.test(raw)) return `<span class="h-com">${h}</span>`;
       return h.replace(/(&quot;.*?&quot;)/g, '<span class="h-str">$1</span>');
     default:

@@ -6,7 +6,7 @@ import { render, renderContext, TYPE_LABEL } from "./types.js";
 const LEVELS = Object.keys(CONFIG.levels);
 const S = {
   bank: [], demo: [], meta: {},
-  mode: "exam", level: "mixed", topics: new Set(), count: CONFIG.counts[1], topUp: true,
+  mode: "exam", level: "mixed", topics: new Set(), count: CONFIG.counts[1], topUp: false,
   quiz: null,
 };
 
@@ -25,7 +25,6 @@ async function boot() {
     console.error(e);
     return;
   }
-  S.topics = new Set(categories());
   buildSetup();
   wireGlobal();
   show("home");
@@ -64,7 +63,7 @@ function buildSetup() {
 
   const tc = $("#topicChips");
   categories().forEach(c => {
-    const b = el("button", { type: "button", class: "chip on", "data-topic": c, "aria-pressed": "true" }, `${esc(c)} <span class="n">${S.bank.filter(q => q.category === c).length}</span>`);
+    const b = el("button", { type: "button", class: "chip", "data-topic": c, "aria-pressed": "false" }, `${esc(c)} <span class="n">${S.bank.filter(q => q.category === c).length}</span>`);
     b.onclick = () => { S.topics.has(c) ? S.topics.delete(c) : S.topics.add(c); b.classList.toggle("on", S.topics.has(c)); b.setAttribute("aria-pressed", S.topics.has(c)); updatePool(); };
     tc.appendChild(b);
   });
@@ -81,19 +80,18 @@ function buildSetup() {
     b.onclick = () => { S.count = n; $$("#countChips .chip").forEach(x => x.classList.toggle("on", x === b)); updatePool(); };
     cc.appendChild(b);
   });
-  $("#topUp").onchange = e => { S.topUp = e.target.checked; updatePool(); };
-  $("#btnContinue").onclick = showRules;
+  $("#btnContinue").onclick = run;
   updatePool();
 }
 
 // Nearest levels to borrow from when the chosen level runs short (harder first, then easier).
 const FALLBACK = { expert: ["hard", "medium", "easy"], hard: ["expert", "medium", "easy"], medium: ["hard", "easy", "expert"], easy: ["medium", "hard", "expert"] };
-function plan() {
+function plan(topUp = true) {
   if (S.level === "mixed") return { own: pool().length, borrow: [], total: pool().length };
   const own = pool().length;
   let need = Math.max(0, S.count - own);
   const borrow = [];
-  if (S.topUp) for (const l of FALLBACK[S.level]) {
+  if (topUp) for (const l of FALLBACK[S.level]) {
     if (!need) break;
     const n = Math.min(need, pool(l).length);
     if (n) { borrow.push([l, n]); need -= n; }
@@ -105,27 +103,66 @@ function pool(level = S.level) {
   return S.bank.filter(q => S.topics.has(q.category) && (level === "mixed" || q.level === level));
 }
 function updatePool() {
-  const P = plan();
+  const P = plan(false);
   const all = S.topics.size === categories().length;
   const lvl = S.level === "mixed" ? "mixed" : "sev" + CONFIG.levels[S.level].sev;
-  const topics = all ? "all" : [...S.topics].map(TOPIC_FLAG).join(",") || '""';
-  const topFlag = S.level !== "mixed" && S.topUp && P.borrow.length ? ` <span class="f">--top-up</span>` : "";
+  const topics = all ? "all" : [...S.topics].map(TOPIC_FLAG).join(",") || "<pick-one>";
   $("#cmdLine").innerHTML =
-    `<span class="p">$</span> devops-quiz <span class="f">--mode</span> ${S.mode} <span class="f">--level</span> ${lvl} <span class="f">--count</span> ${S.count}${topFlag} \\\n    <span class="f">--topics</span> ${esc(topics)}`;
+    `<span class="p">$</span> devops-quiz <span class="f">--mode</span> ${S.mode} <span class="f">--level</span> ${lvl} <span class="f">--count</span> ${S.count} \\\n    <span class="f">--topics</span> ${esc(topics)}`;
   const name = S.level === "mixed" ? "" : CONFIG.levels[S.level].label + " ";
   let msg;
-  if (P.total === 0) msg = "No questions match. Pick at least one topic.";
+  if (!S.topics.size) msg = "Pick one or more topics to start.";
+  else if (P.own === 0 && S.level !== "mixed") msg = `No ${name}questions in these topics yet.`;
   else if (P.own >= S.count) msg = `${P.own} ${name}questions match.`;
-  else if (P.borrow.length) {
-    const parts = P.borrow.map(([l, n]) => `${n} ${CONFIG.levels[l].label}`);
-    const from = parts.length > 1 ? parts.slice(0, -1).join(", ") + " and " + parts.at(-1) : parts[0];
-    msg = `${P.own} ${name}questions match; ${from} will top it up` + (P.total < S.count ? `, ${P.total} in total.` : ".");
-  } else msg = `Only ${P.own} ${name}questions match, so the test will have ${P.own}.`;
+  else msg = `${P.own} ${name}questions match, fewer than ${S.count}.`;
   $("#poolInfo").textContent = msg;
-  $("#poolInfo").classList.toggle("bad", P.total === 0);
-  $("#btnContinue").disabled = P.total === 0;
+  $("#poolInfo").classList.toggle("bad", !S.topics.size);
   $("#topicsAll").textContent = all ? "Clear" : "Select all";
-  $(".topup").classList.toggle("hidden", S.level === "mixed");
+}
+
+function run(e) {
+  e?.preventDefault();
+  if (!S.topics.size) {
+    const tc = $("#topicChips");
+    $("#poolInfo").textContent = "Pick at least one topic first.";
+    $("#poolInfo").classList.add("bad");
+    tc.scrollIntoView({ block: "center", behavior: "smooth" });
+    tc.classList.remove("nudge"); void tc.offsetWidth; tc.classList.add("nudge");
+    tc.querySelector(".chip")?.focus({ preventScroll: true });
+    return;
+  }
+  const own = plan(false), full = plan(true);
+  if (S.level === "mixed") {
+    if (own.total >= S.count) return go(false);
+    return askShort(own, full);
+  }
+  if (own.own >= S.count) return go(false);
+  askShort(own, full);
+}
+function go(topUp) { S.topUp = topUp; showRules(); }
+
+function askShort(own, full) {
+  const mixed = S.level === "mixed";
+  const name = mixed ? "" : CONFIG.levels[S.level].label + " ";
+  const tn = S.topics.size === 1 ? [...S.topics][0] : `these ${S.topics.size} topics`;
+  $("#shortTitle").textContent = `Only ${own.own} ${name}questions here`;
+  $("#shortText").textContent = `You asked for ${S.count}, but ${tn} ${S.topics.size === 1 ? "has" : "have"} ${own.own} at ${mixed ? "all levels" : (CONFIG.levels[S.level].label + " (SEV-" + CONFIG.levels[S.level].sev + ")")}. How do you want to run it?`;
+  const opts = $("#shortOpts"); opts.innerHTML = "";
+  const add = (title, sub, fn) => {
+    const b = el("button", { type: "button", class: "short-opt" }, `<b>${esc(title)}</b><span>${esc(sub)}</span>`);
+    b.onclick = () => { $("#shortDlg").close(); fn(); };
+    opts.appendChild(b);
+  };
+  if (!mixed && full.borrow.length) {
+    const parts = full.borrow.map(([l, n]) => `${n} ${CONFIG.levels[l].label}`);
+    const from = parts.length > 1 ? parts.slice(0, -1).join(", ") + " and " + parts.at(-1) : parts[0];
+    add(`Top up to ${full.total} from nearby levels`, `${own.own} ${name}+ ${from}${full.total < S.count ? `. That's everything ${S.topics.size === 1 ? "this topic has" : "these topics have"}.` : "."}`, () => go(true));
+  }
+  if (own.own > 0) add(`Run ${own.own} ${name}questions only`, mixed ? `Every question ${S.topics.size === 1 ? "this topic has" : "these topics have"}.` : `Stays at ${sevTag(S.level)}, a shorter test.`, () => go(false));
+  if (S.topics.size < categories().length) add("Add more topics", "Go back and pick more topics.", () => { const tc = $("#topicChips"); tc.scrollIntoView({ block: "center", behavior: "smooth" }); tc.querySelector(".chip:not(.on)")?.focus({ preventScroll: true }); });
+  const d = $("#shortDlg");
+  if (d.showModal) d.showModal(); else d.setAttribute("open", "");
+  opts.querySelector("button")?.focus();
 }
 
 /* ---------------- question picking ---------------- */
@@ -185,7 +222,7 @@ function showRules() {
     `<table class="wtable"><tr><th>Severity</th><th>Right</th><th>Wrong</th><th>Time each</th></tr>${rows}</table>`,
     "A skipped question scores 0. Select-all, spot-the-bug and ordering questions only score when fully right.",
     "Terminal and manifest questions give credit for each task or blank you get right. Getting none of it right counts as wrong.",
-    `In the terminal you get ${CONFIG.maxAttemptsPerStep} tries per task. Typing <code>hint</code> halves that task's points. Stuck? <code>skip</code> (or the Skip this task button) gives up just that task: it scores 0, never negative, and you go on to the next one. Output is pre-recorded, so type commands the way you would on a real jump host.`,
+    `In the terminal you get ${CONFIG.maxAttemptsPerStep} tries per task. <code>man</code>, <code>--help</code> and Tab completion are free, like a real shell. <code>hint</code> costs 25% of that task, and a second <code>hint</code> (which shows the command's shape) costs 50%. Stuck? <code>skip</code> (or the Skip this task button) gives up just that task: it scores 0, never negative, and you go on to the next one. Output is pre-recorded, so type commands the way you would on a real jump host.`,
     "When time runs out the question locks and only Skip question works. Terminal tasks and blanks you already solved still count.",
     "You see your score and the explanations after the last question.",
     "Leaving the tab once gives a warning. Leaving it a second time ends the test. Pasting into the terminal is turned off.",

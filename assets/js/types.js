@@ -4,6 +4,7 @@
 //   summary() -> html describing the user's response (for review)
 import { CONFIG } from "./config.js";
 import { el, esc, md, shuffle, codeBlock, highlightOutput, $$ } from "./util.js";
+import { basicCommand, hasMan, skeleton, completions, commonPrefix, harvest } from "./shell.js";
 
 export const TYPE_LABEL = { mcq: "Single answer", multi: "Select all", terminal: "Live terminal", fill: "Fill the manifest", spot: "Spot the bug", order: "Order the steps" };
 
@@ -116,11 +117,33 @@ const isToolCmd = (cmd, step, ci) => toolsOf(step).some(t => {
   return c === x || c.startsWith(x + " ");
 });
 const BUILTINS = ["help", "clear", "hint", "skip", "tasks", "history"];
+const HINT_COST = CONFIG.hintPenalties; // cumulative cost after hint 1 and hint 2
+const pct = x => Math.round(x * 100) + "%";
 
 function renderTerminal(q, root, ctx) {
   const F = q.ignoreCase ? "i" : "";
   const re = p => toRe(p, F);
-  const steps = q.steps.map(s => ({ ...s, hintText: s.hint, status: "todo", attempts: 0, usedHint: false, passedWith: null }));
+  const steps = q.steps.map(s => ({ ...s, hintText: s.hint, status: "todo", attempts: 0, hints: 0, passedWith: null }));
+  // a believable shell: who/where we are, which tools exist, words seen on screen (for Tab)
+  const [user, host] = String(q.host || "devops@bastion").split("@");
+  const pm = String(q.prompt || "").match(/:(~?[^$#]*)[$#]\s*$/);
+  const winCwd = String(q.prompt || "").match(/^PS\s+(.+?)>\s*$/);
+  const home = user === "root" ? "/root" : `/home/${user}`;
+  const env = {
+    user, host: host || "bastion", home, ignoreCase: !!q.ignoreCase,
+    cwd: winCwd ? winCwd[1] : pm ? pm[1].replace(/^~/, home) || home : home,
+    tools: new Set(q.steps.flatMap(s => [].concat(s.check || s.solution).map(c => normalizeCmd(c).split(" ")[0].toLowerCase()))
+      .concat((q.explore || []).map(e => (String(e.match).match(/^\^?([a-zA-Z][\w-]*)/) || [])[1]).filter(Boolean).map(w => w.toLowerCase()))),
+  };
+  // the prompt follows cd, like a real shell
+  const promptText = () => {
+    const p0 = String(q.prompt || "$");
+    if (winCwd) return `PS ${env.cwd}>`;
+    if (!pm) return p0;
+    const d = env.cwd === env.home ? "~" : env.cwd.startsWith(env.home + "/") ? "~" + env.cwd.slice(env.home.length) : env.cwd;
+    return p0.replace(/:(~?[^$#]*)([$#])\s*$/, `:${d}$2`);
+  };
+  const screenWords = new Set();
   const explore = (q.explore || []).map(e => ({ re: re(e.match), out: e.output, sets: e.sets }));
   const flags = new Set(); // simple lab state, e.g. "autosync_off"
   let cur = 0;
@@ -133,14 +156,14 @@ function renderTerminal(q, root, ctx) {
     <div class="term-head"><span class="ttl">${esc(q.host || "devops@bastion")}</span></div>
     <div class="term-tasks"></div>
     <div class="term-out"></div>
-    <div class="term-foot"><span><b>help</b> for commands, <b>hint</b> costs ${Math.round(CONFIG.hintPenalty * 100)}% of a task, <b>skip</b> gives up one task, ↑ ↓ for history</span><span class="foot-r"><span class="att"></span><button type="button" class="skip-task">Skip this task</button></span></div>`;
+    <div class="term-foot"><span><b>Tab</b> completes · <b>man</b> <i>cmd</i> or <i>cmd</i> <b>--help</b> (free) · <b>hint</b> −${pct(HINT_COST[0])}, again −${pct(HINT_COST[1])} · <b>skip</b> gives up a task</span><span class="foot-r"><span class="att"></span><button type="button" class="skip-task">Skip this task</button></span></div>`;
   root.appendChild(term);
   const tasksEl = term.querySelector(".term-tasks");
   const out = term.querySelector(".term-out");
   const att = term.querySelector(".att");
   const skipBtn = term.querySelector(".skip-task");
   skipBtn.onclick = () => { if (!ctx.isLocked() && steps[cur]) { echo("skip"); skipTask(); input.focus(); } };
-  const inRow = el("div", { class: "term-in" }, `<span class="ps">${esc(q.prompt || "$")}</span>`);
+  const inRow = el("div", { class: "term-in" }, `<span class="ps">${esc(promptText())}</span>`);
   const input = el("input", { type: "text", spellcheck: "false", autocomplete: "off", autocapitalize: "off", "aria-label": "terminal input" });
   inRow.appendChild(input);
 
@@ -152,18 +175,19 @@ function renderTerminal(q, root, ctx) {
   function print(text, cls = "") {
     const line = el("div", { class: "term-line " + cls });
     line.innerHTML = cls ? esc(text) : highlightOutput(text);
+    if (!cls) harvest(text).forEach(w => screenWords.add(w));
     out.insertBefore(line, inRow);
     out.scrollTop = out.scrollHeight;
   }
   function echo(cmd) {
-    const line = el("div", { class: "term-line" }, `<span class="h-prompt">${esc(q.prompt || "$")}</span> <span class="h-cmd">${esc(cmd)}</span>`);
+    const line = el("div", { class: "term-line" }, `<span class="h-prompt">${esc(promptText())}</span> <span class="h-cmd">${esc(cmd)}</span>`);
     out.insertBefore(line, inRow);
   }
   function drawTasks() {
     tasksEl.innerHTML = steps.map((s, i) => {
       const cls = s.status === "pass" ? "done" : s.status === "fail" ? "fail" : s.status === "skip" ? "skipped" : i === cur ? "cur" : "";
       const ic = s.status === "pass" ? "✔" : s.status === "fail" ? "✘" : s.status === "skip" ? "↷" : i === cur ? "▶" : "·";
-      const hint = s.usedHint && s.status === "pass" ? ' <span class="t-hint">(hint)</span>' : "";
+      const hint = s.hints && s.status === "pass" ? ` <span class="t-hint">(${s.hints} hint${s.hints > 1 ? "s" : ""})</span>` : "";
       return `<div class="term-task ${cls}"><span class="ic">${ic}</span><span>Task ${i + 1}/${steps.length}: ${md(s.task)}${hint}</span></div>`;
     }).join("");
     const s = steps[cur];
@@ -173,8 +197,8 @@ function renderTerminal(q, root, ctx) {
 
   out.appendChild(inRow);
   (q.motd ? q.motd.split("\n") : []).forEach(l => print(l));
-  print(`# ${steps.length} task${steps.length > 1 ? "s" : ""}. Explore freely — only commands that try to solve the current task count as attempts.`, "t-sys");
-  print("# Tip: answer the task with the command you'd really run; flags may be in any order.", "t-sys");
+  print(`# ${steps.length} task${steps.length > 1 ? "s" : ""}. Type the command you'd really run — flags in any order. Exploring is free;`, "t-sys");
+  print("# only commands that try to solve the current task use an attempt. Stuck? man <cmd>, Tab, then hint.", "t-sys");
   drawTasks();
 
   function finishStep(status) {
@@ -208,9 +232,10 @@ function renderTerminal(q, root, ctx) {
     if (BUILTINS.includes(cmd) || cmd === "solution") {
       if (cmd === "clear") { $$(".term-line", out).forEach(n => n.remove()); return; }
       if (cmd === "help") {
-        print("Built-ins: help, clear, hint (task worth 50%), skip (give up this task, worth 0), tasks, history" + (ctx.mode !== "exam" ? ", solution (practice only)" : ""), "t-sys");
-        print("Type real commands as you would on a jump host. Output is pre-recorded for this lab.", "t-sys");
-        print("Aliases: k → kubectl, tf → terraform. Leading `sudo` is ignored.", "t-sys");
+        print(`Lab commands: hint (−${pct(HINT_COST[0])}; a second hint shows the command's shape, −${pct(HINT_COST[1])} total), skip (gives up this task: 0, never negative), tasks, history, clear` + (ctx.mode !== "exam" ? ", solution (practice only)" : ""), "t-sys");
+        print("Free help, like a real shell: man <cmd>, <cmd> --help, Tab to complete, ↑/↓ for history, Ctrl+C to cancel a line.", "t-sys");
+        print(`Tools in this lab: ${[...env.tools].filter(t => t !== "answer").join(", ")}. Aliases: k → kubectl, tf → terraform.`, "t-sys");
+        print("Output is pre-recorded for this incident, so only commands related to it are simulated.", "t-sys");
         return;
       }
       if (cmd === "tasks") { steps.forEach((s, i) => print(`${i + 1}. [${s.status}] ${s.task.replace(/`/g, "")}`, "t-sys")); return; }
@@ -219,8 +244,15 @@ function renderTerminal(q, root, ctx) {
       if (!s) return print("# nothing left to do", "t-sys");
       if (cmd === "skip") return skipTask();
       if (cmd === "hint") {
-        s.usedHint = true; touched = true;
-        print("hint: " + (s.hintText || "re-read the task and the output you already have"), "t-hint");
+        if (s.hints >= 2) return print("# no more hints for this task — try it, or skip", "t-sys");
+        s.hints++; touched = true;
+        const solo = (s.check && s.check[0]) || s.solution;
+        if (s.hints === 1) {
+          print(`hint 1/2 (task now worth ${pct(1 - HINT_COST[0])}): ` + (s.hintText || `start with \`${normalizeCmd(solo).split(" ")[0]}\` — check its man page`), "t-hint");
+        } else {
+          print(`hint 2/2 (task now worth ${pct(1 - HINT_COST[1])}): shape of the command → ${skeleton(solo)}`, "t-hint");
+        }
+        drawTasks();
         return;
       }
       if (cmd === "solution") {
@@ -270,11 +302,40 @@ function renderTerminal(q, root, ctx) {
       ctx.onChange();
       return;
     }
-    print(`${word}: not part of this lab's recorded environment (no attempt used). Type 'help'.`, "t-sys");
+    const before = env.cwd;
+    const basic = basicCommand(cmd, env);
+    if (env.cwd !== before) { env.prev = before; inRow.querySelector(".ps").textContent = promptText(); }
+    if (basic !== null) { if (basic) print(basic); return; }
+    const lw = word.toLowerCase();
+    if (lw === "ls" || lw === "dir" || lw === "get-childitem") return;               // nothing else of interest here
+    if (lw === "cat" || lw === "less" || lw === "more" || lw === "get-content") return print(`${word}: ${cmd.split(" ").slice(1).join(" ") || "missing file operand"}: No such file or directory`);
+    if (env.tools.has(lw) || hasMan(lw))
+      return print(`# ${word}: that works on a real system, but this incident only simulates the commands that matter here (no attempt used). Try man ${word}, Tab, or hint.`, "t-sys");
+    print(env.ignoreCase
+      ? `${word}: The term '${word}' is not recognized as a name of a cmdlet, function, script file, or executable program.`
+      : `bash: ${word}: command not found`);
   }
 
+  let lastTab = "";
   input.addEventListener("keydown", e => {
     e.stopPropagation();
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const line = input.value;
+      const list = completions(line, screenWords, env.tools, env.ignoreCase);
+      const head = line.slice(0, line.length - line.split(" ").pop().length);
+      if (list.length === 1) input.value = head + list[0] + " ";
+      else if (list.length > 1) {
+        const p = commonPrefix(list);
+        if (p.length > line.split(" ").pop().length) input.value = head + p;
+        else if (lastTab === line) { echo(line); print(list.slice(0, 40).join("   ")); }
+      }
+      lastTab = line;
+      return;
+    }
+    lastTab = "";
+    if (e.key === "c" && e.ctrlKey && !window.getSelection().toString()) { e.preventDefault(); echo(input.value + "^C"); input.value = ""; return; }
+    if (e.key === "u" && e.ctrlKey) { e.preventDefault(); input.value = ""; return; }
     if (e.key === "Enter") { e.preventDefault(); if (!ctx.isLocked()) { run(input.value); input.value = ""; } }
     else if (e.key === "ArrowUp") { e.preventDefault(); if (hIdx > 0) input.value = history[--hIdx] || ""; }
     else if (e.key === "ArrowDown") { e.preventDefault(); hIdx = Math.min(history.length, hIdx + 1); input.value = history[hIdx] || ""; }
@@ -282,11 +343,11 @@ function renderTerminal(q, root, ctx) {
   });
   setTimeout(() => input.focus({ preventScroll: true }), 50);
 
-  const value = s => s.status === "pass" ? (s.usedHint ? 1 - CONFIG.hintPenalty : 1) : 0;
+  const value = s => s.status === "pass" ? 1 - (s.hints ? HINT_COST[s.hints - 1] : 0) : 0;
   return {
     terminal: true,
     // a skipped task never counts as an attempt, so skipping everything scores 0, not negative
-    answered: () => touched && steps.some(s => s.status === "pass" || s.status === "fail" || (s.status === "todo" && (s.attempts || s.usedHint))),
+    answered: () => touched && steps.some(s => s.status === "pass" || s.status === "fail" || (s.status === "todo" && (s.attempts || s.hints))),
     grade() {
       const f = steps.reduce((a, s) => a + value(s), 0) / steps.length;
       return { fraction: Math.round(f * 100) / 100 };
@@ -297,7 +358,7 @@ function renderTerminal(q, root, ctx) {
     },
     summary() {
       return steps.map((s, i) => {
-        const pill = s.status === "pass" ? (s.usedHint ? '<span class="pill part">hint</span>' : '<span class="pill ok">pass</span>') : s.status === "skip" ? '<span class="pill skip">skipped</span>' : '<span class="pill bad">' + (s.status === "fail" ? "fail" : "not done") + "</span>";
+        const pill = s.status === "pass" ? (s.hints ? `<span class="pill part">${s.hints} hint${s.hints > 1 ? "s" : ""}</span>` : '<span class="pill ok">pass</span>') : s.status === "skip" ? '<span class="pill skip">skipped</span>' : '<span class="pill bad">' + (s.status === "fail" ? "fail" : "not done") + "</span>";
         return `<p>${pill} <b>Task ${i + 1}:</b> ${md(s.task)}</p>` +
           (s.passedWith ? `<div class="solution">$ ${esc(s.passedWith)}</div>` : "") +
           (s.passedWith && normalizeCmd(s.passedWith) === normalizeCmd(s.solution) ? "" : `<div class="solution">✔ reference: ${esc(s.solution)}</div>`);

@@ -1,0 +1,542 @@
+# SUPER HARD top-up, part C: AI/MLOps, AWS, Ansible, Bash, CI/CD, Docker, Git.
+# Brings every topic to at least 10 SEV-1 questions.
+level: expert
+questions:
+
+# ======================= AI/MLOps =======================
+- id: xc-ai-001
+  category: AI/MLOps
+  type: mcq
+  title: "GPU Pods pending, GPUs idle"
+  scenario: "An inference Deployment requests `nvidia.com/gpu: 1`. Nodes are g5.xlarge with one A10G each. `kubectl describe pod` shows `0/6 nodes are available: 6 Insufficient nvidia.com/gpu`, but `nvidia-smi` on the nodes shows the GPUs idle."
+  question: "What's the most likely cause?"
+  options:
+    - "The NVIDIA device plugin isn't running (or crashed) on those nodes, so the kubelet never advertises `nvidia.com/gpu` capacity"
+    - "GPU requests must equal GPU limits, so the scheduler rejects the Pod"
+    - "A10G GPUs can't be shared, so Kubernetes can't schedule them"
+    - "The Pod needs `hostNetwork: true` to see the GPU"
+  answer: 0
+  explanation: "Extended resources like `nvidia.com/gpu` only exist once the device plugin registers them with the kubelet. Check `kubectl get node -o jsonpath='{.status.allocatable}'` and the device-plugin DaemonSet (often its toleration or nodeSelector doesn't match the GPU node taint)."
+
+- id: xc-ai-002
+  category: AI/MLOps
+  type: multi
+  title: "LLM serving latency under load"
+  scenario: "A vLLM endpoint serves a 7B model. At 5 concurrent users p95 time-to-first-token is 300 ms; at 60 users it's 9 s, while GPU utilisation sits at 60%."
+  question: "Which changes are likely to help? (select all)"
+  options:
+    - "Cap `max_num_seqs` / concurrent sequences and queue at the gateway so the KV cache isn't constantly preempted"
+    - "Turn on prefix caching when prompts share a long system prompt"
+    - "Scale out replicas on queue depth or TTFT, not on CPU"
+    - "Raise the HPA's CPU target to 95%"
+  answer: [0, 1, 2]
+  explanation: "LLM serving is bound by KV-cache memory and batching, not CPU. When the cache fills, sequences are preempted and recomputed, so latency explodes before the GPU looks busy. Admission control, prefix caching and scaling on serving metrics (queue length, TTFT) address that; a CPU target does not."
+
+- id: xc-ai-003
+  category: AI/MLOps
+  type: order
+  title: "Promote a retrained model safely"
+  question: "A nightly job retrains a fraud model. Put the promotion steps in order."
+  items:
+    - "Validate the training data against the schema and drift checks"
+    - "Train and log the run, metrics and artifact to the registry"
+    - "Compare offline metrics with the current production model on the same holdout set"
+    - "Deploy as a shadow or canary and compare live metrics"
+    - "Promote the version alias in the registry and keep the previous one for rollback"
+  explanation: "Bad data is cheapest to catch first. Offline comparison against the champion on identical data avoids promoting a regression, and shadow/canary traffic catches what offline metrics can't (latency, feature skew). Promoting via an alias keeps rollback a one-line change."
+
+- id: xc-ai-004
+  category: AI/MLOps
+  type: mcq
+  title: "Great offline, bad online"
+  scenario: "A churn model scores AUC 0.91 offline. In production its predictions are almost random. The training pipeline computes `days_since_last_login` in Spark from a nightly snapshot; the online service computes it in Python from the live DB."
+  question: "What's the most likely problem?"
+  options:
+    - "Training/serving skew: the feature is computed differently (time zones, snapshot lag, null handling) in the two paths; use one feature definition, e.g. a feature store or shared transform"
+    - "The model needs more epochs"
+    - "AUC is the wrong metric for churn"
+    - "Python is slower than Spark"
+  answer: 0
+  explanation: "Two implementations of the same feature drift apart. Log the online feature values, compare their distribution to training data, and serve features from the same definition (feature store, or a shared library used by both pipelines)."
+
+- id: xc-ai-005
+  category: AI/MLOps
+  type: multi
+  title: "RAG answers with stale facts"
+  scenario: "A RAG assistant over the internal wiki keeps quoting a runbook that was rewritten two weeks ago."
+  question: "Which are plausible causes? (select all)"
+  options:
+    - "The ingestion job upserts new chunks but never deletes chunks from the old version of the page"
+    - "Chunk IDs aren't derived from the document ID, so re-indexing adds duplicates instead of replacing"
+    - "A semantic cache returns an answer stored before the change"
+    - "The LLM's temperature is set to 0"
+  answer: [0, 1, 2]
+  explanation: "Index hygiene matters more than the model: key chunks by document ID and version, delete on update, and give caches a TTL or invalidate them on re-index. Temperature affects randomness, not which documents are retrieved."
+
+# ======================= AWS =======================
+- id: xc-aws-001
+  category: AWS
+  type: mcq
+  title: "AccessDenied with an Allow everywhere"
+  scenario: "A role in account B has `s3:GetObject` on `arn:aws:s3:::acme-reports/*`. The bucket in account A has a bucket policy allowing that role. Objects are encrypted with a customer-managed KMS key in account A. GetObject returns AccessDenied."
+  question: "What's missing?"
+  options:
+    - "KMS permissions: the key policy in account A must allow the role `kms:Decrypt`, and the role's IAM policy must allow `kms:Decrypt` on that key"
+    - "S3 Block Public Access must be turned off"
+    - "The role needs `s3:ListBucket` to read objects"
+    - "Cross-account access requires S3 Access Points"
+  answer: 0
+  explanation: "SSE-KMS objects need both S3 and KMS permission. Cross-account, the key policy must trust the other account or role, and the caller's identity policy must allow the key too. CloudTrail shows the denied `kms:Decrypt` call."
+
+- id: xc-aws-002
+  category: AWS
+  type: multi
+  title: "Lambda in a VPC can't reach the internet"
+  scenario: "A Lambda attached to two private subnets times out calling a public API. The VPC has an Internet Gateway."
+  question: "Which statements are TRUE? (select all)"
+  options:
+    - "Lambda ENIs never get public IPs, so the private subnets need a route to a NAT gateway in a public subnet"
+    - "Putting the Lambda in a public subnet doesn't fix it"
+    - "If it only needs AWS services like S3 or DynamoDB, gateway VPC endpoints avoid the NAT"
+    - "Adding an Elastic IP to the Lambda function fixes it"
+  answer: [0, 1, 2]
+  explanation: "A VPC-attached Lambda uses Hyperplane ENIs without public IPs, so even a public subnet with an IGW route doesn't help. Use NAT for internet egress, or VPC endpoints for AWS services."
+
+- id: xc-aws-003
+  category: AWS
+  type: spot
+  title: "This SCP locks out the wrong people"
+  scenario: "The intent is to block everyone except the platform role from leaving the approved regions. After attaching it, the platform role is also blocked from IAM and CloudFront."
+  lang: json
+  code: |
+    {
+      "Version": "2012-10-17",
+      "Statement": [{
+        "Sid": "DenyOutsideRegions",
+        "Effect": "Deny",
+        "Action": "*",
+        "Resource": "*",
+        "Condition": {
+          "StringNotEquals": {
+            "aws:RequestedRegion": ["eu-central-1", "me-central-1"]
+          }
+        }
+      }]
+    }
+  answer: [6]
+  explanation: "`Action: \"*\"` also denies global services (IAM, CloudFront, Route 53, STS calls signed in us-east-1). Use `NotAction` to exempt global services, and add an `ArnNotLike` condition on `aws:PrincipalARN` for the platform role."
+
+- id: xc-aws-004
+  category: AWS
+  type: mcq
+  title: "Aurora failover, app down for minutes"
+  scenario: "An Aurora MySQL failover completes in about 30 seconds, but the Java service keeps failing writes with `read-only` errors for 5–10 minutes."
+  question: "What's the most likely cause?"
+  options:
+    - "The JVM and the connection pool cache the old writer's IP (DNS caching, long-lived pooled connections), so they keep writing to the instance that is now a reader"
+    - "Aurora replicas take 10 minutes to become writable"
+    - "The security group blocks the new writer"
+    - "The binlog must be replayed first"
+  answer: 0
+  explanation: "The cluster endpoint is a CNAME that flips on failover. Lower the JVM DNS TTL (`networkaddress.cache.ttl`), validate connections and set a max lifetime in the pool, or use the AWS JDBC wrapper or RDS Proxy, which track the topology."
+
+# ======================= Ansible =======================
+- id: xc-an-001
+  category: Ansible
+  type: mcq
+  title: "Variable precedence surprise"
+  scenario: "`group_vars/web.yml` sets `nginx_workers: 8`. The role's `defaults/main.yml` sets 4, and its `vars/main.yml` sets 2. Hosts in `web` get 2."
+  question: "Why, and what's the fix?"
+  options:
+    - "Role `vars/` outrank inventory group_vars; put tunables in `defaults/` so inventory can override them"
+    - "group_vars only load with `--extra-vars`"
+    - "Ansible picks the lowest number"
+    - "The group file must be named `web.yaml`"
+  answer: 0
+  explanation: "Role defaults are the lowest precedence and role vars are high, above inventory and play vars. Anything users should override belongs in `defaults/main.yml`; reserve `vars/` for constants."
+
+- id: xc-an-002
+  category: Ansible
+  type: spot
+  title: "Why does this report 'changed' every run?"
+  scenario: "The play is supposed to be idempotent, but every run reports one changed task and restarts the app."
+  lang: yaml
+  code: |
+    - name: Configure app
+      hosts: app
+      tasks:
+        - name: Render config
+          ansible.builtin.template:
+            src: app.conf.j2
+            dest: /etc/app/app.conf
+          notify: restart app
+        - name: Check app version
+          ansible.builtin.command: /opt/app/bin/app --version
+          register: app_ver
+          notify: restart app
+      handlers:
+        - name: restart app
+          ansible.builtin.service: { name: app, state: restarted }
+  answer: [10]
+  explanation: "`command` always reports changed, so it notifies the handler every run. Add `changed_when: false` to read-only commands (and drop the `notify`)."
+
+- id: xc-an-003
+  category: Ansible
+  type: multi
+  title: "Rolling a cluster without an outage"
+  question: "You patch a 12-node app tier behind a load balancer. Which play settings help keep it up? (select all)"
+  options:
+    - "`serial: 2` (or a percentage) so only a few hosts change at once"
+    - "`max_fail_percentage: 0` so a failed batch stops the run"
+    - "`pre_tasks` that drain the host from the LB and `post_tasks` that health-check and re-add it"
+    - "`strategy: free` so all hosts finish faster"
+  answer: [0, 1, 2]
+  explanation: "Batches plus a fail threshold keep a bad change contained; draining and health-checking around each batch keeps traffic off hosts being changed. `strategy: free` lets hosts race ahead independently, which is the opposite of controlled."
+
+- id: xc-an-004
+  category: Ansible
+  type: fill
+  title: "Validate before you overwrite sudoers"
+  scenario: "Complete the task so a broken sudoers file is never written."
+  lang: yaml
+  template: |
+    - name: Deploy sudoers drop-in
+      ansible.builtin.template:
+        src: deploy.sudoers.j2
+        dest: /etc/sudoers.d/deploy
+        mode: "{{mode}}"
+        validate: "{{validate}}"
+  blanks:
+    mode:
+      accept: ["^0?440$"]
+      solution: "0440"
+      width: 5
+    validate:
+      accept: ["^/?(usr/)?(s?bin/)?visudo -c ?-f %s$", "^/?(usr/)?(s?bin/)?visudo -cf %s$"]
+      solution: "visudo -cf %s"
+      width: 18
+  explanation: "`validate` runs against the temp file (`%s`) before it replaces the real one, so a syntax error fails the task instead of locking everyone out of sudo. sudo also ignores drop-ins that aren't 0440."
+
+- id: xc-an-005
+  category: Ansible
+  type: mcq
+  title: "Secrets leaking into CI logs"
+  scenario: "A task registers the output of `aws secretsmanager get-secret-value`, and a later `debug` task prints it. CI runs with `-v`."
+  question: "What's the right fix?"
+  options:
+    - "Set `no_log: true` on tasks that handle the secret and stop printing it; fetch it with a lookup plugin at use time"
+    - "Run Ansible without `-v`; the secret is then hidden everywhere"
+    - "Encrypt the CI log with Ansible Vault"
+    - "Rename the variable to start with an underscore"
+  answer: 0
+  explanation: "Verbosity only changes how much gets printed; module results and failures can still show the value. `no_log: true` censors the task's output. Better still, don't register secrets at all: use them directly where needed."
+
+# ======================= Bash =======================
+- id: xc-sh-001
+  category: Bash
+  type: spot
+  title: "This loop loses its counter"
+  scenario: "The script should print how many lines contain ERROR. It always prints 0."
+  lang: bash
+  code: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+    count=0
+    grep ERROR /var/log/app.log | while read -r line; do
+      count=$((count + 1))
+    done
+    echo "errors: $count"
+  answer: [4]
+  explanation: "Each part of a pipeline runs in a subshell, so `count` is incremented in a copy that disappears. Use `while ...; done < <(grep ERROR file)` or `shopt -s lastpipe`. (Or just `grep -c`.)"
+
+- id: xc-sh-002
+  category: Bash
+  type: mcq
+  title: "`local` hides the failure"
+  scenario: "With `set -euo pipefail`, this line runs and the script carries on even though `get_token` failed: `local token=$(get_token)`."
+  question: "Why?"
+  options:
+    - "The exit status of `local` (0) replaces the command substitution's; declare first (`local token`) then assign (`token=$(get_token)`)"
+    - "`set -e` doesn't apply inside functions"
+    - "pipefail turns off -e"
+    - "Command substitution always returns 0"
+  answer: 0
+  explanation: "`local`, `export` and `declare` are commands with their own exit status, which masks the substitution's failure. ShellCheck flags this as SC2155."
+
+- id: xc-sh-003
+  category: Bash
+  type: multi
+  title: "Safe temp files and cleanup"
+  question: "Which practices make a script's temp files safe? (select all)"
+  options:
+    - "`tmp=$(mktemp -d)` instead of a fixed path like `/tmp/myscript`"
+    - "`trap 'rm -rf -- \"$tmp\"' EXIT` right after creating it"
+    - "Quoting `\"$tmp\"` everywhere it's used"
+    - "Using `$$` (the PID) to make the name unique"
+  answer: [0, 1, 2]
+  explanation: "Predictable names in /tmp invite symlink attacks and collisions; `$$` is guessable. `mktemp` creates a private, unique path, and an EXIT trap cleans up on success, failure and most signals."
+
+- id: xc-sh-004
+  category: Bash
+  type: fill
+  title: "Exponential backoff helper"
+  scenario: "Complete the function so it retries a command up to 5 times, doubling the wait each time."
+  lang: bash
+  template: |
+    retry() {
+      local n=1 delay=2
+      until "$@"; do
+        if (( n >= {{max}} )); then
+          echo "failed after $n attempts" >&2
+          return 1
+        fi
+        sleep "$delay"
+        delay=$(( delay {{op}} 2 ))
+        n=$(( n + 1 ))
+      done
+    }
+  blanks:
+    max:
+      accept: ["^5$"]
+      solution: "5"
+      width: 3
+    op:
+      accept: ["^\\*$"]
+      solution: "*"
+      width: 3
+  explanation: "`until \"$@\"` runs the command with its arguments intact; the counter caps attempts and the delay doubles (2, 4, 8, 16). In production add jitter so many clients don't retry in lockstep."
+
+- id: xc-sh-005
+  category: Bash
+  type: mcq
+  title: "Filenames with spaces break the cleanup"
+  scenario: "`for f in $(find /data -name '*.tmp' -mtime +7); do rm \"$f\"; done` fails on `report final.tmp`."
+  question: "What's the robust version?"
+  options:
+    - "`find /data -name '*.tmp' -mtime +7 -print0 | xargs -0 rm --` (or `find ... -delete`)"
+    - "`for f in \"$(find ...)\"; do rm \"$f\"; done`"
+    - "`IFS=, ; for f in $(find ...)`"
+    - "`ls /data/*.tmp | xargs rm`"
+  answer: 0
+  explanation: "Word-splitting command output breaks on whitespace (and globs). NUL-delimited output with `-print0`/`-0` handles any filename; `-delete` avoids a second process. Quoting the whole substitution gives one giant argument."
+
+# ======================= CI/CD =======================
+- id: xc-ci-001
+  category: CI/CD
+  type: spot
+  title: "This workflow leaks secrets to forks"
+  scenario: "The workflow labels and tests pull requests. A security review flags it."
+  lang: yaml
+  code: |
+    name: pr-check
+    on: pull_request_target
+    permissions:
+      contents: write
+    jobs:
+      test:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v4
+            with:
+              ref: ${{ github.event.pull_request.head.sha }}
+          - run: npm ci && npm test
+            env:
+              NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+  answer: [11]
+  explanation: "`pull_request_target` runs with the base repo's secrets and a write token. Checking out the PR's head and running its code (`npm ci` runs install scripts) hands both to anyone who opens a PR. Test untrusted code under `pull_request` with no secrets."
+
+- id: xc-ci-002
+  category: CI/CD
+  type: mcq
+  title: "Pin third-party actions"
+  scenario: "A popular action's maintainer account is compromised and its `v3` tag is moved to malicious code."
+  question: "Which reference would have protected your workflows?"
+  options:
+    - "A full commit SHA, e.g. `uses: org/action@8f4b7f8…` (with Dependabot to bump it)"
+    - "`@v3`"
+    - "`@main`"
+    - "`@latest`"
+  answer: 0
+  explanation: "Tags and branches are mutable; a commit SHA is not. Pin by SHA, keep the version in a comment, and let Dependabot propose updates you can review."
+
+- id: xc-ci-003
+  category: CI/CD
+  type: multi
+  title: "OIDC from GitHub Actions to AWS"
+  question: "Which are needed for a workflow to assume an AWS role without stored keys, scoped safely? (select all)"
+  options:
+    - "`permissions: id-token: write` in the workflow"
+    - "An IAM OIDC provider for `token.actions.githubusercontent.com` in the account"
+    - "A trust policy condition on `token.actions.githubusercontent.com:sub`, e.g. `repo:acme/api:ref:refs/heads/main`"
+    - "An `AWS_SECRET_ACCESS_KEY` repository secret as a fallback"
+  answer: [0, 1, 2]
+  explanation: "Without a `sub` condition any repo on GitHub could assume the role. Scope by repo and branch or environment, and grant `id-token: write` only to jobs that need it."
+
+- id: xc-ci-004
+  category: CI/CD
+  type: order
+  title: "Cut a release safely"
+  question: "Order a release pipeline for a containerised service."
+  items:
+    - "Build the image once and tag it with the commit SHA"
+    - "Scan and sign the image, and attach the SBOM"
+    - "Deploy that exact digest to staging and run smoke tests"
+    - "Promote the same digest to production with a canary"
+    - "Watch error rate and latency, then complete or roll back"
+  explanation: "Build once, promote the same digest: rebuilding per environment means production runs something you never tested. Sign before deploy so admission policies can verify it."
+
+- id: xc-ci-005
+  category: CI/CD
+  type: mcq
+  title: "Two deploys at once"
+  scenario: "Two merges land a minute apart. Both workflows run `terraform apply` and `kubectl apply`, and the older run finishes last, rolling production back."
+  question: "What's the simplest fix in GitHub Actions?"
+  options:
+    - "A `concurrency` group per environment (e.g. `group: deploy-prod`, `cancel-in-progress: false`) so deploys queue in order"
+    - "Add `sleep 120` before the deploy"
+    - "Use `runs-on: self-hosted`"
+    - "Set `fail-fast: true`"
+  answer: 0
+  explanation: "A concurrency group makes runs for the same environment queue. For deploys, don't cancel in progress (a half-applied Terraform run is worse). Terraform state locking prevents corruption but not out-of-order applies."
+
+# ======================= Docker =======================
+- id: xc-dk-001
+  category: Docker
+  type: spot
+  title: "Why is every build slow?"
+  scenario: "Changing one line of app code makes `npm ci` re-run on every build."
+  lang: dockerfile
+  code: |
+    FROM node:22-alpine
+    WORKDIR /app
+    COPY . .
+    RUN npm ci --omit=dev
+    RUN npm run build
+    USER node
+    CMD ["node", "dist/server.js"]
+  answer: [3]
+  explanation: "`COPY . .` before `npm ci` invalidates the dependency layer on any file change. Copy `package.json` and `package-lock.json` first, run `npm ci`, then copy the rest (and keep `node_modules` in `.dockerignore`)."
+
+- id: xc-dk-002
+  category: Docker
+  type: mcq
+  title: "SIGTERM ignored"
+  scenario: "`docker stop` always waits 10 seconds and then kills the container. The Dockerfile ends with `CMD npm start`."
+  question: "Why?"
+  options:
+    - "Shell form runs `/bin/sh -c`, so sh is PID 1 and doesn't forward SIGTERM to node; use exec form (`CMD [\"node\",\"server.js\"]`) and handle SIGTERM, or add an init like `tini`"
+    - "Docker sends SIGKILL first"
+    - "Node can't handle signals"
+    - "The stop timeout must be 0"
+  answer: 0
+  explanation: "PID 1 gets no default signal handlers, and a shell (or npm) in front may not pass signals on. In Kubernetes the same bug turns every rollout into a 30-second kill with dropped requests."
+
+- id: xc-dk-003
+  category: Docker
+  type: multi
+  title: "Secrets in images"
+  question: "Which leave a secret recoverable from the final image? (select all)"
+  options:
+    - "`ARG NPM_TOKEN` used in a `RUN` step"
+    - "`COPY .npmrc .` then `RUN npm ci && rm .npmrc`"
+    - "`ENV AWS_SECRET_ACCESS_KEY=...`"
+    - "`RUN --mount=type=secret,id=npmrc,target=/root/.npmrc npm ci`"
+  answer: [0, 1, 2]
+  explanation: "Build args show in `docker history`, deleted files stay in earlier layers, and ENV is baked into the config. BuildKit secret mounts exist only for that RUN step and never land in a layer."
+
+- id: xc-dk-004
+  category: Docker
+  type: mcq
+  title: "Container OOM, host fine"
+  scenario: "A JVM container with `--memory=1g` keeps getting OOM-killed (exit code 137) under load. The heap is set with `-Xmx1g`."
+  question: "What's wrong?"
+  options:
+    - "The JVM uses memory beyond the heap (metaspace, threads, direct buffers, code cache); size the heap below the limit, e.g. `-XX:MaxRAMPercentage=75`"
+    - "Exit code 137 means a segfault"
+    - "Docker limits don't apply to Java"
+    - "The host needs more swap"
+  answer: 0
+  explanation: "The cgroup limit covers the whole process. Setting `-Xmx` equal to the limit leaves no room for non-heap memory. Modern JVMs read cgroup limits; use percentage flags and leave headroom."
+
+- id: xc-dk-005
+  category: Docker
+  type: order
+  title: "Shrink a Go image"
+  question: "Order the multi-stage Dockerfile steps for a small, non-root Go image."
+  items:
+    - "`FROM golang:1.23 AS build` and copy `go.mod`/`go.sum`"
+    - "`RUN go mod download` (cached layer)"
+    - "Copy the source and `RUN CGO_ENABLED=0 go build -o /out/app`"
+    - "`FROM gcr.io/distroless/static:nonroot`"
+    - "`COPY --from=build /out/app /app` and set `ENTRYPOINT [\"/app\"]`"
+  explanation: "Dependencies first for caching, a static binary so it runs without libc, then a minimal non-root runtime image with only the binary. Result: a few MB and almost nothing for a scanner to flag."
+
+# ======================= Git =======================
+- id: xc-git-001
+  category: Git
+  type: mcq
+  title: "Secret pushed to main"
+  scenario: "An AWS key was committed three commits ago and pushed to a public repo."
+  question: "What's the first thing to do?"
+  options:
+    - "Revoke and rotate the key now; then rewrite history (git filter-repo) and force-push, and ask GitHub to purge cached views"
+    - "Rewrite history first, then rotate when convenient"
+    - "Add the file to .gitignore"
+    - "Make the repo private"
+  answer: 0
+  explanation: "Public pushes are scraped within minutes, so assume the key is compromised. Rotation is the fix; history rewriting is clean-up. Check CloudTrail for use of the key."
+
+- id: xc-git-002
+  category: Git
+  type: mcq
+  title: "Submodule ref not found in CI"
+  scenario: "CI fails on `git submodule update --init` with `fatal: remote error: upload-pack: not our ref 4e1c9a7…`. It works on the developer's laptop."
+  question: "What's the most likely cause?"
+  options:
+    - "The parent repo records a submodule commit that was never pushed to the submodule's remote (or was force-pushed away); push that commit or update the pointer to one that exists"
+    - "CI needs `--depth 1` on the submodule"
+    - "Submodules don't work over HTTPS"
+    - "The `.gitmodules` file must list the commit hash"
+  answer: 0
+  explanation: "A submodule is just a pinned commit. The laptop has it locally, so it works there. Turn on `push.recurseSubmodules=check` to stop pushing a parent that points at unpushed submodule commits."
+
+- id: xc-git-003
+  category: Git
+  type: mcq
+  title: "Find the commit that broke it"
+  scenario: "The p99 latency test passes on tag v2.3.0 and fails on main, 340 commits later. You have a script `./perf.sh` that exits 0 on pass and 1 on fail."
+  question: "What's the fastest way to find the culprit?"
+  options:
+    - "`git bisect start main v2.3.0` then `git bisect run ./perf.sh`"
+    - "`git log -p` and read the diffs"
+    - "`git blame` on the slow function"
+    - "Revert commits one by one from main"
+  answer: 0
+  explanation: "Bisect binary-searches: about 9 runs for 340 commits. `bisect run` automates it; exit code 125 tells it to skip commits that can't be tested."
+
+- id: xc-git-004
+  category: Git
+  type: order
+  title: "Recover a branch you hard-reset"
+  question: "You ran `git reset --hard HEAD~5` on a feature branch and need the commits back. Order the steps."
+  items:
+    - "`git reflog` to find the commit the branch pointed to before the reset"
+    - "Note its hash (e.g. `HEAD@{1}`)"
+    - "`git branch rescue <hash>` to pin it"
+    - "Check `git log rescue` contains the lost commits"
+    - "`git reset --hard rescue` on the feature branch (or merge it)"
+  explanation: "Commits aren't gone after a reset; they're unreferenced and live in the reflog (90 days by default). Pin them with a branch before doing anything else so gc can't collect them."
+
+- id: xc-git-005
+  category: Git
+  type: mcq
+  title: "Monorepo clone takes 20 minutes in CI"
+  scenario: "A 9 GB monorepo with 400k commits; the CI job only builds `services/payments`."
+  question: "Which clone setup helps most?"
+  options:
+    - "A partial clone (`--filter=blob:none`) with sparse-checkout for `services/payments`, plus shallow depth if history isn't needed"
+    - "`git clone --mirror`"
+    - "`git gc --aggressive` on the runner"
+    - "Clone over HTTP instead of SSH"
+  answer: 0
+  explanation: "Blobless partial clones fetch file contents on demand, sparse-checkout writes only the paths you need, and `--depth` trims history. `actions/checkout` supports `filter` and `sparse-checkout` inputs."

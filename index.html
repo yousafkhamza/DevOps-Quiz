@@ -178,9 +178,7 @@
       </div>
       <div class="row">
         <div class="row-label">Questions</div>
-        <div class="row-body"><div class="chips" id="countChips"></div>
-          <label class="radio topup"><input type="checkbox" id="topUp" checked><span>If a level runs short, top up from the nearest level</span></label>
-        </div>
+        <div class="row-body"><div class="chips" id="countChips"></div></div>
       </div>
     </form>
 
@@ -191,6 +189,14 @@
         <button class="btn primary" id="btnContinue">Run</button>
       </div>
     </div>
+    <dialog class="short" id="shortDlg" aria-labelledby="shortTitle">
+      <form method="dialog">
+        <h3 id="shortTitle"></h3>
+        <p id="shortText"></p>
+        <div class="short-opts" id="shortOpts"></div>
+        <button class="btn ghost" value="cancel">Change my picks</button>
+      </form>
+    </dialog>
     <p class="muted small first-time">First time here? <button class="link inline" data-go="demo">Take the six-question tour</button>. It shows how each question type works and isn't scored.</p>
 
     <section class="about" aria-labelledby="aboutTitle">

@@ -1,0 +1,619 @@
+# SUPER HARD top-up, part D: GitOps, Linux, Networking, Observability, PowerShell, Python, Security, Terraform.
+level: expert
+questions:
+
+# ======================= GitOps =======================
+- id: xd-go-001
+  category: GitOps
+  type: mcq
+  title: "Argo CD keeps reverting the HPA"
+  scenario: "An app's Deployment sets `replicas: 3` in Git. The HPA scales it to 12 under load, and Argo CD with self-heal immediately sets it back to 3, over and over."
+  question: "What's the right fix?"
+  options:
+    - "Remove `replicas` from the manifest (or add an `ignoreDifferences` on `/spec/replicas` with `RespectIgnoreDifferences=true`) so the HPA owns it"
+    - "Turn off the HPA"
+    - "Set `replicas: 12` in Git"
+    - "Disable self-heal for the whole cluster"
+  answer: 0
+  explanation: "Two controllers fighting over one field always flap. Let one own it: drop `spec.replicas` from Git, or tell Argo CD to ignore it during diff and sync."
+
+- id: xd-go-002
+  category: GitOps
+  type: order
+  title: "Sync waves for a database migration"
+  question: "Order the resources so a schema migration runs before the new app version starts."
+  items:
+    - "Namespace and Secrets (wave -2)"
+    - "ConfigMap with the new settings (wave -1)"
+    - "Migration Job as a `PreSync` hook"
+    - "Deployment with the new image (wave 0)"
+    - "`PostSync` hook that runs smoke tests"
+  explanation: "Argo CD runs PreSync hooks, then applies resources wave by wave (lowest first, waiting for health), then PostSync hooks. A failing migration Job stops the sync before the new pods roll out."
+
+- id: xd-go-003
+  category: GitOps
+  type: multi
+  title: "Secrets in a GitOps repo"
+  question: "Which approaches keep plaintext secrets out of Git? (select all)"
+  options:
+    - "Sealed Secrets: commit a `SealedSecret` encrypted with the cluster's public key"
+    - "External Secrets Operator: commit an `ExternalSecret` that references AWS Secrets Manager or Vault"
+    - "SOPS-encrypted files decrypted by a KMS key at sync time"
+    - "Base64-encoded values in a normal `Secret` manifest"
+  answer: [0, 1, 2]
+  explanation: "Base64 is encoding, not encryption. The first three put only ciphertext or references in Git. ESO also handles rotation, since the source of truth stays in the secret store."
+
+- id: xd-go-004
+  category: GitOps
+  type: mcq
+  title: "App stuck Progressing forever"
+  scenario: "An Argo CD Application that manages a custom resource from an in-house operator stays `Progressing` long after the resource is ready."
+  question: "Why?"
+  options:
+    - "Argo CD has no health check for that CRD kind and can't read its status; add a custom Lua health check in `argocd-cm` (`resource.customizations.health.<group>_<kind>`)"
+    - "The CRD needs a finalizer"
+    - "Argo CD can't sync CRDs"
+    - "The Application must use `Replace=true`"
+  answer: 0
+  explanation: "Built-in health checks cover core kinds and popular CRDs. For your own, write a Lua script that maps its `.status` to Healthy, Progressing or Degraded."
+
+- id: xd-go-005
+  category: GitOps
+  type: mcq
+  title: "ApplicationSet deletes production"
+  scenario: "A cluster generator creates one Application per cluster labelled `env=prod`. Someone fixes a typo in a cluster's label, and Argo CD deletes every resource in that cluster's app."
+  question: "Which setting would have prevented the deletion?"
+  options:
+    - "`syncPolicy.preserveResourcesOnDeletion: true` on the ApplicationSet (and no prune finalizer on generated apps)"
+    - "`automated.prune: true`"
+    - "`ServerSideApply=true`"
+    - "A higher sync retry limit"
+  answer: 0
+  explanation: "When the generator stops matching, the ApplicationSet deletes that Application, and its finalizer cascades to the resources. Preserving resources on deletion (or the `applicationsSync: create-update` policy) stops that cascade."
+
+# ======================= Linux =======================
+- id: xd-lx-001
+  category: Linux
+  type: mcq
+  title: "Disk full, nothing big on disk"
+  scenario: "`df -h /` shows 100% used; `du -sh /*` adds up to 40% of the disk."
+  question: "What's the likely cause and how do you confirm it?"
+  options:
+    - "A process still holds deleted files open; `lsof +L1` (or `lsof | grep deleted`) shows them, and restarting the process or truncating via `/proc/<pid>/fd/<n>` frees the space"
+    - "The filesystem is corrupt; run fsck now"
+    - "du can't see hidden files"
+    - "The inode table is full"
+  answer: 0
+  explanation: "Deleting a file only removes its name; the blocks are freed when the last open handle closes. Log rotation without `copytruncate` or a reload signal is a classic way to cause this."
+
+- id: xd-lx-002
+  category: Linux
+  type: spot
+  title: "This unit restarts forever"
+  scenario: "After a bad config push the service crash-loops hundreds of times a minute and floods the journal."
+  lang: ini
+  code: |
+    [Unit]
+    Description=Payments worker
+    After=network-online.target
+
+    [Service]
+    ExecStart=/opt/pay/worker --config /etc/pay/worker.yml
+    Restart=always
+    RestartSec=0
+    User=pay
+
+    [Install]
+    WantedBy=multi-user.target
+  answer: [8]
+  explanation: "`RestartSec=0` retries instantly. Use a delay (e.g. `RestartSec=5`), and consider `StartLimitIntervalSec`/`StartLimitBurst` in `[Unit]` so systemd gives up and alerts instead of looping."
+
+- id: xd-lx-003
+  category: Linux
+  type: multi
+  title: "High load, low CPU"
+  scenario: "Load average is 48 on a 16-core box, but `top` shows CPU 80% idle."
+  question: "Which are plausible? (select all)"
+  options:
+    - "Many tasks in uninterruptible sleep (state D) waiting on I/O, often a slow disk or NFS"
+    - "High `wa` (iowait) in top, confirmed with `iostat -x` showing high await/util"
+    - "Processes stuck on a hung NFS mount"
+    - "The CPU is being throttled by the cgroup to 0%"
+  answer: [0, 1, 2]
+  explanation: "Linux load average counts runnable and D-state tasks, so I/O stalls raise load without CPU use. `ps -eo state,pid,cmd | grep '^D'` lists the stuck tasks."
+
+- id: xd-lx-004
+  category: Linux
+  type: fill
+  title: "Kernel settings that survive a reboot"
+  scenario: "Raise the listen backlog and persist it."
+  lang: bash
+  template: |
+    echo 'net.core.somaxconn = 4096' | sudo tee {{file}}
+    sudo sysctl {{flag}}
+  blanks:
+    file:
+      accept: ["^/etc/sysctl\\.d/[\\w.-]+\\.conf$"]
+      solution: "/etc/sysctl.d/90-net.conf"
+      width: 26
+    flag:
+      accept: ["^--system$"]
+      solution: "--system"
+      width: 9
+  explanation: "Files in `/etc/sysctl.d/` load at boot; `sysctl --system` reloads them all now. `sysctl -w` alone is lost on reboot. The app must also ask for a big backlog in `listen()`."
+
+- id: xd-lx-005
+  category: Linux
+  type: mcq
+  title: "Permission denied as root"
+  scenario: "On a RHEL host, nginx can't read `/srv/www/index.html`. File mode is 644, the directories are 755, and `ls -l` looks fine."
+  question: "What should you check next?"
+  options:
+    - "SELinux: `ls -Z` shows the wrong context; fix with `semanage fcontext -a -t httpd_sys_content_t '/srv/www(/.*)?'` and `restorecon -Rv /srv/www`"
+    - "chmod 777 the directory"
+    - "Run nginx as root"
+    - "The disk is mounted read-only"
+  answer: 0
+  explanation: "Files created or moved outside `/var/www` keep their old label. `ausearch -m avc -ts recent` shows the denial. Don't `setenforce 0`; fix the label."
+
+# ======================= Networking =======================
+- id: xd-net-001
+  category: Networking
+  type: mcq
+  title: "Small requests work, large ones hang"
+  scenario: "Through a new site-to-site VPN, `curl` of a small health page works, but downloading a 2 MB file hangs. Ping works."
+  question: "What's the likely cause?"
+  options:
+    - "Path MTU: the tunnel lowers MTU, ICMP 'fragmentation needed' is blocked, so large packets vanish; allow ICMP type 3 code 4 or clamp TCP MSS on the tunnel"
+    - "The VPN only supports HTTP/1.0"
+    - "DNS resolves to a different IP for large files"
+    - "The file server rate-limits"
+  answer: 0
+  explanation: "A PMTU black hole: small packets fit, full-size ones are dropped without the ICMP that would make the sender shrink them. Test with `ping -M do -s 1400 host` and lower until it passes."
+
+- id: xd-net-002
+  category: Networking
+  type: multi
+  title: "Intermittent DNS timeouts in Kubernetes"
+  scenario: "Pods see random 5-second DNS delays, mostly on Alpine-based images."
+  question: "Which are known causes or fixes? (select all)"
+  options:
+    - "conntrack races when A and AAAA queries go out in parallel from the same socket over UDP"
+    - "`ndots:5` makes external names try several search domains first; use FQDNs with a trailing dot or lower ndots"
+    - "NodeLocal DNSCache avoids the conntrack path and cuts latency"
+    - "Raising the Pod's CPU limit"
+  answer: [0, 1, 2]
+  explanation: "The 5 s is the resolver's retry timeout after a dropped packet. musl doesn't support glibc's `single-request-reopen` workaround, which is why Alpine shows it most. NodeLocal DNSCache and fewer search-domain lookups both help."
+
+- id: xd-net-003
+  category: Networking
+  type: order
+  title: "What happens on `curl https://api.acme.io`"
+  question: "Order the steps."
+  items:
+    - "Resolve the name via DNS"
+    - "TCP three-way handshake to port 443"
+    - "TLS ClientHello with SNI `api.acme.io`"
+    - "Server certificate validated against the client's trust store"
+    - "HTTP request sent over the encrypted connection"
+  explanation: "Each step fails in its own way: NXDOMAIN, connection timeout or refused, handshake alert, certificate error, then HTTP status codes. Knowing the order tells you where to look."
+
+- id: xd-net-004
+  category: Networking
+  type: mcq
+  title: "NAT gateway port exhaustion"
+  scenario: "During a batch job, many Pods calling one partner API get connection timeouts. CloudWatch shows `ErrorPortAllocation` rising on the NAT gateway."
+  question: "What fixes it?"
+  options:
+    - "Reuse connections (keep-alive/pooling), and add more Elastic IPs to the NAT gateway or spread traffic across destinations"
+    - "Increase the Pods' memory"
+    - "Switch the subnet to a /16"
+    - "Enable IPv6 only on the partner's side"
+  answer: 0
+  explanation: "A NAT gateway has about 55,000 simultaneous connections per unique destination IP:port per public IP. Thousands of short connections to one endpoint exhaust that. Pooling helps most; extra EIPs add capacity."
+
+- id: xd-net-005
+  category: Networking
+  type: spot
+  title: "This NetworkPolicy blocks DNS"
+  scenario: "After applying it, Pods in `payments` can't resolve anything, though egress to the database works."
+  lang: yaml
+  code: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata: { name: egress-db, namespace: payments }
+    spec:
+      podSelector: {}
+      policyTypes: [Egress]
+      egress:
+        - to:
+            - podSelector: { matchLabels: { app: postgres } }
+          ports:
+            - { protocol: TCP, port: 5432 }
+  answer: [6]
+  explanation: "Declaring `Egress` makes egress default-deny for selected Pods, and only Postgres is allowed. Add a rule allowing UDP and TCP 53 to kube-dns in `kube-system`."
+
+# ======================= Observability =======================
+- id: xd-ob-001
+  category: Observability
+  type: mcq
+  title: "Prometheus memory explodes"
+  scenario: "After a release, Prometheus memory doubles and queries time out. The new code added a label to `http_requests_total`."
+  question: "What's the likely label?"
+  options:
+    - "Something unbounded like `user_id`, `request_id` or the raw URL path, creating millions of series"
+    - "`method` with GET/POST/PUT/DELETE"
+    - "`status_code` grouped as 2xx/4xx/5xx"
+    - "`service` with five values"
+  answer: 0
+  explanation: "Every unique label combination is a new series. Use bounded labels (route templates, not raw paths) and put high-cardinality detail in logs or traces. `topk(10, count by (__name__)({__name__=~\".+\"}))` finds the offenders."
+
+- id: xd-ob-002
+  category: Observability
+  type: fill
+  title: "Error ratio SLI in PromQL"
+  scenario: "Complete the 5-minute error ratio for the checkout service."
+  lang: bash
+  template: |
+    sum(rate(http_requests_total{service="checkout", code=~"{{codes}}"}[5m]))
+    /
+    sum({{fn}}(http_requests_total{service="checkout"}[5m]))
+  blanks:
+    codes:
+      accept: ["^5\\.\\.$", "^5\\d\\d$", "^5\\[0-9\\]\\[0-9\\]$"]
+      solution: "5.."
+      width: 6
+    fn:
+      accept: ["^rate$"]
+      solution: "rate"
+      width: 6
+  explanation: "Rate both counters over the same window and divide sums. Counters only make sense through `rate`/`increase`; dividing raw counters gives a lifetime ratio that barely moves."
+
+- id: xd-ob-003
+  category: Observability
+  type: multi
+  title: "Burn-rate alerts"
+  question: "Your SLO is 99.9% over 30 days. Which statements about multi-window burn-rate alerts are TRUE? (select all)"
+  options:
+    - "A burn rate of 14.4 over 1 hour spends about 2% of the monthly budget"
+    - "Pairing a long window with a short one (e.g. 1h and 5m) makes the alert reset quickly once the problem stops"
+    - "Slow burns (e.g. 1x over 3 days) should open a ticket rather than page"
+    - "Alert whenever a single request fails"
+  answer: [0, 1, 2]
+  explanation: "Burn-rate alerts page on budget consumption speed, not single errors. The short window confirms it's still happening, and slow burns go to tickets. This is the approach in the Google SRE workbook."
+
+- id: xd-ob-004
+  category: Observability
+  type: mcq
+  title: "Traces stop at the queue"
+  scenario: "OpenTelemetry traces show the HTTP request and the Kafka produce, but the consumer's processing appears as a separate, unrelated trace."
+  question: "What's missing?"
+  options:
+    - "Context propagation: inject `traceparent` into the message headers on produce and extract it (as a link or parent) on consume"
+    - "A higher sampling rate"
+    - "A bigger collector batch size"
+    - "Kafka must be replaced with HTTP"
+  answer: 0
+  explanation: "Trace context travels in headers. HTTP instrumentation does this automatically; messaging often needs the Kafka instrumentation library or manual inject/extract. Span links are the usual model for batch consumers."
+
+- id: xd-ob-005
+  category: Observability
+  type: mcq
+  title: "Averages hide the pain"
+  scenario: "The dashboard shows average latency at 120 ms, yet customers report 5-second checkouts."
+  question: "What should the dashboard show instead?"
+  options:
+    - "Percentiles from histograms, e.g. `histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))`, plus the error rate"
+    - "The maximum CPU usage"
+    - "An average over a longer window"
+    - "The median only"
+  answer: 0
+  explanation: "Averages smooth away the tail where users suffer. Use histogram buckets and aggregate by `le` before `histogram_quantile`; averaging precomputed percentiles across instances is mathematically wrong."
+
+# ======================= PowerShell =======================
+- id: xd-ps-001
+  category: PowerShell
+  type: spot
+  title: "Errors slip through"
+  scenario: "The script should stop when the copy fails, but it logs 'Deployed' even when the share is unreachable."
+  lang: powershell
+  code: |
+    param([string]$Source = '\\fs01\builds\app')
+    Set-StrictMode -Version Latest
+    try {
+        Copy-Item -Path $Source\* -Destination 'C:\app' -Recurse
+        Restart-Service -Name AppSvc
+        Write-Host 'Deployed'
+    } catch {
+        Write-Error "Deploy failed: $_"
+        exit 1
+    }
+  answer: [4]
+  explanation: "Most cmdlet errors are non-terminating, so `catch` never runs. Add `-ErrorAction Stop` (or set `$ErrorActionPreference = 'Stop'` at the top)."
+
+- id: xd-ps-002
+  category: PowerShell
+  type: mcq
+  title: "Remote command can't reach the file share"
+  scenario: "`Invoke-Command -ComputerName web01 { Get-ChildItem \\\\fs01\\builds }` fails with access denied, though the same command works when run on web01 directly."
+  question: "Why?"
+  options:
+    - "The Kerberos double hop: your credentials can't be delegated from web01 to fs01; use resource-based constrained delegation, pass a credential, or copy the files first"
+    - "WinRM blocks UNC paths"
+    - "PowerShell 7 can't read SMB"
+    - "fs01's firewall blocks PowerShell"
+  answer: 0
+  explanation: "A WinRM session on web01 has no credential to forward to a second machine. CredSSP works but exposes credentials; RBCD or an explicit credential is safer."
+
+- id: xd-ps-003
+  category: PowerShell
+  type: multi
+  title: "Handling secrets in automation"
+  question: "Which are good practices for credentials in PowerShell automation? (select all)"
+  options:
+    - "Use the SecretManagement module with a vault (e.g. Azure Key Vault or SecretStore)"
+    - "Use a gMSA for scheduled tasks and services so no password is stored"
+    - "Keep `PSCredential` objects in memory; don't write passwords to logs or transcripts"
+    - "Store `ConvertFrom-SecureString` output and reuse it on any server"
+  answer: [0, 1, 2]
+  explanation: "DPAPI-encrypted strings from `ConvertFrom-SecureString` only decrypt for the same user on the same machine, so they don't travel. Vaults and gMSAs remove stored passwords altogether."
+
+- id: xd-ps-004
+  category: PowerShell
+  type: mcq
+  title: "Pipeline returns too much"
+  scenario: "A function is meant to return `$true` or `$false`, but callers get an array like `@('Created', $true)`."
+  question: "Why?"
+  options:
+    - "Everything a function writes to the output stream is returned; a command inside (e.g. `New-Item` or `$list.Add()`) emitted output. Pipe it to `Out-Null` or assign to `$null`"
+    - "`return` is ignored in PowerShell"
+    - "Booleans can't be returned"
+    - "The function must be declared with `[CmdletBinding()]`"
+  answer: 0
+  explanation: "`return` only adds its value and exits; uncaptured output from earlier lines is still returned. Suppress it with `$null = ...` or `| Out-Null`."
+
+- id: xd-ps-005
+  category: PowerShell
+  type: order
+  title: "Patch a Windows service safely"
+  question: "Order the steps for updating a service's binaries on a server behind a load balancer."
+  items:
+    - "Drain the node from the load balancer"
+    - "`Stop-Service AppSvc` and wait for it to stop"
+    - "Back up the current binaries"
+    - "Copy the new build and `Start-Service AppSvc`"
+    - "Run the health check, then add the node back"
+  explanation: "Drain first so users don't hit a stopping service, keep a backup for a quick rollback, and verify before re-adding. Repeat node by node."
+
+# ======================= Python =======================
+- id: xd-py-001
+  category: Python
+  type: spot
+  title: "Shared state between calls"
+  scenario: "Each call should return a fresh list of tags, but tags from earlier calls pile up."
+  lang: python
+  code: |
+    def build_tags(service, extra=[]):
+        extra.append(f"service:{service}")
+        extra.append("team:platform")
+        return extra
+
+    print(build_tags("api"))
+    print(build_tags("worker"))
+  answer: [1]
+  explanation: "Default values are evaluated once when the function is defined, so the same list is reused. Use `extra=None` and `extra = list(extra or [])` inside."
+
+- id: xd-py-002
+  category: Python
+  type: mcq
+  title: "Async service freezes"
+  scenario: "A FastAPI endpoint declared `async def` calls `requests.get()` to a slow API. Under load, all endpoints, even health checks, stall."
+  question: "Why?"
+  options:
+    - "`requests` is blocking, so it blocks the event loop; use an async client (httpx.AsyncClient) or declare the route as a plain `def` so it runs in the threadpool"
+    - "FastAPI is single-request only"
+    - "Health checks need their own process"
+    - "The GIL blocks all async code"
+  answer: 0
+  explanation: "One blocking call inside a coroutine freezes every task on that loop. Plain `def` routes run in a worker thread, which is fine for blocking libraries."
+
+- id: xd-py-003
+  category: Python
+  type: multi
+  title: "boto3 at scale"
+  question: "Which practices help a Python tool that lists resources across 40 AWS accounts? (select all)"
+  options:
+    - "Use paginators instead of a single `list_*`/`describe_*` call"
+    - "Set retries to `adaptive` or `standard` mode in `botocore.config.Config` to handle throttling"
+    - "Create one session per account/role and don't share clients across threads unless documented safe"
+    - "Catch all exceptions and continue silently"
+  answer: [0, 1, 2]
+  explanation: "Single calls return only the first page; throttling is normal at scale. Sessions aren't thread-safe. Swallowing exceptions hides missing data, so log and report failures per account."
+
+- id: xd-py-004
+  category: Python
+  type: mcq
+  title: "Subprocess hangs"
+  scenario: "`p = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE); p.wait()` hangs forever on a command that prints a lot."
+  question: "What's the fix?"
+  options:
+    - "Use `p.communicate()` (or `subprocess.run(..., capture_output=True)`), which reads both pipes while waiting"
+    - "Add `shell=True`"
+    - "Increase the timeout"
+    - "Use `os.system` instead"
+  answer: 0
+  explanation: "The child blocks once the OS pipe buffer (often 64 KB) fills, and `wait()` never reads it: a deadlock. `communicate()` drains both pipes concurrently."
+
+- id: xd-py-005
+  category: Python
+  type: fill
+  title: "Lock the dependencies"
+  scenario: "Install exactly the pinned versions, refusing anything whose hash doesn't match."
+  lang: bash
+  template: |
+    pip install --no-deps {{flag}} -r requirements.lock
+  blanks:
+    flag:
+      accept: ["^--require-hashes$"]
+      solution: "--require-hashes"
+      width: 17
+  explanation: "With hashes in the lockfile (pip-compile `--generate-hashes`, or uv), pip refuses any artifact that doesn't match. That blocks a tampered package with the same version number."
+
+# ======================= Security =======================
+- id: xd-sec-001
+  category: Security
+  type: multi
+  title: "Pod security hardening"
+  question: "Which settings reduce what a compromised container can do? (select all)"
+  options:
+    - "`runAsNonRoot: true` and `allowPrivilegeEscalation: false`"
+    - "`readOnlyRootFilesystem: true`"
+    - "`capabilities: { drop: [\"ALL\"] }` and a `seccompProfile` of `RuntimeDefault`"
+    - "`hostPID: true` for better debugging"
+  answer: [0, 1, 2]
+  explanation: "These are the Pod Security Standards 'restricted' controls. Sharing the host PID namespace lets the container see and signal host processes."
+
+- id: xd-sec-002
+  category: Security
+  type: mcq
+  title: "Instance metadata theft"
+  scenario: "A web app has an SSRF bug. Attackers ask it to fetch `http://169.254.169.254/latest/meta-data/iam/security-credentials/` and steal role credentials."
+  question: "Which control would have stopped that request?"
+  options:
+    - "Enforce IMDSv2 (`HttpTokens=required`) with a hop limit of 1, so a session token from a PUT is required"
+    - "Rotate the IAM role monthly"
+    - "Encrypt the EBS volume"
+    - "Put the instance behind an ALB"
+  answer: 0
+  explanation: "SSRF usually allows only simple GETs; IMDSv2 needs a PUT with a custom header first. Also scope the role to least privilege and alert on its credentials being used outside the instance (GuardDuty finds this)."
+
+- id: xd-sec-003
+  category: Security
+  type: order
+  title: "Respond to a leaked access key"
+  question: "GuardDuty reports an IAM user's key in use from an unknown country. Order your response."
+  items:
+    - "Deactivate the access key"
+    - "Attach a deny-all policy or revoke sessions to cut off temporary credentials made from it"
+    - "Review CloudTrail for what the key did and what it created"
+    - "Remove anything it created (users, keys, instances) and rotate affected secrets"
+    - "Find how it leaked and fix it, then write the postmortem"
+  explanation: "Contain first, then scope, then eradicate. Temporary credentials obtained with the key keep working until they expire, so deactivating the key alone isn't enough."
+
+- id: xd-sec-004
+  category: Security
+  type: mcq
+  title: "Image signature verification"
+  scenario: "The cluster must run only images built by your CI. Images are signed with cosign keyless signing in GitHub Actions."
+  question: "What should the admission policy check?"
+  options:
+    - "That the signature's certificate identity matches your workflow (`https://github.com/acme/.+/.github/workflows/release.yml@refs/heads/main`) and the issuer is `https://token.actions.githubusercontent.com`"
+    - "Only that a signature exists"
+    - "That the tag is `latest`"
+    - "That the image is under 500 MB"
+  answer: 0
+  explanation: "With keyless signing, anyone can produce a valid signature from their own workflow. The policy (Kyverno or Sigstore policy-controller) must pin the identity and issuer, and admit by digest."
+
+- id: xd-sec-005
+  category: Security
+  type: spot
+  title: "This IAM policy is too wide"
+  scenario: "The policy is for a service that reads one parameter path in SSM."
+  lang: json
+  code: |
+    {
+      "Version": "2012-10-17",
+      "Statement": [{
+        "Effect": "Allow",
+        "Action": ["ssm:GetParameter", "ssm:GetParametersByPath"],
+        "Resource": "arn:aws:ssm:*:*:parameter/*"
+      }, {
+        "Effect": "Allow",
+        "Action": "kms:Decrypt",
+        "Resource": "arn:aws:kms:me-central-1:111122223333:key/9f1c0a2e-1111-4a5b-8c2d-123456789abc"
+      }]
+    }
+  answer: [6]
+  explanation: "`parameter/*` in any region and account reads every parameter, including other teams' secrets. Scope it, e.g. `arn:aws:ssm:me-central-1:111122223333:parameter/payments/*`."
+
+# ======================= Terraform =======================
+- id: xd-tf-001
+  category: Terraform
+  type: mcq
+  title: "Renaming a resource destroys it"
+  scenario: "You refactor `aws_db_instance.main` into a module as `module.db.aws_db_instance.this`. The plan wants to destroy and recreate the database."
+  question: "What's the safe fix?"
+  options:
+    - "Add a `moved { from = aws_db_instance.main  to = module.db.aws_db_instance.this }` block so Terraform updates the state address"
+    - "Apply and restore from a snapshot"
+    - "Run `terraform refresh`"
+    - "Add `create_before_destroy`"
+  answer: 0
+  explanation: "Terraform tracks resources by address. `moved` blocks (or `terraform state mv`) change the address without touching the real resource. Add `prevent_destroy` to stateful resources too."
+
+- id: xd-tf-002
+  category: Terraform
+  type: spot
+  title: "Why does one deletion shift everything?"
+  scenario: "Removing `qa` from the list makes Terraform want to replace the `staging` and `prod` buckets."
+  lang: hcl
+  code: |
+    variable "envs" {
+      default = ["dev", "qa", "staging", "prod"]
+    }
+
+    resource "aws_s3_bucket" "logs" {
+      count  = length(var.envs)
+      bucket = "acme-logs-${var.envs[count.index]}"
+    }
+  answer: [6]
+  explanation: "`count` keys by index, so removing an item shifts every later index. Use `for_each = toset(var.envs)` and `each.key`; resources are then keyed by name."
+
+- id: xd-tf-003
+  category: Terraform
+  type: multi
+  title: "State safety"
+  question: "Which are TRUE about Terraform remote state on S3? (select all)"
+  options:
+    - "State can hold secrets in plain text, so encrypt the bucket and restrict who can read it"
+    - "Locking (DynamoDB, or `use_lockfile = true` in newer versions) stops two applies corrupting state"
+    - "Bucket versioning lets you recover a previous state file"
+    - "`terraform plan` never reads the state"
+  answer: [0, 1, 2]
+  explanation: "Treat state as sensitive data. Locking prevents concurrent writes, and versioning is your undo button. Plan reads state (and refreshes it) to compute the diff."
+
+- id: xd-tf-004
+  category: Terraform
+  type: mcq
+  title: "Provider upgrade in a shared module"
+  scenario: "Ten stacks use your VPC module. Bumping the AWS provider to a new major version in one stack breaks the plan with argument errors in the module."
+  question: "What's the right pattern?"
+  options:
+    - "Set a compatible range in the module's `required_providers` (e.g. `>= 5.0, < 7.0`), test the module on the new major, release a new module version, and let stacks upgrade with `.terraform.lock.hcl` committed"
+    - "Pin the module to `main`"
+    - "Delete `.terraform.lock.hcl` on every run"
+    - "Copy the module into each stack"
+  answer: 0
+  explanation: "Modules declare the range they support; root stacks pin the exact version in the lockfile. Version modules so stacks move deliberately, not all at once."
+
+- id: xd-tf-005
+  category: Terraform
+  type: fill
+  title: "Adopt an existing bucket"
+  scenario: "The bucket `acme-assets` was created by hand. Bring it under Terraform without recreating it (Terraform 1.5+)."
+  lang: hcl
+  template: |
+    {{block}} {
+      to = aws_s3_bucket.assets
+      id = "{{id}}"
+    }
+  blanks:
+    block:
+      accept: ["^import$"]
+      solution: "import"
+      width: 7
+    id:
+      accept: ["^acme-assets$"]
+      solution: "acme-assets"
+      width: 12
+  explanation: "An `import` block makes the import part of plan and apply, so it's reviewed like any change. `terraform plan -generate-config-out=gen.tf` can write the matching resource block for you."

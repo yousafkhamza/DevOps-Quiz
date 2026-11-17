@@ -14,7 +14,7 @@ export const CONFIG = {
 
   counts: [10, 20, 30, 50],
   negativeRatio: 0.25,      // wrong answer costs 25% of the question's weight
-  hintPenalty: 0.5,         // a terminal step solved after `hint` is worth 50%
+  hintPenalties: [0.25, 0.5], // terminal task value lost after hint 1 / after hint 2 (cumulative)
   maxAttemptsPerStep: 3,    // wrong commands allowed per terminal step
   passPercent: 70,
   dailyAttempts: 5,         // exam mode only; practice is unlimited
