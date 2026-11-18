@@ -326,9 +326,6 @@ dialog.sharebox { max-width: 560px; max-height: calc(100vh - 32px); overflow: au
 .share-hint { margin: 6px 0 0; font-size: 14px; color: var(--ink-2); }
 .share-hint b { color: var(--ink); }
 .share-done { color: var(--ok); font-weight: 600; font-size: 14px; }
-.share-fast { border: 1px solid var(--rule-2); border-radius: 6px; padding: 12px 14px; margin: 0 0 12px; background: var(--pager-wash); }
-.share-fast p { margin: 0 0 10px; font-size: 14.5px; color: var(--ink); }
-.share-fast .share-or { margin: 12px 0 0; color: var(--ink-2); }
 .share-edit { margin: 0 0 4px; font-size: 14px; }
 .share-edit summary { cursor: pointer; color: var(--ink-2); padding: 4px 0; }
 .share-edit textarea { margin-top: 6px; }

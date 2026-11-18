@@ -300,20 +300,15 @@
   <form method="dialog">
     <h3 id="shareTitle">Post your result on LinkedIn</h3>
     <img id="shareImg" alt="Your result card" width="1200" height="1200">
-    <div class="share-fast" id="shareFast" hidden>
-      <p><b>Quickest on a phone:</b> send the image and text straight to the LinkedIn app. Pick LinkedIn in the list that opens.</p>
-      <button type="button" class="btn primary" id="shareNative">Share to the LinkedIn app</button>
-      <p class="share-or">Or do it in two steps:</p>
-    </div>
-    <p class="share-lead" id="shareLead">LinkedIn doesn't let websites attach images to a post, so it takes two steps:</p>
+    <p class="share-lead">Two quick steps. LinkedIn doesn't let websites attach images, so you add the image yourself.</p>
     <ol class="share-steps">
       <li>
         <div class="share-step-row"><button type="button" class="btn" id="shareDownload">Download image</button><span class="share-done" id="shareDlDone" hidden>Saved</span></div>
-        <p class="share-hint" id="shareWhere">It goes to your Downloads folder.</p>
+        <p class="share-hint" id="shareWhere"></p>
       </li>
       <li>
-        <div class="share-step-row"><button type="button" class="btn" id="shareLinkedIn">Copy text and open LinkedIn</button></div>
-        <p class="share-hint" id="shareApp">The post text, with the quiz link, is copied. In LinkedIn, start a post, paste the text if it isn't already there, add the image with the photo button, and post.</p>
+        <div class="share-step-row"><button type="button" class="btn primary" id="shareLinkedIn">Create LinkedIn post</button></div>
+        <p class="share-hint" id="shareApp"></p>
       </li>
     </ol>
     <details class="share-edit">
@@ -321,7 +316,10 @@
       <textarea id="shareText" rows="8" spellcheck="true" aria-label="Post text"></textarea>
     </details>
     <p class="share-note" id="shareNote" role="status"></p>
-    <div class="share-actions"><button class="btn ghost" value="close">Close</button></div>
+    <div class="share-actions">
+      <button type="button" class="btn ghost" id="shareNative" hidden>Send image and text together</button>
+      <button class="btn ghost" value="close">Close</button>
+    </div>
   </form>
 </dialog>
 <script type="module" src="assets/js/main.js"></script>
