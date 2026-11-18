@@ -318,10 +318,17 @@ dialog.short p { margin: 0 0 14px; color: var(--ink-2); font-size: 15px; }
 
 /* share dialog */
 dialog.sharebox { max-width: 560px; max-height: calc(100vh - 32px); overflow: auto; }
-.sharebox img { display: block; width: 100%; max-width: 380px; margin-left: auto !important; margin-right: auto !important; height: auto; border: 1px solid var(--rule); border-radius: 6px; margin: 4px 0 14px; background: var(--paper); }
-.share-label { display: block; font-size: 14px; color: var(--ink-2); margin-bottom: 4px; }
+.sharebox img { display: block; width: 100%; max-width: 300px; margin-left: auto !important; margin-right: auto !important; height: auto; border: 1px solid var(--rule); border-radius: 6px; margin: 4px 0 14px; background: var(--paper); }
+.share-lead { margin: 0 0 6px; font-size: 15px; color: var(--ink-2); }
+.share-steps { margin: 0 0 12px; padding-left: 22px; font-size: 15px; }
+.share-steps li { margin: 4px 0; }
+.share-edit { margin: 0 0 4px; font-size: 14px; }
+.share-edit summary { cursor: pointer; color: var(--ink-2); padding: 4px 0; }
+.share-edit textarea { margin-top: 6px; }
 .sharebox textarea { width: 100%; font: 15px/1.5 var(--sans); color: var(--ink); background: var(--sheet); border: 1px solid var(--rule-2); border-radius: 6px; padding: 10px 12px; resize: vertical; }
 .sharebox textarea:focus { outline: 2px solid var(--pager); outline-offset: 1px; }
 .share-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 8px; }
-.share-note { font-size: 13.5px; color: var(--ink-2); margin: 0 0 6px; }
+.share-note { font-size: 14px; color: var(--ink-2); margin: 4px 0 0; }
+.share-note:empty { display: none; }
 .share-note.done { color: var(--ok); }
+@media (max-width: 520px) { .sharebox img { max-width: 170px; } dialog.sharebox { padding: 18px 18px 14px; } .share-steps { font-size: 14.5px; } }

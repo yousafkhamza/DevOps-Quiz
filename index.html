@@ -298,17 +298,24 @@
 <audio id="warningSound" preload="auto" src="assets/beep.mp3"></audio>
 <dialog class="short sharebox" id="shareDlg" aria-labelledby="shareTitle">
   <form method="dialog">
-    <h3 id="shareTitle">Share your result</h3>
+    <h3 id="shareTitle">Post your result on LinkedIn</h3>
     <img id="shareImg" alt="Your result card" width="1200" height="1200">
-    <label class="share-label" for="shareText">Post text (edit it as you like)</label>
-    <textarea id="shareText" rows="8" spellcheck="true"></textarea>
+    <p class="share-lead">LinkedIn doesn't let websites attach images to your post, so here's how it works:</p>
+    <ol class="share-steps">
+      <li><b>Your result image is saved</b> <span id="shareWhere">to your Downloads folder</span>.</li>
+      <li><b>The post text is copied</b> for you, with the quiz link.</li>
+      <li><b>LinkedIn opens</b> <span id="shareApp">in a new tab</span> with the text filled in. Add the image with the photo button, then post.</li>
+    </ol>
+    <details class="share-edit">
+      <summary>See or edit the post text</summary>
+      <textarea id="shareText" rows="8" spellcheck="true" aria-label="Post text"></textarea>
+    </details>
     <div class="share-actions">
-      <button type="button" class="btn primary" id="shareNative" hidden>Share image and text</button>
-      <button type="button" class="btn primary" id="shareLinkedIn">Copy text and open LinkedIn</button>
-      <button type="button" class="btn" id="shareDownload">Download image</button>
+      <button type="button" class="btn primary" id="shareLinkedIn">Save image and open LinkedIn</button>
+      <button type="button" class="btn" id="shareNative" hidden>Share with another app</button>
+      <button class="btn ghost" value="close">Not now</button>
     </div>
-    <p class="share-note" id="shareNote">LinkedIn doesn't let other sites attach images, so the image downloads for you. In the LinkedIn post box, paste the text and add the image with the photo button.</p>
-    <button class="btn ghost" value="close">Close</button>
+    <p class="share-note" id="shareNote" role="status"></p>
   </form>
 </dialog>
 <script type="module" src="assets/js/main.js"></script>
