@@ -508,32 +508,47 @@ function wireShare(card) {
     $("#shareImg").src = url;
     $("#shareText").value = postText(card);
     note.textContent = ""; note.classList.remove("done");
-    $("#shareWhere").textContent = ios ? "to Files (tap Download if your phone asks)" : mobile ? "to your phone's Downloads" : "to your Downloads folder";
-    $("#shareApp").textContent = mobile ? "in the LinkedIn app (or the website if the app isn't installed)" : "in a new tab";
+    $("#shareDlDone").hidden = true;
+    $("#shareWhere").innerHTML = ios
+      ? "<b>On iPhone:</b> Safari asks whether to download the file. Tap <b>Download</b>, then come back to this page for step 2. It's saved in the Files app: open it there and tap Share, then Save Image, so LinkedIn can find it in Photos."
+      : mobile ? "It goes to your phone's Downloads, so you can pick it from your gallery or files in LinkedIn." : "It goes to your Downloads folder.";
+    $("#shareApp").textContent = mobile
+      ? "The post text, with the quiz link, is copied. LinkedIn opens. Tap Start a post, paste the text, add the image with the photo button, and post."
+      : "The post text, with the quiz link, is copied and LinkedIn opens in a new tab with the post box. Paste the text if it isn't already there, add the image with the photo button, and post.";
     const file = new File([blob], fname, { type: "image/png" });
     const canNative = mobile && !!(navigator.canShare && navigator.canShare({ files: [file] }));
-    $("#shareNative").hidden = !canNative;
+    $("#shareFast").hidden = !canNative;
+    $("#shareLead").hidden = canNative;
     $("#shareNative").onclick = async () => {
-      try { await navigator.share({ files: [file], text: $("#shareText").value }); }
-      catch (err) { if (err.name !== "AbortError") note.textContent = "Your phone couldn't share it. Use Save image and open LinkedIn instead."; }
+      const text = $("#shareText").value;
+      navigator.clipboard?.writeText(text).catch(() => {});
+      try {
+        await navigator.share({ files: [file], text });
+        note.textContent = "Sent. If LinkedIn left the text out, paste it: it's copied."; note.classList.add("done");
+      } catch (err) { if (err.name !== "AbortError") note.textContent = "Your phone couldn't share it. Use the two steps below instead."; }
     };
-    // Everything below runs in the same tap, with no waiting: phones (Safari especially)
-    // only allow downloads, clipboard and new tabs straight from the tap itself.
+    // Each step runs straight from the tap: phones only allow downloads, copying and new tabs from a tap.
+    const plainDownload = () => { const a = el("a", { href: url, download: fname }); document.body.appendChild(a); a.click(); a.remove(); $("#shareDlDone").hidden = false; };
+    const iosPhotos = ios && !!(navigator.canShare && navigator.canShare({ files: [file] }));
+    $("#shareDownload").textContent = iosPhotos ? "Save image to Photos" : "Download image";
+    if (iosPhotos) $("#shareWhere").innerHTML = "In the menu that opens, tap <b>Save Image</b>. It goes to your Photos, where LinkedIn's photo button can find it. Then come back here for step 2.";
+    $("#shareDownload").onclick = async () => {
+      if (!iosPhotos) return plainDownload();
+      try { await navigator.share({ files: [file] }); $("#shareDlDone").hidden = false; }
+      catch (err) { if (err.name !== "AbortError") plainDownload(); }
+    };
     $("#shareLinkedIn").onclick = () => {
       const text = $("#shareText").value;
       navigator.clipboard?.writeText(text).catch(() => {});
-      const a = el("a", { href: url, download: fname }); document.body.appendChild(a); a.click(); a.remove();
       const w = window.open(`https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(text)}`, "_blank");
       if (w) w.opener = null;
       note.classList.add("done");
       note.textContent = w === null && !mobile
-        ? "Image saved and text copied. Your browser blocked the new tab: open linkedin.com, start a post and paste."
-        : `Image saved and text copied. In LinkedIn, ${mobile ? "tap" : "click"} the photo button and pick the image. If the text isn't there, paste it.`;
-      $("#shareLinkedIn").textContent = "Open LinkedIn again";
+        ? "Text copied. Your browser blocked the new tab: open linkedin.com, click Start a post and paste."
+        : "Text copied. If the post box isn't open, start a post and paste.";
     };
-    $("#shareLinkedIn").textContent = "Save image and open LinkedIn";
     d.showModal ? d.showModal() : d.setAttribute("open", "");
-    $("#shareLinkedIn").focus();
+    (canNative ? $("#shareNative") : $("#shareDownload")).focus();
   };
 }
 const stripMd = s => String(s || "").replace(/[`*]/g, "").slice(0, 120);

@@ -300,22 +300,28 @@
   <form method="dialog">
     <h3 id="shareTitle">Post your result on LinkedIn</h3>
     <img id="shareImg" alt="Your result card" width="1200" height="1200">
-    <p class="share-lead">LinkedIn doesn't let websites attach images to your post, so here's how it works:</p>
+    <div class="share-fast" id="shareFast" hidden>
+      <p><b>Quickest on a phone:</b> send the image and text straight to the LinkedIn app. Pick LinkedIn in the list that opens.</p>
+      <button type="button" class="btn primary" id="shareNative">Share to the LinkedIn app</button>
+      <p class="share-or">Or do it in two steps:</p>
+    </div>
+    <p class="share-lead" id="shareLead">LinkedIn doesn't let websites attach images to a post, so it takes two steps:</p>
     <ol class="share-steps">
-      <li><b>Your result image is saved</b> <span id="shareWhere">to your Downloads folder</span>.</li>
-      <li><b>The post text is copied</b> for you, with the quiz link.</li>
-      <li><b>LinkedIn opens</b> <span id="shareApp">in a new tab</span> with the text filled in. Add the image with the photo button, then post.</li>
+      <li>
+        <div class="share-step-row"><button type="button" class="btn" id="shareDownload">Download image</button><span class="share-done" id="shareDlDone" hidden>Saved</span></div>
+        <p class="share-hint" id="shareWhere">It goes to your Downloads folder.</p>
+      </li>
+      <li>
+        <div class="share-step-row"><button type="button" class="btn" id="shareLinkedIn">Copy text and open LinkedIn</button></div>
+        <p class="share-hint" id="shareApp">The post text, with the quiz link, is copied. In LinkedIn, start a post, paste the text if it isn't already there, add the image with the photo button, and post.</p>
+      </li>
     </ol>
     <details class="share-edit">
       <summary>See or edit the post text</summary>
       <textarea id="shareText" rows="8" spellcheck="true" aria-label="Post text"></textarea>
     </details>
-    <div class="share-actions">
-      <button type="button" class="btn primary" id="shareLinkedIn">Save image and open LinkedIn</button>
-      <button type="button" class="btn" id="shareNative" hidden>Share with another app</button>
-      <button class="btn ghost" value="close">Not now</button>
-    </div>
     <p class="share-note" id="shareNote" role="status"></p>
+    <div class="share-actions"><button class="btn ghost" value="close">Close</button></div>
   </form>
 </dialog>
 <script type="module" src="assets/js/main.js"></script>

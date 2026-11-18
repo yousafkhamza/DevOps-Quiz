@@ -321,7 +321,14 @@ dialog.sharebox { max-width: 560px; max-height: calc(100vh - 32px); overflow: au
 .sharebox img { display: block; width: 100%; max-width: 300px; margin-left: auto !important; margin-right: auto !important; height: auto; border: 1px solid var(--rule); border-radius: 6px; margin: 4px 0 14px; background: var(--paper); }
 .share-lead { margin: 0 0 6px; font-size: 15px; color: var(--ink-2); }
 .share-steps { margin: 0 0 12px; padding-left: 22px; font-size: 15px; }
-.share-steps li { margin: 4px 0; }
+.share-steps li { margin: 10px 0; }
+.share-step-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.share-hint { margin: 6px 0 0; font-size: 14px; color: var(--ink-2); }
+.share-hint b { color: var(--ink); }
+.share-done { color: var(--ok); font-weight: 600; font-size: 14px; }
+.share-fast { border: 1px solid var(--rule-2); border-radius: 6px; padding: 12px 14px; margin: 0 0 12px; background: var(--pager-wash); }
+.share-fast p { margin: 0 0 10px; font-size: 14.5px; color: var(--ink); }
+.share-fast .share-or { margin: 12px 0 0; color: var(--ink-2); }
 .share-edit { margin: 0 0 4px; font-size: 14px; }
 .share-edit summary { cursor: pointer; color: var(--ink-2); padding: 4px 0; }
 .share-edit textarea { margin-top: 6px; }
